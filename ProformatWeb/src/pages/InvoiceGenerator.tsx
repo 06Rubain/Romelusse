@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { db } from '../firebase';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Printer, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Printer, Plus } from 'lucide-react';
 // @ts-ignore
 import logoUrl from '../assets/ELEMENT FACTURE MP-01.png';
 // @ts-ignore
@@ -65,11 +64,7 @@ export default function InvoiceGenerator() {
     }
   };
 
-  const removeProduct = (idx: number) => {
-    const arr = [...selectedProducts];
-    arr.splice(idx, 1);
-    setSelectedProducts(arr);
-  };
+
 
   const total = selectedProducts.reduce((sum, item) => sum + (parseFloat(item.price) || 0) * item.quantity, 0);
 

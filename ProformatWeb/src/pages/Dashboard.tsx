@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { db, auth } from '../firebase';
+import { useEffect, useState } from 'react';
+import { auth } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Plus, LogOut, BarChart3, Users, Printer } from 'lucide-react';
 import { signOut } from 'firebase/auth';
@@ -112,7 +112,7 @@ export default function Dashboard() {
                     <td><span className={`badge ${inv.type === 'Proforma' ? 'badge-info' : 'badge-success'}`}>{inv.type}</span></td>
                     <td style={{ fontWeight: 600, color: 'var(--primary)' }}>{inv.total}</td>
                     <td style={{ textAlign: 'right' }}>
-                      <Printer size={18} color="var(--primary)" style={{ cursor: 'pointer' }} onClick={() => navigate(`/invoice/${inv.id}`)} title="Réimprimer la facture" />
+                      <Printer size={18} color="var(--primary)" style={{ cursor: 'pointer' }} onClick={() => navigate(`/invoice/${inv.id}`)} />
                     </td>
                   </tr>
                 ))}

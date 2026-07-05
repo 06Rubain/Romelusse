@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, Edit2, X } from 'lucide-react';
@@ -135,8 +135,8 @@ export default function ProductsList() {
                     <td style={{ color: 'var(--text-muted)' }}>{prod.description}</td>
                     <td style={{ fontWeight: 600, color: 'var(--primary)' }}>{prod.price}</td>
                     <td style={{ textAlign: 'right' }}>
-                      <Edit2 size={18} color="var(--primary)" style={{ cursor: 'pointer', marginRight: '15px' }} onClick={() => handleEdit(prod)} title="Modifier" />
-                      <Trash2 size={18} color="red" style={{ cursor: 'pointer' }} onClick={() => handleDelete(prod.id)} title="Supprimer" />
+                      <Edit2 size={18} color="var(--primary)" style={{ cursor: 'pointer', marginRight: '15px' }} onClick={() => handleEdit(prod)} />
+                      <Trash2 size={18} color="red" style={{ cursor: 'pointer' }} onClick={() => handleDelete(prod.id)} />
                     </td>
                   </tr>
                 ))}

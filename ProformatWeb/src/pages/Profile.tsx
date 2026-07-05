@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { auth } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, User as UserIcon } from 'lucide-react';
@@ -76,7 +76,7 @@ export default function Profile() {
                   <UserIcon size={60} />
                 </div>
               )}
-              <div style={{ position: 'absolute', bottom: '5px', right: '5px', width: '20px', height: '20px', backgroundColor: '#10B981', borderRadius: '50%', border: '3px solid #1A1A24', title: 'En ligne' }}></div>
+              <div style={{ position: 'absolute', bottom: '5px', right: '5px', width: '20px', height: '20px', backgroundColor: '#10B981', borderRadius: '50%', border: '3px solid #1A1A24' }}></div>
             </div>
             <h1 style={{ margin: '0 0 8px 0', fontSize: '2.2rem', fontWeight: '700', letterSpacing: '-0.5px' }} className="gradient-text">{userData?.displayName || 'Utilisateur'}</h1>
             <span style={{ padding: '6px 14px', background: 'rgba(255,255,255,0.05)', borderRadius: '20px', color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: '500', border: '1px solid rgba(255,255,255,0.1)' }}>Administrateur</span>
