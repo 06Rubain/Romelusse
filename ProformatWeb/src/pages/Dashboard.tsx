@@ -1,0 +1,130 @@
+import React, { useEffect, useState } from 'react';
+import { db, auth } from '../firebase';
+import { useNavigate } from 'react-router-dom';
+import { FileText, Plus, LogOut, BarChart3, Users, Printer } from 'lucide-react';
+import { signOut } from 'firebase/auth';
+import { API_URL } from '../config';
+
+export default function Dashboard() {
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchInvoices = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/invoices`);
+        const data = await res.json();
+        setInvoices(data.map((inv: any) => ({ ...inv, id: inv._id })));
+      } catch (err) {
+        console.error("Erreur de chargement des factures :", err);
+      }
+    };
+    fetchInvoices();
+  }, []);
+
+  const totalRevenue = invoices.reduce((sum, inv) => {
+    const val = parseFloat((inv.total || '').toString().replace(/[^0-9.]/g, '')) || 0;
+    return sum + val;
+  }, 0);
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    navigate('/login');
+  };
+  
+  return (
+    <div className="app-container">
+      <div className="sidebar">
+        <div style={{ marginBottom: '40px' }}>
+          <h2 className="gradient-text" style={{ margin: 0 }}>Mélanine Print</h2>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Admin Dashboard</span>
+        </div>
+        
+        <nav style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: 'rgba(0,168,181,0.1)', color: 'var(--primary)', borderRadius: '8px', cursor: 'pointer', marginBottom: '10px' }}>
+            <BarChart3 size={20} />
+            <strong>Tableau de bord</strong>
+          </div>
+          <div onClick={() => navigate('/invoice')} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', color: 'var(--text-muted)', cursor: 'pointer', transition: 'color 0.2s' }}>
+            <Plus size={20} />
+            <span>Nouvelle Facture</span>
+          </div>
+          <div onClick={() => navigate('/products')} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', color: 'var(--text-muted)', cursor: 'pointer', transition: 'color 0.2s' }}>
+            <FileText size={20} />
+            <span>Produits & Services</span>
+          </div>
+          <div onClick={() => navigate('/profile')} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', color: 'var(--text-muted)', cursor: 'pointer', transition: 'color 0.2s' }}>
+            <Users size={20} />
+            <span>Mon Profil</span>
+          </div>
+        </nav>
+
+        <div onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', color: 'var(--danger)', cursor: 'pointer' }}>
+          <LogOut size={20} />
+          <span>Déconnexion</span>
+        </div>
+      </div>
+
+      <div className="main-content animate-fade-in">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+          <h1>Aperçu des Factures</h1>
+          <button className="btn btn-primary" onClick={() => navigate('/invoice')}>
+            <Plus size={18} /> Créer une facture
+          </button>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '24px', marginBottom: '40px' }}>
+          <div className="card glass">
+            <div style={{ color: 'var(--text-muted)', marginBottom: '8px' }}>Chiffre d'affaires</div>
+            <h2 style={{ margin: 0, fontSize: '2rem' }}>{totalRevenue.toLocaleString()} $</h2>
+          </div>
+          <div className="card glass">
+            <div style={{ color: 'var(--text-muted)', marginBottom: '8px' }}>Factures générées</div>
+            <h2 style={{ margin: 0, fontSize: '2rem' }}>{invoices.length}</h2>
+          </div>
+          <div className="card glass">
+            <div style={{ color: 'var(--text-muted)', marginBottom: '8px' }}>Clients uniques</div>
+            <h2 style={{ margin: 0, fontSize: '2rem' }}>{new Set(invoices.map(i => i.client)).size}</h2>
+          </div>
+        </div>
+
+        <div className="card glass">
+          <h3 style={{ marginBottom: '20px' }}>Historique Récent</h3>
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Numéro</th>
+                  <th>Date</th>
+                  <th>Client</th>
+                  <th>Type</th>
+                  <th>Total</th>
+                  <th style={{ textAlign: 'right' }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {invoices.map(inv => (
+                  <tr key={inv.id}>
+                    <td style={{ fontWeight: 500 }}>{inv.number}</td>
+                    <td style={{ color: 'var(--text-muted)' }}>{inv.date}</td>
+                    <td>{inv.client}</td>
+                    <td><span className={`badge ${inv.type === 'Proforma' ? 'badge-info' : 'badge-success'}`}>{inv.type}</span></td>
+                    <td style={{ fontWeight: 600, color: 'var(--primary)' }}>{inv.total}</td>
+                    <td style={{ textAlign: 'right' }}>
+                      <Printer size={18} color="var(--primary)" style={{ cursor: 'pointer' }} onClick={() => navigate(`/invoice/${inv.id}`)} title="Réimprimer la facture" />
+                    </td>
+                  </tr>
+                ))}
+                {invoices.length === 0 && (
+                  <tr>
+                    <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Aucune facture trouvée.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
