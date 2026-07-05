@@ -4,6 +4,7 @@ import { auth } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 import { LogIn } from 'lucide-react';
 import { API_URL } from '../config';
+import { fetchWithAuth } from '../api';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -14,7 +15,7 @@ export default function Login() {
 
   const saveUserToMongoDB = async (user: any, provider: string) => {
     try {
-      await fetch(`${API_URL}/api/users`, {
+      await fetchWithAuth(`${API_URL}/api/users`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

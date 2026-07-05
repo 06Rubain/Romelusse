@@ -1,22 +1,35 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 
 require('dotenv').config();
+const verifyToken = require('./middleware/authMiddleware');
 
 const Product = require('./models/Product');
 const Invoice = require('./models/Invoice');
 const User = require('./models/User');
 
 const app = express();
+app.use(helmet());
 app.use(cors());
 app.use(express.json());
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  message: 'Trop de requêtes depuis cette adresse IP, veuillez réessayer plus tard.'
+});
+app.use('/api/', apiLimiter);
 
 // MongoDB connection
 const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/proformat';
 mongoose.connect(mongoUri)
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
+
+app.use('/api', verifyToken);
 
 // ---- Products API ----
 app.get('/api/products', async (req, res) => {

@@ -3,6 +3,7 @@ import { auth } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, User as UserIcon } from 'lucide-react';
 import { API_URL } from '../config';
+import { fetchWithAuth } from '../api';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -18,7 +19,7 @@ export default function Profile() {
       }
 
       try {
-        const res = await fetch(`${API_URL}/api/users/${user.uid}`);
+        const res = await fetchWithAuth(`${API_URL}/api/users/${user.uid}`);
         if (res.ok) {
           const data = await res.json();
           setUserData(data);

@@ -3,6 +3,7 @@ import { db } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, Edit2, X } from 'lucide-react';
 import { API_URL } from '../config';
+import { fetchWithAuth } from '../api';
 
 export default function ProductsList() {
   const [products, setProducts] = useState<any[]>([]);
@@ -15,7 +16,7 @@ export default function ProductsList() {
 
   const loadProducts = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/products`);
+      const res = await fetchWithAuth(`${API_URL}/api/products`);
       const data = await res.json();
       setProducts(data.map((p: any) => ({ ...p, id: p._id })));
     } catch (err) {
@@ -34,14 +35,14 @@ export default function ProductsList() {
     try {
       if (editingId) {
         // Mode Modification
-        await fetch(`${API_URL}/api/products/${editingId}`, {
+        await fetchWithAuth(`${API_URL}/api/products/${editingId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, description, price })
         });
       } else {
         // Mode Ajout
-        await fetch(`${API_URL}/api/products`, {
+        await fetchWithAuth(`${API_URL}/api/products`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, description, price })
@@ -72,7 +73,7 @@ export default function ProductsList() {
 
   const handleDelete = async (id: string) => {
     if(window.confirm('Voulez-vous vraiment supprimer ce produit ?')) {
-      await fetch(`${API_URL}/api/products/${id}`, { method: 'DELETE' });
+      await fetchWithAuth(`${API_URL}/api/products/${id}`, { method: 'DELETE' });
       loadProducts();
     }
   };

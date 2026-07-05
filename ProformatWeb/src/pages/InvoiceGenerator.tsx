@@ -8,6 +8,7 @@ import logoUrl from '../assets/ELEMENT FACTURE MP-01.png';
 import footerUrl from '../assets/ELEMENT FACTURE MP-03.png';
 import { useReactToPrint } from 'react-to-print';
 import { API_URL } from '../config';
+import { fetchWithAuth } from '../api';
 
 export default function InvoiceGenerator() {
   const navigate = useNavigate();
@@ -26,7 +27,7 @@ export default function InvoiceGenerator() {
   useEffect(() => {
     const fetchCatalog = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/products`);
+        const res = await fetchWithAuth(`${API_URL}/api/products`);
         const data = await res.json();
         setCatalog(data.map((doc: any) => ({ ...doc, id: doc._id })));
       } catch (err) {
@@ -37,7 +38,7 @@ export default function InvoiceGenerator() {
     const fetchInvoice = async () => {
       if (!id) return;
       try {
-        const res = await fetch(`${API_URL}/api/invoices/${id}`);
+        const res = await fetchWithAuth(`${API_URL}/api/invoices/${id}`);
         const data = await res.json();
         if (data && !data.error) {
           setClientName(data.client || '');
@@ -86,7 +87,7 @@ export default function InvoiceGenerator() {
 
     // Sinon, c'est une nouvelle facture, on la sauvegarde.
     try {
-      await fetch(`${API_URL}/api/invoices`, {
+      await fetchWithAuth(`${API_URL}/api/invoices`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

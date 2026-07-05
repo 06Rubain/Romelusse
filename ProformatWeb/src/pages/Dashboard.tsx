@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { FileText, Plus, LogOut, BarChart3, Users, Printer } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { API_URL } from '../config';
+import { fetchWithAuth } from '../api';
 
 export default function Dashboard() {
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -12,7 +13,7 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchInvoices = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/invoices`);
+        const res = await fetchWithAuth(`${API_URL}/api/invoices`);
         const data = await res.json();
         setInvoices(data.map((inv: any) => ({ ...inv, id: inv._id })));
       } catch (err) {
