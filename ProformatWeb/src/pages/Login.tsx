@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, FacebookAuthProvider } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, FacebookAuthProvider, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 import { LogIn } from 'lucide-react';
@@ -10,6 +10,7 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [resetMessage, setResetMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -76,6 +77,24 @@ export default function Login() {
     }
   };
 
+  const handleResetPassword = async () => {
+    if (!email) {
+      setError("Veuillez entrer votre adresse e-mail pour réinitialiser le mot de passe.");
+      return;
+    }
+    setError('');
+    setResetMessage('');
+    setLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setResetMessage("Un e-mail de réinitialisation a été envoyé !");
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="app-container gradient-bg" style={{ justifyContent: 'center', alignItems: 'center' }}>
       <div className="glass animate-fade-in" style={{ width: '100%', maxWidth: '400px', padding: '40px' }}>
@@ -85,6 +104,7 @@ export default function Login() {
         </div>
 
         {error && <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', padding: '12px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.9rem' }}>{error}</div>}
+        {resetMessage && <div style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', padding: '12px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.9rem' }}>{resetMessage}</div>}
 
         <form onSubmit={handleLogin}>
           <div className="input-group">
@@ -107,6 +127,18 @@ export default function Login() {
               required 
             />
           </div>
+
+          <div style={{ textAlign: 'right', marginTop: '-5px', marginBottom: '15px' }}>
+            <button 
+              type="button" 
+              onClick={handleResetPassword}
+              style={{ background: 'none', border: 'none', color: '#3b82f6', fontSize: '0.85rem', cursor: 'pointer', padding: 0 }}
+              disabled={loading}
+            >
+              Mot de passe oublié ?
+            </button>
+          </div>
+
           <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '10px' }} disabled={loading}>
             <LogIn size={18} />
             {loading ? 'Connexion...' : 'Se connecter'}
