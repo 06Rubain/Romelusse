@@ -176,10 +176,15 @@ export default function InvoiceGenerator() {
               onChange={e => setQuantity(parseInt(e.target.value) || 1)} 
             />
             <button className="btn btn-outline" type="button" onClick={() => {
-              if(!selectedProductId) return;
-              const prod = catalog.find(p => p.id === selectedProductId);
+              if(!selectedProductId) {
+                alert("Veuillez choisir un produit dans la liste déroulante.");
+                return;
+              }
+              const prod = catalog.find(p => String(p.id) === String(selectedProductId) || String(p._id) === String(selectedProductId));
               if(prod) {
                 addProduct(prod, quantity);
+              } else {
+                alert("Le produit sélectionné est introuvable. ID=" + selectedProductId);
               }
               setSelectedProductId('');
               setQuantity(1);
