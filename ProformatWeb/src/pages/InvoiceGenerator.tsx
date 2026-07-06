@@ -325,7 +325,7 @@ export default function InvoiceGenerator() {
              <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', marginBottom: '8px', alignItems: 'center' }}>
                   <div style={{ background: '#c92a2a', color: 'white', padding: '6px 15px', fontWeight: 'bold', fontSize: '14px', width: '130px', textAlign: 'center' }}>
-                    FACTURE N°
+                    {type === 'Proforma' ? 'PROFORMA N°' : 'FACTURE N°'}
                   </div>
                   <div style={{ background: 'white', color: 'black', padding: '6px 15px', fontWeight: 'bold', fontSize: '14px', width: '220px' }}>
                     : {invoiceNumber}
