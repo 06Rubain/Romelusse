@@ -245,6 +245,8 @@ tr:hover td {
     border-right: none;
     border-bottom: 1px solid var(--border);
     padding: 16px;
+    max-height: 40vh;
+    overflow-y: auto;
   }
   
   .sidebar nav {
@@ -257,11 +259,12 @@ tr:hover td {
     flex: 1;
     min-width: 140px;
     justify-content: center;
-    margin-bottom: 0 !important;
+    margin-bottom: 5px !important;
   }
   
   .main-content {
-    padding: 16px;
+    padding: 16px !important;
+    overflow-x: auto;
   }
   
   h1 {
