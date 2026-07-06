@@ -16,6 +16,7 @@ export default function InvoiceGenerator() {
   const [type, setType] = useState('Proforma');
   const [invoiceNumber, setInvoiceNumber] = useState(`070-57-${Math.floor(Math.random() * 10000)}`);
   const [invoiceDate, setInvoiceDate] = useState(new Date().toLocaleDateString('fr-FR'));
+  const [printFormat, setPrintFormat] = useState('A4');
   
   const [catalog, setCatalog] = useState<any[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<any[]>([]);
@@ -124,6 +125,15 @@ export default function InvoiceGenerator() {
             <option value="Achat">Facture d'Achat</option>
           </select>
         </div>
+        
+        <div className="input-group">
+          <label>Format d'impression</label>
+          <select className="input-field" value={printFormat} onChange={e => setPrintFormat(e.target.value)}>
+            <option value="A4">A4 (Standard)</option>
+            <option value="A6">A6 (Petit)</option>
+          </select>
+        </div>
+
         <div className="input-group">
           <label>Ajouter un produit</label>
           <div style={{ display: 'flex', gap: '10px' }}>
@@ -168,7 +178,10 @@ export default function InvoiceGenerator() {
           background: 'white', 
           position: 'relative', 
           boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
-          fontFamily: 'Arial, Helvetica, sans-serif'
+          fontFamily: 'Arial, Helvetica, sans-serif',
+          transform: printFormat === 'A6' ? 'scale(0.5)' : 'none',
+          transformOrigin: 'top center',
+          marginBottom: printFormat === 'A6' ? '-148.5mm' : '0'
         }}>
           
           {/* Header Banner */}
@@ -317,13 +330,17 @@ export default function InvoiceGenerator() {
             print-color-adjust: exact;
           }
           @page {
-            size: A4;
+            size: ${printFormat};
             margin: 0;
           }
           .no-print { display: none !important; }
           .sidebar { display: none !important; }
           .main-content { padding: 0 !important; background: white !important; margin: 0 !important; }
-          #print-area { box-shadow: none !important; width: 100% !important; max-width: none !important; }
+          #print-area { 
+            box-shadow: none !important; 
+            transform: ${printFormat === 'A6' ? 'scale(0.5)' : 'none'} !important;
+            transform-origin: top left !important;
+          }
         }
       `}</style>
     </div>
