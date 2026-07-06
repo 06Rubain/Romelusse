@@ -10,6 +10,7 @@ const verifyToken = require('./middleware/authMiddleware');
 const Product = require('./models/Product');
 const Invoice = require('./models/Invoice');
 const User = require('./models/User');
+const Activity = require('./models/Activity');
 
 const app = express();
 app.use(helmet());
@@ -124,6 +125,26 @@ app.post('/api/users', async (req, res) => {
       { new: true, upsert: true }
     );
     res.status(200).json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---- Activities API ----
+app.get('/api/activities', async (req, res) => {
+  try {
+    const activities = await Activity.find().sort({ date: -1 }).limit(100);
+    res.json(activities);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/activities', async (req, res) => {
+  try {
+    const newActivity = new Activity(req.body);
+    const saved = await newActivity.save();
+    res.status(201).json(saved);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

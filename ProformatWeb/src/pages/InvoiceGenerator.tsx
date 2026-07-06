@@ -8,6 +8,7 @@ import footerUrl from '../assets/ELEMENT FACTURE MP-03.png';
 import { useReactToPrint } from 'react-to-print';
 import { API_URL } from '../config';
 import { fetchWithAuth } from '../api';
+import { auth } from '../firebase';
 
 export default function InvoiceGenerator() {
   const navigate = useNavigate();
@@ -96,6 +97,18 @@ export default function InvoiceGenerator() {
           status: 'En attente'
         })
       });
+
+      if (auth.currentUser) {
+        await fetchWithAuth(`${API_URL}/api/activities`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userEmail: auth.currentUser.email,
+            action: 'Création de facture',
+            details: `Facture N° ${invoiceNumber} pour le client ${clientName} d'un montant de ${total} USD`
+          })
+        });
+      }
 
       reactToPrintFn();
 

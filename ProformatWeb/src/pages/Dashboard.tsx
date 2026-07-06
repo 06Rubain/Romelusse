@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { auth } from '../firebase';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Plus, LogOut, BarChart3, Users, Printer } from 'lucide-react';
+import { FileText, Plus, LogOut, BarChart3, Users, Printer, Activity as ActivityIcon } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { API_URL } from '../config';
 import { fetchWithAuth } from '../api';
 
 export default function Dashboard() {
   const [invoices, setInvoices] = useState<any[]>([]);
+  const [activities, setActivities] = useState<any[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -20,7 +21,19 @@ export default function Dashboard() {
         console.error("Erreur de chargement des factures :", err);
       }
     };
+    
+    const fetchActivities = async () => {
+      try {
+        const res = await fetchWithAuth(`${API_URL}/api/activities`);
+        const data = await res.json();
+        setActivities(data);
+      } catch (err) {
+        console.error("Erreur de chargement des activités :", err);
+      }
+    };
+
     fetchInvoices();
+    fetchActivities();
   }, []);
 
   const totalRevenue = invoices.reduce((sum, inv) => {
@@ -119,6 +132,44 @@ export default function Dashboard() {
                 {invoices.length === 0 && (
                   <tr>
                     <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Aucune facture trouvée.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="card glass" style={{ marginTop: '40px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+            <ActivityIcon size={24} color="var(--primary)" />
+            <h3 style={{ margin: 0 }}>Historique des Connexions et Activités</h3>
+          </div>
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date & Heure</th>
+                  <th>Utilisateur</th>
+                  <th>Action</th>
+                  <th>Détails</th>
+                </tr>
+              </thead>
+              <tbody>
+                {activities.map(act => (
+                  <tr key={act._id}>
+                    <td style={{ color: 'var(--text-muted)' }}>{new Date(act.date).toLocaleString('fr-FR')}</td>
+                    <td style={{ fontWeight: 500 }}>{act.userEmail}</td>
+                    <td>
+                      <span className={`badge ${act.action === 'Connexion' ? 'badge-success' : 'badge-info'}`}>
+                        {act.action}
+                      </span>
+                    </td>
+                    <td style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{act.details}</td>
+                  </tr>
+                ))}
+                {activities.length === 0 && (
+                  <tr>
+                    <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Aucune activité récente.</td>
                   </tr>
                 )}
               </tbody>
