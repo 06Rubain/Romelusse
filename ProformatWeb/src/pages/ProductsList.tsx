@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, Edit2, X } from 'lucide-react';
 import { API_URL } from '../config';
@@ -24,7 +24,8 @@ export default function ProductsList() {
     }
   };
 
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user: any) => {
       if (user) {
         loadProducts();
       }
@@ -154,7 +155,7 @@ export default function ProductsList() {
       loadProducts();
     } catch (err) {
       console.error(err);
-      alert('Erreur lors de l\\'importation');
+      alert("Erreur lors de l'importation");
     } finally {
       setLoading(false);
     }
