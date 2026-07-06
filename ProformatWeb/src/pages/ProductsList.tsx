@@ -83,6 +83,83 @@ export default function ProductsList() {
     }
   };
 
+  const importGrille = async () => {
+    if(!window.confirm("Voulez-vous importer la grille tarifaire 2026 ?")) return;
+    setLoading(true);
+    const productsList = [
+      { name: 'Papier ordinaire A4 N&B', price: '300 FC' },
+      { name: 'Papier photo A4 N&B', price: '2000 FC' },
+      { name: 'Papier Bristol A4 N&B', price: '1000 FC' },
+      { name: 'Papier brillant A4 N&B', price: '2000 FC' },
+      { name: 'Papier Doré A4 N&B', price: '1500 FC' },
+      { name: 'Autocollant A4 N&B', price: '1000 FC' },
+      { name: 'PHOTOCOPIE A4 N&B', price: '200 FC' },
+      { name: 'Papier couché 135-150 g A4 N&B', price: '1000 FC' },
+      { name: 'Papier couché 200-300 g A4 N&B', price: '1500 FC' },
+
+      { name: 'Papier ordinaire A4 Couleur', price: '600 FC' },
+      { name: 'Papier photo A4 Couleur', price: '3000 FC' },
+      { name: 'Papier Bristol A4 Couleur', price: '1500 FC' },
+      { name: 'Papier brillant A4 Couleur', price: '3000 FC' },
+      { name: 'Papier Doré A4 Couleur', price: '1800 FC' },
+      { name: 'Autocollant A4 Couleur', price: '1500 FC' },
+      { name: 'PHOTOCOPIE A4 Couleur', price: '500 FC' },
+      { name: 'Papier couché 135-150 g A4 Couleur', price: '1500 FC' },
+      { name: 'Papier couché 200-300 g A4 Couleur', price: '1700 FC' },
+
+      { name: 'Papier ordinaire A3 N&B', price: '1000 FC' },
+      { name: 'Papier couché 135-150 g A3 N&B', price: '2000 FC' },
+      { name: 'Papier couché 200-300 g A3 N&B', price: '2500 FC' },
+      { name: 'Papier Bristol A3 N&B', price: '2000 FC' },
+      { name: 'Papier autocollant A3 N&B', price: '2500 FC' },
+
+      { name: 'Papier ordinaire A3 Couleur', price: '1200 FC' },
+      { name: 'Papier couché 135-150 g A3 Couleur', price: '2500 FC' },
+      { name: 'Papier Bristol A3 Couleur', price: '2800 FC' },
+      { name: 'Papier couché 200-300 g A3 Couleur', price: '3500 FC' },
+      { name: 'Papier autocollant A3 Couleur', price: '3000 FC' },
+
+      { name: 'BÂCHE 1x1 m', price: '16000 FC' },
+      { name: 'Vinyle 1x1 m', price: '22500 FC' },
+      { name: 'Vinyle 1.50x1 m', price: '33750 FC' },
+      { name: 'Wane way 1.50x1 m', price: '36000 FC' },
+      { name: 'Black-out 1x2 m', price: '45000 FC' },
+
+      { name: 'Papier photo A2', price: '16000 FC' },
+      { name: 'Papier photo A1', price: '32000 FC' },
+      { name: 'Papier photo A0', price: '57000 FC' },
+      { name: 'Papier ordinaire A2', price: '10500 FC' },
+      { name: 'Papier ordinaire A1', price: '21000 FC' },
+      { name: 'Papier ordinaire A0', price: '36500 FC' },
+
+      { name: 'Roll-Up', price: 'Sur devis' },
+      { name: 'X-Stand', price: 'Sur devis' },
+      { name: 'Cube', price: 'Sur devis' },
+      { name: 'Forex', price: 'Sur devis' },
+      { name: 'Backlight', price: 'Sur devis' },
+      { name: 'Plexy', price: 'Sur devis' },
+      { name: 'Mèche perforée', price: 'Sur devis' },
+      { name: 'Drapeau', price: 'Sur devis' }
+    ];
+
+    try {
+      for (const prod of productsList) {
+        await fetchWithAuth(`${API_URL}/api/products`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: prod.name, description: '', price: prod.price })
+        });
+      }
+      alert('Importation terminée !');
+      loadProducts();
+    } catch (err) {
+      console.error(err);
+      alert('Erreur lors de l\\'importation');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="app-container">
       <div className="sidebar">
@@ -120,7 +197,12 @@ export default function ProductsList() {
       </div>
 
       <div className="main-content animate-fade-in">
-        <h1 style={{ marginBottom: '32px' }}>Catalogue de Produits</h1>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+          <h1>Catalogue de Produits</h1>
+          <button className="btn btn-outline" onClick={importGrille} disabled={loading}>
+            {loading ? 'Importation en cours...' : 'Importer Grille Tarifaire 2026'}
+          </button>
+        </div>
         
         <div className="card glass">
           <div className="table-container">
