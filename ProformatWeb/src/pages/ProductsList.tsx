@@ -24,8 +24,13 @@ export default function ProductsList() {
     }
   };
 
-  useEffect(() => {
-    loadProducts();
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        loadProducts();
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const handleAdd = async (e: React.FormEvent) => {

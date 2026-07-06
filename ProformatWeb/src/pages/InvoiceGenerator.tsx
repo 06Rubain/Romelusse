@@ -59,8 +59,14 @@ export default function InvoiceGenerator() {
       }
     };
 
-    fetchCatalog();
-    if (id) fetchInvoice();
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        fetchCatalog();
+        if (id) fetchInvoice();
+      }
+    });
+
+    return () => unsubscribe();
   }, [id]);
 
   const addProduct = (prod: any, qty: number) => {

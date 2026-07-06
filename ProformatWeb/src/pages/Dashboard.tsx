@@ -42,8 +42,14 @@ export default function Dashboard() {
       }
     };
 
-    fetchInvoices();
-    fetchActivities();
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        fetchInvoices();
+        fetchActivities();
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const totalRevenue = invoices.reduce((sum, inv) => {
