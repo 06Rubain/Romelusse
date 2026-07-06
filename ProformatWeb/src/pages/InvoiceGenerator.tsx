@@ -18,6 +18,8 @@ export default function InvoiceGenerator() {
   const [invoiceNumber, setInvoiceNumber] = useState(`070-57-${Math.floor(Math.random() * 10000)}`);
   const [invoiceDate, setInvoiceDate] = useState(new Date().toLocaleDateString('fr-FR'));
   const [printFormat, setPrintFormat] = useState('A4');
+  const [invoiceCurrency, setInvoiceCurrency] = useState<'USD' | 'FC'>('USD');
+  const [exchangeRate, setExchangeRate] = useState<number>(2850);
   
   const [catalog, setCatalog] = useState<any[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<any[]>([]);
@@ -78,9 +80,21 @@ export default function InvoiceGenerator() {
     }
   };
 
+  const parsePrice = (priceStr: string) => {
+    const num = parseFloat(priceStr) || 0;
+    const curr = priceStr.toUpperCase().includes('FC') ? 'FC' : 'USD';
+    return { num, curr };
+  };
 
+  const getConvertedPrice = (priceStr: string) => {
+    const { num, curr } = parsePrice(priceStr);
+    if (curr === invoiceCurrency) return num;
+    if (curr === 'USD' && invoiceCurrency === 'FC') return num * exchangeRate;
+    if (curr === 'FC' && invoiceCurrency === 'USD') return num / exchangeRate;
+    return num;
+  };
 
-  const total = selectedProducts.reduce((sum, item) => sum + (parseFloat(item.price) || 0) * item.quantity, 0);
+  const total = selectedProducts.reduce((sum, item) => sum + getConvertedPrice(item.price) * item.quantity, 0);
 
   const handlePrintAndSave = async () => {
     if (!clientName || selectedProducts.length === 0) {
@@ -103,7 +117,7 @@ export default function InvoiceGenerator() {
           client: clientName,
           type,
           date: invoiceDate,
-          total: total + ' USD',
+          total: total.toFixed(2) + ' ' + invoiceCurrency,
           products: selectedProducts,
           number: invoiceNumber,
           status: 'En attente'
@@ -117,7 +131,7 @@ export default function InvoiceGenerator() {
           body: JSON.stringify({
             userEmail: auth.currentUser.email,
             action: 'Création de facture',
-            details: `Facture N° ${invoiceNumber} pour le client ${clientName} d'un montant de ${total} USD`
+            details: `Facture N° ${invoiceNumber} pour le client ${clientName} d'un montant de ${total.toFixed(2)} ${invoiceCurrency}`
           })
         });
       }
@@ -157,6 +171,21 @@ export default function InvoiceGenerator() {
             <option value="A4">A4 (Standard)</option>
             <option value="A6">A6 (Petit)</option>
           </select>
+        </div>
+
+        <div className="input-group">
+          <label>Devise de la facture</label>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <select className="input-field" style={{ flex: 1 }} value={invoiceCurrency} onChange={e => setInvoiceCurrency(e.target.value as 'USD' | 'FC')}>
+              <option value="USD">USD</option>
+              <option value="FC">Franc Congolais (FC)</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="input-group">
+          <label>Taux de change (1 USD = ? FC)</label>
+          <input type="number" className="input-field" value={exchangeRate} onChange={e => setExchangeRate(parseFloat(e.target.value) || 2850)} />
         </div>
 
         <div className="input-group">
@@ -270,8 +299,8 @@ export default function InvoiceGenerator() {
               }}>
                 <div style={{ padding: '8px', width: '10%', textAlign: 'center', borderRight: '2px solid white' }}>Qté</div>
                 <div style={{ padding: '8px', width: '60%', textAlign: 'center', borderRight: '2px solid white' }}>Désignation</div>
-                <div style={{ padding: '8px', width: '15%', textAlign: 'center', borderRight: '2px solid white' }}>P.U$</div>
-                <div style={{ padding: '8px', width: '15%', textAlign: 'center' }}>P.T$</div>
+                <div style={{ padding: '8px', width: '15%', textAlign: 'center', borderRight: '2px solid white' }}>P.U ({invoiceCurrency})</div>
+                <div style={{ padding: '8px', width: '15%', textAlign: 'center' }}>P.T ({invoiceCurrency})</div>
               </div>
               
               <div style={{ display: 'flex', flex: 1, minHeight: '350px' }}>
@@ -287,19 +316,19 @@ export default function InvoiceGenerator() {
                 </div>
                 <div style={{ width: '15%', borderRight: '1px solid black', padding: '10px 0' }}>
                   {selectedProducts.map((item, idx) => (
-                    <div key={`pu-${idx}`} style={{ textAlign: 'center', padding: '5px 0', fontWeight: 'bold', fontSize: '14px' }}>{item.price.toString().replace('.', ',')}</div>
+                    <div key={`pu-${idx}`} style={{ textAlign: 'center', padding: '5px 0', fontWeight: 'bold', fontSize: '14px' }}>{getConvertedPrice(item.price).toFixed(2).replace('.', ',')}</div>
                   ))}
                 </div>
                 <div style={{ width: '15%', padding: '10px 0' }}>
                   {selectedProducts.map((item, idx) => (
-                    <div key={`pt-${idx}`} style={{ textAlign: 'center', padding: '5px 0', fontWeight: 'bold', fontSize: '14px' }}>{((parseFloat(item.price) || 0) * item.quantity).toString().replace('.', ',')}</div>
+                    <div key={`pt-${idx}`} style={{ textAlign: 'center', padding: '5px 0', fontWeight: 'bold', fontSize: '14px' }}>{(getConvertedPrice(item.price) * item.quantity).toFixed(2).replace('.', ',')}</div>
                   ))}
                 </div>
               </div>
               
               <div style={{ display: 'flex', borderTop: '1px solid black', fontSize: '15px', fontWeight: 'bold' }}>
                 <div style={{ width: '70%', padding: '6px', textAlign: 'center', borderRight: '1px solid black' }}>Total</div>
-                <div style={{ width: '30%', padding: '6px', textAlign: 'center' }}>{total.toString().replace('.', ',')}</div>
+                <div style={{ width: '30%', padding: '6px', textAlign: 'center' }}>{total.toFixed(2).replace('.', ',')}</div>
               </div>
               <div style={{ display: 'flex', borderTop: '1px solid black', fontSize: '15px', fontWeight: 'bold' }}>
                 <div style={{ width: '70%', padding: '6px', textAlign: 'center', borderRight: '1px solid black' }}>Remise</div>
@@ -314,13 +343,13 @@ export default function InvoiceGenerator() {
                 color: 'white'
               }}>
                 <div style={{ width: '70%', padding: '6px', textAlign: 'center', borderRight: '1px solid black' }}>Total général</div>
-                <div style={{ width: '30%', padding: '6px', textAlign: 'center' }}>{total.toString().replace('.', ',')}</div>
+                <div style={{ width: '30%', padding: '6px', textAlign: 'center' }}>{total.toFixed(2).replace('.', ',')}</div>
               </div>
             </div>
             
             <div style={{ fontSize: '15px', fontStyle: 'italic', marginTop: '15px' }}>
               Montant en toutes lettres<br/>
-              <strong style={{ fontSize: '16px', fontStyle: 'normal' }}>Un montant de {total} USD</strong>
+              <strong style={{ fontSize: '16px', fontStyle: 'normal' }}>Un montant de {total.toFixed(2)} {invoiceCurrency}</strong>
             </div>
           </div>
 
