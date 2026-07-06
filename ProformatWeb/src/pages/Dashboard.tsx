@@ -9,6 +9,11 @@ import { fetchWithAuth } from '../api';
 export default function Dashboard() {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
+  
+  const [invoicePage, setInvoicePage] = useState(1);
+  const [activityPage, setActivityPage] = useState(1);
+  const itemsPerPage = 10;
+  
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -61,6 +66,12 @@ export default function Dashboard() {
     await signOut(auth);
     navigate('/login');
   };
+
+  const paginatedInvoices = invoices.slice((invoicePage - 1) * itemsPerPage, invoicePage * itemsPerPage);
+  const totalInvoicePages = Math.ceil(invoices.length / itemsPerPage);
+
+  const paginatedActivities = activities.slice((activityPage - 1) * itemsPerPage, activityPage * itemsPerPage);
+  const totalActivityPages = Math.ceil(activities.length / itemsPerPage);
   
   return (
     <div className="app-container">
@@ -133,7 +144,7 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {invoices.map(inv => (
+                {paginatedInvoices.map(inv => (
                   <tr key={inv.id}>
                     <td style={{ fontWeight: 500 }}>{inv.number}</td>
                     <td style={{ color: 'var(--text-muted)' }}>{inv.date}</td>
@@ -153,6 +164,13 @@ export default function Dashboard() {
               </tbody>
             </table>
           </div>
+          {totalInvoicePages > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', marginTop: '15px' }}>
+              <button className="btn btn-outline" disabled={invoicePage === 1} onClick={() => setInvoicePage(p => p - 1)}>Précédent</button>
+              <span>Page {invoicePage} sur {totalInvoicePages}</span>
+              <button className="btn btn-outline" disabled={invoicePage === totalInvoicePages} onClick={() => setInvoicePage(p => p + 1)}>Suivant</button>
+            </div>
+          )}
         </div>
 
         <div className="card glass" style={{ marginTop: '40px' }}>
@@ -171,7 +189,7 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {activities.map(act => (
+                {paginatedActivities.map(act => (
                   <tr key={act._id}>
                     <td style={{ color: 'var(--text-muted)' }}>{new Date(act.date).toLocaleString('fr-FR')}</td>
                     <td style={{ fontWeight: 500 }}>{act.userEmail}</td>
@@ -191,6 +209,13 @@ export default function Dashboard() {
               </tbody>
             </table>
           </div>
+          {totalActivityPages > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', marginTop: '15px' }}>
+              <button className="btn btn-outline" disabled={activityPage === 1} onClick={() => setActivityPage(p => p - 1)}>Précédent</button>
+              <span>Page {activityPage} sur {totalActivityPages}</span>
+              <button className="btn btn-outline" disabled={activityPage === totalActivityPages} onClick={() => setActivityPage(p => p + 1)}>Suivant</button>
+            </div>
+          )}
         </div>
       </div>
     </div>
