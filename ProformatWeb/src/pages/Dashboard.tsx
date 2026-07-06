@@ -57,9 +57,16 @@ export default function Dashboard() {
     return () => unsubscribe();
   }, []);
 
-  const totalRevenue = invoices.reduce((sum, inv) => {
+  const totalRevenueUSD = invoices.reduce((sum, inv) => {
+    const isUSD = (inv.total || '').toString().toUpperCase().includes('USD');
     const val = parseFloat((inv.total || '').toString().replace(/[^0-9.]/g, '')) || 0;
-    return sum + val;
+    return sum + (isUSD ? val : 0);
+  }, 0);
+
+  const totalRevenueFC = invoices.reduce((sum, inv) => {
+    const isFC = (inv.total || '').toString().toUpperCase().includes('FC');
+    const val = parseFloat((inv.total || '').toString().replace(/[^0-9.]/g, '')) || 0;
+    return sum + (isFC ? val : 0);
   }, 0);
 
   const handleLogout = async () => {
@@ -116,8 +123,12 @@ export default function Dashboard() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '24px', marginBottom: '40px' }}>
           <div className="card glass">
-            <div style={{ color: 'var(--text-muted)', marginBottom: '8px' }}>Chiffre d'affaires</div>
-            <h2 style={{ margin: 0, fontSize: '2rem' }}>{totalRevenue.toLocaleString()} $</h2>
+            <div style={{ color: 'var(--text-muted)', marginBottom: '8px' }}>Chiffre d'affaires (USD)</div>
+            <h2 style={{ margin: 0, fontSize: '2rem' }}>{totalRevenueUSD.toLocaleString()} $</h2>
+          </div>
+          <div className="card glass">
+            <div style={{ color: 'var(--text-muted)', marginBottom: '8px' }}>Chiffre d'affaires (FC)</div>
+            <h2 style={{ margin: 0, fontSize: '2rem' }}>{totalRevenueFC.toLocaleString()} FC</h2>
           </div>
           <div className="card glass">
             <div style={{ color: 'var(--text-muted)', marginBottom: '8px' }}>Factures générées</div>
