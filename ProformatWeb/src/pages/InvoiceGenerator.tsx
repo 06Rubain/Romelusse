@@ -21,6 +21,7 @@ export default function InvoiceGenerator() {
   
   const [catalog, setCatalog] = useState<any[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<any[]>([]);
+  const [selectedProductId, setSelectedProductId] = useState('');
   const [quantity, setQuantity] = useState(1);
   const contentRef = useRef<HTMLDivElement>(null);
   const reactToPrintFn = useReactToPrint({ contentRef });
@@ -155,7 +156,12 @@ export default function InvoiceGenerator() {
         <div className="input-group">
           <label>Ajouter un produit</label>
           <div style={{ display: 'flex', gap: '10px' }}>
-            <select className="input-field" id="productSelect" style={{ flex: 1 }}>
+            <select 
+              className="input-field" 
+              style={{ flex: 1 }}
+              value={selectedProductId}
+              onChange={e => setSelectedProductId(e.target.value)}
+            >
               <option value="">-- Choisir un produit --</option>
               {catalog.map(prod => (
                 <option key={prod.id} value={prod.id}>{prod.name} ({prod.price} $)</option>
@@ -170,11 +176,12 @@ export default function InvoiceGenerator() {
               onChange={e => setQuantity(parseInt(e.target.value) || 1)} 
             />
             <button className="btn btn-outline" type="button" onClick={() => {
-              const select = document.getElementById('productSelect') as HTMLSelectElement;
-              if(!select.value) return;
-              const prod = catalog.find(p => p.id === select.value);
-              if(prod) addProduct(prod, quantity);
-              select.value = '';
+              if(!selectedProductId) return;
+              const prod = catalog.find(p => p.id === selectedProductId);
+              if(prod) {
+                addProduct(prod, quantity);
+              }
+              setSelectedProductId('');
               setQuantity(1);
             }}>
               <Plus size={16} />
