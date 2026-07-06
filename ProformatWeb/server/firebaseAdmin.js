@@ -20,9 +20,9 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
   });
   console.log('Firebase Admin initialized from FILE securely');
 } else {
-  console.warn('WARNING: firebase-service-account.json not found! API security might fail.');
-  // On initialise sans cert pour éviter de crash si pas de fichier local, mais les vérifications de token vont échouer si on n'a pas accès au projet
-  admin.initializeApp();
+  console.warn('WARNING: firebase-service-account.json not found! Using projectId only for token verification.');
+  // On initialise avec le projectId pour que la vérification de jeton fonctionne
+  admin.initializeApp({ projectId: 'mlanine-print' });
 }
 
 module.exports = admin;
