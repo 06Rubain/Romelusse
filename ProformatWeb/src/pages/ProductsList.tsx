@@ -145,17 +145,20 @@ export default function ProductsList() {
 
     try {
       for (const prod of productsList) {
-        await fetchWithAuth(`${API_URL}/api/products`, {
+        const res = await fetchWithAuth(`${API_URL}/api/products`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: prod.name, description: '', price: prod.price })
         });
+        if (!res.ok) {
+          throw new Error('API Error: ' + res.status);
+        }
       }
-      alert('Importation terminée !');
+      alert('Importation terminée avec succès !');
       loadProducts();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Erreur lors de l'importation");
+      alert('Erreur: ' + err.message);
     } finally {
       setLoading(false);
     }
