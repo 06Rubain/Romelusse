@@ -25,6 +25,11 @@ export default function InvoiceGenerator() {
   const [selectedProducts, setSelectedProducts] = useState<any[]>([]);
   const [selectedProductId, setSelectedProductId] = useState('');
   const [quantity, setQuantity] = useState(1);
+  
+  const [manualProductName, setManualProductName] = useState('');
+  const [manualProductPrice, setManualProductPrice] = useState('');
+  const [manualQuantity, setManualQuantity] = useState(1);
+
   const contentRef = useRef<HTMLDivElement>(null);
   const reactToPrintFn = useReactToPrint({ contentRef });
 
@@ -78,6 +83,24 @@ export default function InvoiceGenerator() {
     } else {
       setSelectedProducts([...selectedProducts, { ...prod, quantity: qty }]);
     }
+  };
+
+  const addManualProduct = () => {
+    if (!manualProductName || !manualProductPrice) {
+      alert("Veuillez renseigner le nom et le prix du produit personnalisé.");
+      return;
+    }
+    const fakeId = `manual-${Date.now()}`;
+    const newProd = {
+      id: fakeId,
+      name: manualProductName,
+      price: manualProductPrice,
+      quantity: manualQuantity
+    };
+    setSelectedProducts([...selectedProducts, newProd]);
+    setManualProductName('');
+    setManualProductPrice('');
+    setManualQuantity(1);
   };
 
   const parsePrice = (priceStr: string) => {
@@ -224,6 +247,39 @@ export default function InvoiceGenerator() {
               setSelectedProductId('');
               setQuantity(1);
             }}>
+              <Plus size={16} />
+            </button>
+          </div>
+        </div>
+
+        <div className="input-group" style={{ background: '#f9fafb', padding: '15px', borderRadius: '8px', border: '1px dashed #ccc' }}>
+          <label style={{ color: 'var(--primary)', fontWeight: 'bold' }}>+ Produit Personnalisé</label>
+          <input 
+            type="text" 
+            className="input-field" 
+            placeholder="Désignation (ex: Conception Logo)" 
+            value={manualProductName}
+            onChange={e => setManualProductName(e.target.value)}
+            style={{ marginBottom: '10px' }}
+          />
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <input 
+              type="text" 
+              className="input-field" 
+              placeholder="Prix (ex: 50 USD)" 
+              style={{ flex: 1 }}
+              value={manualProductPrice}
+              onChange={e => setManualProductPrice(e.target.value)}
+            />
+            <input 
+              type="number" 
+              className="input-field" 
+              style={{ width: '60px' }} 
+              value={manualQuantity} 
+              min="1" 
+              onChange={e => setManualQuantity(parseInt(e.target.value) || 1)} 
+            />
+            <button className="btn btn-outline" type="button" onClick={addManualProduct}>
               <Plus size={16} />
             </button>
           </div>
