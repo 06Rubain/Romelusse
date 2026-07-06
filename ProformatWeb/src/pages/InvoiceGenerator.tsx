@@ -30,7 +30,12 @@ export default function InvoiceGenerator() {
       try {
         const res = await fetchWithAuth(`${API_URL}/api/products`);
         const data = await res.json();
-        setCatalog(data.map((doc: any) => ({ ...doc, id: doc._id })));
+        if (Array.isArray(data)) {
+          setCatalog(data.map((doc: any) => ({ ...doc, id: doc._id })));
+        } else {
+          console.error("API did not return an array for products:", data);
+          setCatalog([]);
+        }
       } catch (err) {
         console.error("Erreur chargement catalogue :", err);
       }

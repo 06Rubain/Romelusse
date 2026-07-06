@@ -16,7 +16,12 @@ export default function Dashboard() {
       try {
         const res = await fetchWithAuth(`${API_URL}/api/invoices`);
         const data = await res.json();
-        setInvoices(data.map((inv: any) => ({ ...inv, id: inv._id })));
+        if (Array.isArray(data)) {
+          setInvoices(data.map((inv: any) => ({ ...inv, id: inv._id })));
+        } else {
+          console.error("API did not return an array for invoices:", data);
+          setInvoices([]);
+        }
       } catch (err) {
         console.error("Erreur de chargement des factures :", err);
       }
@@ -26,7 +31,12 @@ export default function Dashboard() {
       try {
         const res = await fetchWithAuth(`${API_URL}/api/activities`);
         const data = await res.json();
-        setActivities(data);
+        if (Array.isArray(data)) {
+          setActivities(data);
+        } else {
+          console.error("API did not return an array for activities:", data);
+          setActivities([]);
+        }
       } catch (err) {
         console.error("Erreur de chargement des activités :", err);
       }
