@@ -21,7 +21,7 @@ export default function InvoiceGenerator() {
   const [invoiceDate, setInvoiceDate] = useState(new Date().toLocaleDateString('fr-FR'));
   const [printFormat, setPrintFormat] = useState('A4');
   const [invoiceCurrency, setInvoiceCurrency] = useState<'USD' | 'FC'>('USD');
-  const [exchangeRate, setExchangeRate] = useState<number>(2850);
+  const [exchangeRate, setExchangeRate] = useState<number>(2250);
   
   const [catalog, setCatalog] = useState<any[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<any[]>([]);
@@ -203,7 +203,7 @@ export default function InvoiceGenerator() {
           <label>Type de facture</label>
           <select className="input-field" value={type} onChange={e => setType(e.target.value)}>
             <option value="Proforma">Proforma</option>
-            <option value="Achat">Facture d'Achat</option>
+            <option value="Facture">Facture</option>
           </select>
         </div>
         
@@ -228,7 +228,7 @@ export default function InvoiceGenerator() {
 
         <div className="input-group">
           <label>Taux de change (1 USD = ? FC)</label>
-          <input type="number" className="input-field" value={exchangeRate} onChange={e => setExchangeRate(parseFloat(e.target.value) || 2850)} />
+          <input type="number" className="input-field" value={exchangeRate} onChange={e => setExchangeRate(parseFloat(e.target.value) || 2250)} />
         </div>
 
         <div className="input-group">
@@ -345,7 +345,7 @@ export default function InvoiceGenerator() {
              <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', marginBottom: '8px', alignItems: 'center' }}>
                   <div style={{ background: '#c92a2a', color: 'white', padding: '6px 15px', fontWeight: 'bold', fontSize: '14px', minWidth: '130px', width: 'fit-content', textAlign: 'center' }}>
-                    {type === 'Proforma' ? 'PROFORMA N°' : "FACTURE D'ACHAT N°"}
+                    {type === 'Proforma' ? 'PROFORMA N°' : "FACTURE N°"}
                   </div>
                   <div style={{ background: 'white', color: 'black', padding: '6px 15px', fontWeight: 'bold', fontSize: '14px', width: '220px' }}>
                     : {invoiceNumber}
