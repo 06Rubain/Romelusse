@@ -164,8 +164,15 @@ app.post('/api/users', async (req, res) => {
 
 app.get('/api/users/:uid', async (req, res) => {
   try {
-    const user = await User.findOne({ uid: req.params.uid });
+    let user = await User.findOne({ uid: req.params.uid });
     if (!user) return res.status(404).json({ error: 'User not found' });
+    
+    // Auto-promotion for Super Admin in case they didn't logout/login
+    if (user.email === 'nsimbanzebele@gmail.com' && user.role !== 'admin') {
+      user.role = 'admin';
+      await user.save();
+    }
+    
     res.json(user);
   } catch (err) {
     res.status(500).json({ error: err.message });
