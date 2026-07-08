@@ -9,6 +9,13 @@ export default function Profile() {
   const navigate = useNavigate();
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  
+  const [qrCode, setQrCode] = useState('');
+  const [secret, setSecret] = useState('');
+  const [token, setToken] = useState('');
+  const [setupStep, setSetupStep] = useState(0); // 0: initial, 1: show QR, 2: success
+  const [error2fa, setError2fa] = useState('');
+  const [loading2fa, setLoading2fa] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -40,8 +47,61 @@ export default function Profile() {
       }
     };
 
+  useEffect(() => {
     fetchProfile();
   }, [navigate]);
+
+  const handleGenerate2FA = async () => {
+    setLoading2fa(true);
+    setError2fa('');
+    try {
+      const user = auth.currentUser;
+      if (!user) return;
+      const res = await fetchWithAuth(`${API_URL}/api/2fa/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid: user.uid, email: user.email })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setQrCode(data.qrCodeImage);
+        setSecret(data.secret);
+        setSetupStep(1);
+      } else {
+        setError2fa(data.error);
+      }
+    } catch (err) {
+      setError2fa('Erreur lors de la génération du QR code.');
+    } finally {
+      setLoading2fa(false);
+    }
+  };
+
+  const handleVerify2FA = async () => {
+    setLoading2fa(true);
+    setError2fa('');
+    try {
+      const user = auth.currentUser;
+      if (!user) return;
+      const res = await fetchWithAuth(`${API_URL}/api/2fa/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid: user.uid, token })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSetupStep(2);
+        setUserData({ ...userData, twoFactorEnabled: true });
+        sessionStorage.setItem('2faVerified', 'true');
+      } else {
+        setError2fa(data.error || 'Code invalide.');
+      }
+    } catch (err) {
+      setError2fa('Erreur lors de la vérification.');
+    } finally {
+      setLoading2fa(false);
+    }
+  };
 
   if (loading) return <div style={{ padding: '40px', textAlign: 'center' }}>Chargement...</div>;
 
@@ -113,6 +173,62 @@ export default function Profile() {
                 </div>
               </div>
             </div>
+            <div style={{ background: 'rgba(255,255,255,0.03)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'transform 0.2s', cursor: 'default' }} onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
+              <div>
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>Sécurité 2FA</div>
+                <div style={{ fontSize: '1.1rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  {userData?.twoFactorEnabled ? (
+                    <><span style={{ color: '#10B981' }}>● Activée</span></>
+                  ) : (
+                    <><span style={{ color: 'var(--danger)' }}>● Désactivée</span></>
+                  )}
+                </div>
+              </div>
+              {!userData?.twoFactorEnabled && setupStep === 0 && (
+                <button className="btn btn-primary" onClick={handleGenerate2FA} disabled={loading2fa}>
+                  {loading2fa ? 'Génération...' : 'Activer 2FA'}
+                </button>
+              )}
+            </div>
+
+            {setupStep === 1 && (
+              <div className="card animate-fade-in" style={{ background: 'rgba(0,168,181,0.05)', border: '1px solid var(--primary)', padding: '20px', borderRadius: '16px', textAlign: 'center' }}>
+                <h3 style={{ marginTop: 0, color: 'var(--primary)' }}>Configuration Google Authenticator</h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '20px' }}>
+                  1. Scannez ce QR Code avec l'application Google Authenticator ou Authy.
+                </p>
+                <div style={{ background: 'white', padding: '10px', display: 'inline-block', borderRadius: '8px', marginBottom: '20px' }}>
+                  <img src={qrCode} alt="QR Code 2FA" style={{ width: '200px', height: '200px' }} />
+                </div>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '10px' }}>
+                  2. Entrez le code à 6 chiffres généré par l'application :
+                </p>
+                
+                {error2fa && <div style={{ color: 'var(--danger)', marginBottom: '10px', fontSize: '0.9rem' }}>{error2fa}</div>}
+                
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                  <input 
+                    type="text" 
+                    className="input-field" 
+                    placeholder="000000" 
+                    style={{ width: '150px', textAlign: 'center', letterSpacing: '4px', fontSize: '1.2rem' }}
+                    value={token}
+                    onChange={e => setToken(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                  />
+                  <button className="btn btn-primary" onClick={handleVerify2FA} disabled={loading2fa || token.length !== 6}>
+                    {loading2fa ? 'Vérification...' : 'Valider'}
+                  </button>
+                  <button className="btn btn-outline" onClick={() => setSetupStep(0)}>Annuler</button>
+                </div>
+              </div>
+            )}
+
+            {setupStep === 2 && (
+              <div className="card animate-fade-in" style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid #10B981', padding: '20px', borderRadius: '16px', textAlign: 'center' }}>
+                <h3 style={{ margin: 0, color: '#10B981' }}>2FA Activé avec succès !</h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: '10px 0 0 0' }}>Votre compte est maintenant sécurisé. Vous devrez entrer un code à chaque connexion.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

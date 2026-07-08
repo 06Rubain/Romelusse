@@ -43,9 +43,22 @@ export default function Login() {
           provider: provider
         })
       });
+      const data = await res.json();
       await logActivity(user.email, provider);
+      return data;
     } catch (err) {
       console.error("Erreur d'enregistrement MongoDB :", err);
+      return null;
+    }
+  };
+
+  const handlePostLogin = (userData: any) => {
+    if (userData?.twoFactorEnabled) {
+      sessionStorage.setItem('2faPending', 'true');
+      navigate('/verify-2fa');
+    } else {
+      sessionStorage.setItem('2faVerified', 'true');
+      navigate('/dashboard');
     }
   };
 
@@ -55,8 +68,8 @@ export default function Login() {
     setLoading(true);
     try {
       const res = await signInWithEmailAndPassword(auth, email, password);
-      await saveUserToMongoDB(res.user, 'email');
-      navigate('/dashboard');
+      const userData = await saveUserToMongoDB(res.user, 'email');
+      handlePostLogin(userData);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -70,8 +83,8 @@ export default function Login() {
     try {
       const provider = new GoogleAuthProvider();
       const res = await signInWithPopup(auth, provider);
-      await saveUserToMongoDB(res.user, 'google');
-      navigate('/dashboard');
+      const userData = await saveUserToMongoDB(res.user, 'google');
+      handlePostLogin(userData);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -85,8 +98,8 @@ export default function Login() {
     try {
       const provider = new FacebookAuthProvider();
       const res = await signInWithPopup(auth, provider);
-      await saveUserToMongoDB(res.user, 'facebook');
-      navigate('/dashboard');
+      const userData = await saveUserToMongoDB(res.user, 'facebook');
+      handlePostLogin(userData);
     } catch (err: any) {
       setError(err.message);
     } finally {

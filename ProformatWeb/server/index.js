@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const { authenticator } = require('otplib');
+const qrcode = require('qrcode');
 
 require('dotenv').config();
 const verifyToken = require('./middleware/authMiddleware');
@@ -171,6 +173,63 @@ app.post('/api/activities', async (req, res) => {
     const newActivity = new Activity(req.body);
     const saved = await newActivity.save();
     res.status(201).json(saved);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---- 2FA API ----
+app.post('/api/2fa/generate', async (req, res) => {
+  try {
+    const { uid, email } = req.body;
+    const user = await User.findOne({ uid });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const secret = authenticator.generateSecret();
+    const otpauthUrl = authenticator.keyuri(email, 'Melanine Print', secret);
+    
+    // Save secret temporarily (not enabled yet)
+    user.twoFactorSecret = secret;
+    await user.save();
+
+    const qrCodeImage = await qrcode.toDataURL(otpauthUrl);
+    res.json({ secret, qrCodeImage });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/2fa/verify', async (req, res) => {
+  try {
+    const { uid, token } = req.body;
+    const user = await User.findOne({ uid });
+    if (!user || !user.twoFactorSecret) return res.status(404).json({ error: 'User or secret not found' });
+
+    const isValid = authenticator.verify({ token, secret: user.twoFactorSecret });
+    if (isValid) {
+      user.twoFactorEnabled = true;
+      await user.save();
+      res.json({ success: true });
+    } else {
+      res.status(400).json({ error: 'Code invalide' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/2fa/validate-session', async (req, res) => {
+  try {
+    const { uid, token } = req.body;
+    const user = await User.findOne({ uid });
+    if (!user || !user.twoFactorEnabled) return res.status(400).json({ error: '2FA non activé ou utilisateur introuvable' });
+
+    const isValid = authenticator.verify({ token, secret: user.twoFactorSecret });
+    if (isValid) {
+      res.json({ success: true });
+    } else {
+      res.status(400).json({ error: 'Code invalide' });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
