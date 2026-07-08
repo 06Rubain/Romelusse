@@ -2,7 +2,8 @@ const mongoose = require('mongoose');
 
 const invoiceSchema = new mongoose.Schema({
   client: { type: String, required: true },
-  type: { type: String, required: true },
+  clientActivity: { type: String, default: '' },
+  type: { type: String, default: 'Facture' },
   date: { type: String, required: true },
   total: { type: String, required: true },
   products: { type: Array, required: true },

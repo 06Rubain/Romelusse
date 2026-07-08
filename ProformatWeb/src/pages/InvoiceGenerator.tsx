@@ -15,6 +15,7 @@ export default function InvoiceGenerator() {
   const navigate = useNavigate();
   const { id } = useParams();
   const [clientName, setClientName] = useState('');
+  const [clientActivity, setClientActivity] = useState('');
   const [type, setType] = useState('Proforma');
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [status, setStatus] = useState('En attente');
@@ -58,6 +59,7 @@ export default function InvoiceGenerator() {
         const data = await res.json();
         if (data && !data.error) {
           setClientName(data.client || '');
+          setClientActivity(data.clientActivity || '');
           setType(data.type || 'Proforma');
           setInvoiceNumber(data.number || '');
           setStatus(data.status || 'En attente');
@@ -157,6 +159,7 @@ export default function InvoiceGenerator() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           client: clientName,
+          clientActivity: clientActivity,
           type,
           date: invoiceDate,
           total: total.toFixed(2) + ' ' + invoiceCurrency,
@@ -194,9 +197,20 @@ export default function InvoiceGenerator() {
         </div>
         
         <h3>Détails de la Facture</h3>
+        
+        <div className="input-group">
+          <label>Numéro de Facture</label>
+          <input type="text" className="input-field" value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} placeholder="Ex: FAC-0001" />
+        </div>
+
         <div className="input-group">
           <label>Nom du Client</label>
           <input type="text" className="input-field" value={clientName} onChange={e => setClientName(e.target.value)} />
+        </div>
+
+        <div className="input-group">
+          <label>Activité / Réf. Client (Optionnel)</label>
+          <input type="text" className="input-field" value={clientActivity} onChange={e => setClientActivity(e.target.value)} placeholder="Ex: Informatique, Projet X..." />
         </div>
         
         <div className="input-group">
@@ -355,6 +369,12 @@ export default function InvoiceGenerator() {
                   <span style={{ width: '130px', padding: '0 15px' }}>Client</span>
                   <span style={{ fontWeight: 'bold' }}>: {clientName.toUpperCase() || 'CLIENT INCONNU'}</span>
                 </div>
+                {clientActivity && (
+                  <div style={{ color: 'white', fontSize: '16px', display: 'flex', marginTop: '2px' }}>
+                    <span style={{ width: '130px', padding: '0 15px' }}>Activité/Réf</span>
+                    <span style={{ fontWeight: 'bold' }}>: {clientActivity.toUpperCase()}</span>
+                  </div>
+                )}
                 <div style={{ color: 'white', fontSize: '16px', display: 'flex', marginTop: '4px' }}>
                   <span style={{ width: '130px', padding: '0 15px' }}>Date</span>
                   <span style={{ fontWeight: 'bold' }}>: {invoiceDate}</span>
