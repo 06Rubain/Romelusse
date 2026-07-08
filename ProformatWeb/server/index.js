@@ -28,9 +28,23 @@ app.use('/api/', apiLimiter);
 
 // MongoDB connection
 const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/proformat';
-mongoose.connect(mongoUri)
-  .then(() => console.log('Connected to MongoDB'))
-  .catch(err => console.error('MongoDB connection error:', err));
+
+// Ensure DB is connected before every request (Serverless best practice)
+app.use(async (req, res, next) => {
+  if (mongoose.connection.readyState !== 1) {
+    try {
+      await mongoose.connect(mongoUri, {
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 45000,
+      });
+      console.log('MongoDB reconnected or connected successfully');
+    } catch (err) {
+      console.error('MongoDB connection error:', err);
+      return res.status(500).json({ error: 'Database connection failed' });
+    }
+  }
+  next();
+});
 
 app.use('/api', verifyToken);
 
