@@ -18,9 +18,15 @@ export default function ProductsList() {
     try {
       const res = await fetchWithAuth(`${API_URL}/api/products`);
       const data = await res.json();
-      setProducts(data.map((p: any) => ({ ...p, id: p._id })));
+      if (Array.isArray(data)) {
+        setProducts(data.map((p: any) => ({ ...p, id: p._id })));
+      } else {
+        console.error("API Error in products:", data);
+        setProducts([]);
+      }
     } catch (err) {
-      console.error(err);
+      console.error("Failed to load products:", err);
+      setProducts([]);
     }
   };
 

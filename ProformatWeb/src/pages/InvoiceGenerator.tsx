@@ -404,7 +404,7 @@ export default function InvoiceGenerator() {
               
               <div style={{ display: 'flex', borderTop: '1px solid black', fontSize: '15px', fontWeight: 'bold' }}>
                 <div style={{ width: '70%', padding: '6px', textAlign: 'center', borderRight: '1px solid black' }}>Total</div>
-                <div style={{ width: '30%', padding: '6px', textAlign: 'center' }}>{total.toFixed(2).replace('.', ',')}</div>
+                <div style={{ width: '30%', padding: '6px', textAlign: 'center' }}>{total.toFixed(2).replace('.', ',')} {invoiceCurrency}</div>
               </div>
               <div style={{ display: 'flex', borderTop: '1px solid black', fontSize: '15px', fontWeight: 'bold' }}>
                 <div style={{ width: '70%', padding: '6px', textAlign: 'center', borderRight: '1px solid black' }}>Remise</div>
@@ -419,7 +419,7 @@ export default function InvoiceGenerator() {
                 color: 'white'
               }}>
                 <div style={{ width: '70%', padding: '6px', textAlign: 'center', borderRight: '1px solid black' }}>Total général</div>
-                <div style={{ width: '30%', padding: '6px', textAlign: 'center' }}>{total.toFixed(2).replace('.', ',')}</div>
+                <div style={{ width: '30%', padding: '6px', textAlign: 'center' }}>{total.toFixed(2).replace('.', ',')} {invoiceCurrency}</div>
               </div>
             </div>
             
