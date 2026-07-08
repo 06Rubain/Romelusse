@@ -9,13 +9,15 @@ import { useReactToPrint } from 'react-to-print';
 import { API_URL } from '../config';
 import { fetchWithAuth } from '../api';
 import { auth } from '../firebase';
+import { numberToFrenchWords } from '../utils/numberToWords';
 
 export default function InvoiceGenerator() {
   const navigate = useNavigate();
   const { id } = useParams();
   const [clientName, setClientName] = useState('');
   const [type, setType] = useState('Proforma');
-  const [invoiceNumber, setInvoiceNumber] = useState(`070-57-${Math.floor(Math.random() * 10000)}`);
+  const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [status, setStatus] = useState('En attente');
   const [invoiceDate, setInvoiceDate] = useState(new Date().toLocaleDateString('fr-FR'));
   const [printFormat, setPrintFormat] = useState('A4');
   const [invoiceCurrency, setInvoiceCurrency] = useState<'USD' | 'FC'>('USD');
@@ -57,7 +59,8 @@ export default function InvoiceGenerator() {
         if (data && !data.error) {
           setClientName(data.client || '');
           setType(data.type || 'Proforma');
-          setInvoiceNumber(data.number || `070-57-${Math.floor(Math.random() * 10000)}`);
+          setInvoiceNumber(data.number || '');
+          setStatus(data.status || 'En attente');
           setSelectedProducts(data.products || []);
           setInvoiceDate(data.date || new Date().toLocaleDateString('fr-FR'));
         }
@@ -66,10 +69,26 @@ export default function InvoiceGenerator() {
       }
     };
 
+    const fetchNextNumber = async () => {
+      try {
+        const res = await fetchWithAuth(`${API_URL}/api/invoices/next-number`);
+        const data = await res.json();
+        if (data && data.nextNumber) {
+          setInvoiceNumber(data.nextNumber);
+        }
+      } catch (err) {
+        console.error("Erreur fetch next number :", err);
+      }
+    };
+
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
         fetchCatalog();
-        if (id) fetchInvoice();
+        if (id) {
+          fetchInvoice();
+        } else {
+          fetchNextNumber();
+        }
       }
     });
 
@@ -143,7 +162,7 @@ export default function InvoiceGenerator() {
           total: total.toFixed(2) + ' ' + invoiceCurrency,
           products: selectedProducts,
           number: invoiceNumber,
-          status: 'En attente'
+          status: status
         })
       });
 
@@ -192,6 +211,7 @@ export default function InvoiceGenerator() {
           <label>Format d'impression</label>
           <select className="input-field" value={printFormat} onChange={e => setPrintFormat(e.target.value)}>
             <option value="A4">A4 (Standard)</option>
+            <option value="A5">A5 (Moyen)</option>
             <option value="A6">A6 (Petit)</option>
           </select>
         </div>
@@ -300,9 +320,9 @@ export default function InvoiceGenerator() {
           position: 'relative', 
           boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
           fontFamily: 'Arial, Helvetica, sans-serif',
-          transform: printFormat === 'A6' ? 'scale(0.5)' : 'none',
+          transform: printFormat === 'A6' ? 'scale(0.5)' : printFormat === 'A5' ? 'scale(0.71)' : 'none',
           transformOrigin: 'top center',
-          marginBottom: printFormat === 'A6' ? '-148.5mm' : '0'
+          marginBottom: printFormat === 'A6' ? '-148.5mm' : printFormat === 'A5' ? '-88mm' : '0'
         }}>
           
           {/* Header Banner */}
@@ -405,7 +425,10 @@ export default function InvoiceGenerator() {
             
             <div style={{ fontSize: '15px', fontStyle: 'italic', marginTop: '15px' }}>
               Montant en toutes lettres<br/>
-              <strong style={{ fontSize: '16px', fontStyle: 'normal' }}>Un montant de {total.toFixed(2)} {invoiceCurrency}</strong>
+              <strong style={{ fontSize: '16px', fontStyle: 'normal' }}>
+                Arrêté à la somme de {numberToFrenchWords(Math.floor(total))} {(invoiceCurrency === 'FC' ? 'Francs Congolais' : 'Dollars Américains')}
+                {total % 1 !== 0 ? ` et ${Math.round((total % 1) * 100)} cents` : ''}.
+              </strong>
             </div>
           </div>
 
@@ -413,7 +436,9 @@ export default function InvoiceGenerator() {
           <div style={{ position: 'relative', marginTop: '10px' }}>
             
             <div style={{ position: 'absolute', right: '50px', top: '0', textAlign: 'center', zIndex: 10 }}>
-               <div style={{ color: '#f8d0d5', fontSize: '75px', fontWeight: '900', fontFamily: 'Arial Black, sans-serif', letterSpacing: '2px', opacity: 0.9, marginBottom: '-25px' }}>PAYÉ</div>
+               {status === 'Payée' && (
+                 <div style={{ color: '#f8d0d5', fontSize: '75px', fontWeight: '900', fontFamily: 'Arial Black, sans-serif', letterSpacing: '2px', opacity: 0.9, marginBottom: '-25px' }}>PAYÉ</div>
+               )}
                <div style={{ fontSize: '13px', position: 'relative', zIndex: 2 }}>Fait à Kinshasa le {invoiceDate}</div>
                {/* Note: I would place a signature image here, but since I only have logoUrl, I'll draw a cursive text */}
                <div style={{ marginTop: '50px', fontWeight: 'bold', fontSize: '14px' }}>La direction</div>
@@ -459,7 +484,7 @@ export default function InvoiceGenerator() {
           .main-content { padding: 0 !important; background: white !important; margin: 0 !important; }
           #print-area { 
             box-shadow: none !important; 
-            transform: ${printFormat === 'A6' ? 'scale(0.5)' : 'none'} !important;
+            transform: ${printFormat === 'A6' ? 'scale(0.5)' : printFormat === 'A5' ? 'scale(0.71)' : 'none'} !important;
             transform-origin: top left !important;
           }
         }

@@ -84,6 +84,17 @@ app.get('/api/invoices', async (req, res) => {
   }
 });
 
+app.get('/api/invoices/next-number', async (req, res) => {
+  try {
+    const count = await Invoice.countDocuments();
+    // Ex: FAC-0001
+    const nextNumber = `FAC-${String(count + 1).padStart(4, '0')}`;
+    res.json({ nextNumber });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/invoices/:id', async (req, res) => {
   try {
     const invoice = await Invoice.findById(req.params.id);
@@ -99,6 +110,21 @@ app.post('/api/invoices', async (req, res) => {
     const newInvoice = new Invoice(req.body);
     const saved = await newInvoice.save();
     res.status(201).json(saved);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/api/invoices/:id/status', async (req, res) => {
+  try {
+    const { status } = req.body;
+    const updatedInvoice = await Invoice.findByIdAndUpdate(
+      req.params.id,
+      { status },
+      { new: true }
+    );
+    if (!updatedInvoice) return res.status(404).json({ error: 'Invoice not found' });
+    res.json(updatedInvoice);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

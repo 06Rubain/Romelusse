@@ -74,6 +74,21 @@ export default function Dashboard() {
     navigate('/login');
   };
 
+  const toggleInvoiceStatus = async (invoiceId: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'Payée' ? 'En attente' : 'Payée';
+    try {
+      await fetchWithAuth(`${API_URL}/api/invoices/${invoiceId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+      setInvoices(invoices.map(inv => inv.id === invoiceId ? { ...inv, status: newStatus } : inv));
+    } catch (err) {
+      console.error("Erreur mise à jour statut:", err);
+      alert("Impossible de mettre à jour le statut.");
+    }
+  };
+
   const paginatedInvoices = invoices.slice((invoicePage - 1) * itemsPerPage, invoicePage * itemsPerPage);
   const totalInvoicePages = Math.ceil(invoices.length / itemsPerPage);
 
@@ -151,6 +166,7 @@ export default function Dashboard() {
                   <th>Client</th>
                   <th>Type</th>
                   <th>Total</th>
+                  <th>Statut</th>
                   <th style={{ textAlign: 'right' }}>Action</th>
                 </tr>
               </thead>
@@ -162,6 +178,16 @@ export default function Dashboard() {
                     <td>{inv.client}</td>
                     <td><span className={`badge ${inv.type === 'Proforma' ? 'badge-info' : 'badge-success'}`}>{inv.type}</span></td>
                     <td style={{ fontWeight: 600, color: 'var(--primary)' }}>{inv.total}</td>
+                    <td>
+                      <span 
+                        onClick={() => toggleInvoiceStatus(inv.id, inv.status || 'En attente')}
+                        className={`badge ${inv.status === 'Payée' ? 'badge-success' : 'badge-danger'}`}
+                        style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+                        title="Cliquez pour changer le statut"
+                      >
+                        {inv.status || 'En attente'}
+                      </span>
+                    </td>
                     <td style={{ textAlign: 'right' }}>
                       <Printer size={18} color="var(--primary)" style={{ cursor: 'pointer' }} onClick={() => navigate(`/invoice/${inv.id}`)} />
                     </td>
@@ -169,7 +195,7 @@ export default function Dashboard() {
                 ))}
                 {invoices.length === 0 && (
                   <tr>
-                    <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Aucune facture trouvée.</td>
+                    <td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Aucune facture trouvée.</td>
                   </tr>
                 )}
               </tbody>
