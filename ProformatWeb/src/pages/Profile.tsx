@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { auth } from '../firebase';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, User as UserIcon } from 'lucide-react';
+import { ArrowLeft, User as UserIcon, Users as UsersIcon } from 'lucide-react';
 import { API_URL } from '../config';
 import { fetchWithAuth } from '../api';
 
@@ -139,10 +139,29 @@ export default function Profile() {
               <div style={{ position: 'absolute', bottom: '5px', right: '5px', width: '20px', height: '20px', backgroundColor: '#10B981', borderRadius: '50%', border: '3px solid #1A1A24' }}></div>
             </div>
             <h1 style={{ margin: '0 0 8px 0', fontSize: '2.2rem', fontWeight: '700', letterSpacing: '-0.5px' }} className="gradient-text">{userData?.displayName || 'Utilisateur'}</h1>
-            <span style={{ padding: '6px 14px', background: 'rgba(255,255,255,0.05)', borderRadius: '20px', color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: '500', border: '1px solid rgba(255,255,255,0.1)' }}>Administrateur</span>
+            <span style={{ padding: '6px 14px', background: 'rgba(255,255,255,0.05)', borderRadius: '20px', color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: '500', border: '1px solid rgba(255,255,255,0.1)' }}>
+              {userData?.role === 'admin' ? 'Super Administrateur' : 'Employé'}
+            </span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {userData?.role === 'admin' && (
+              <div 
+                style={{ background: 'rgba(0,168,181,0.1)', padding: '20px', borderRadius: '16px', border: '1px solid var(--primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'transform 0.2s', cursor: 'pointer' }} 
+                onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'} 
+                onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                onClick={() => navigate('/users')}
+              >
+                <div>
+                  <div style={{ color: 'var(--primary)', fontSize: '1.1rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <UsersIcon size={20} /> Gestion de l'équipe
+                  </div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>Bloquez ou débloquez les accès à l'application</div>
+                </div>
+                <button className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '0.9rem' }}>Gérer</button>
+              </div>
+            )}
+            
             <div style={{ background: 'rgba(255,255,255,0.03)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'transform 0.2s', cursor: 'default' }} onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
               <div>
                 <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>Adresse E-mail</div>

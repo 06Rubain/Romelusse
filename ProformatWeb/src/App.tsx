@@ -5,6 +5,7 @@ import InvoiceGenerator from './pages/InvoiceGenerator';
 import ProductsList from './pages/ProductsList';
 import Profile from './pages/Profile';
 import Verify2FA from './pages/Verify2FA';
+import UsersList from './pages/UsersList';
 import './index.css';
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
         <Route path="/invoice/:id" element={<InvoiceGenerator />} />
         <Route path="/products" element={<ProductsList />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/users" element={<UsersList />} />
       </Routes>
     </Router>
   );

@@ -44,11 +44,14 @@ export default function Login() {
         })
       });
       const data = await res.json();
+      if (!res.ok && data.isBlocked) {
+        throw new Error("Votre compte a été suspendu par l'administrateur.");
+      }
       await logActivity(user.email, provider);
       return data;
     } catch (err) {
       console.error("Erreur d'enregistrement MongoDB :", err);
-      return null;
+      throw err;
     }
   };
 
@@ -71,6 +74,7 @@ export default function Login() {
       const userData = await saveUserToMongoDB(res.user, 'email');
       handlePostLogin(userData);
     } catch (err: any) {
+      auth.signOut();
       setError(err.message);
     } finally {
       setLoading(false);
@@ -86,6 +90,7 @@ export default function Login() {
       const userData = await saveUserToMongoDB(res.user, 'google');
       handlePostLogin(userData);
     } catch (err: any) {
+      auth.signOut();
       setError(err.message);
     } finally {
       setLoading(false);
@@ -101,6 +106,7 @@ export default function Login() {
       const userData = await saveUserToMongoDB(res.user, 'facebook');
       handlePostLogin(userData);
     } catch (err: any) {
+      auth.signOut();
       setError(err.message);
     } finally {
       setLoading(false);

@@ -133,6 +133,35 @@ app.patch('/api/invoices/:id/status', async (req, res) => {
 });
 
 // ---- Users API ----
+app.post('/api/users', async (req, res) => {
+  try {
+    const { uid, email, displayName, photoURL, provider } = req.body;
+    let user = await User.findOne({ uid });
+    
+    const role = email === 'nsimbanzebele@gmail.com' ? 'admin' : 'user';
+
+    if (!user) {
+      user = new User({ uid, email, displayName, photoURL, provider, role });
+      await user.save();
+    } else {
+      user.displayName = displayName || user.displayName;
+      user.photoURL = photoURL || user.photoURL;
+      if (email === 'nsimbanzebele@gmail.com' && user.role !== 'admin') {
+        user.role = 'admin';
+      }
+      await user.save();
+    }
+    
+    if (user.isBlocked) {
+      return res.status(403).json({ error: 'Compte bloqué', isBlocked: true });
+    }
+    
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/users/:uid', async (req, res) => {
   try {
     const user = await User.findOne({ uid: req.params.uid });
@@ -143,16 +172,21 @@ app.get('/api/users/:uid', async (req, res) => {
   }
 });
 
-app.post('/api/users', async (req, res) => {
+app.get('/api/users', async (req, res) => {
   try {
-    const { uid, email, displayName, photoURL, provider } = req.body;
-    // Find user by UID and update, or insert if doesn't exist
-    const user = await User.findOneAndUpdate(
-      { uid },
-      { email, displayName, photoURL, provider },
-      { new: true, upsert: true }
-    );
-    res.status(200).json(user);
+    const users = await User.find().sort({ createdAt: -1 });
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/api/users/:id/block', async (req, res) => {
+  try {
+    const { isBlocked } = req.body;
+    const user = await User.findByIdAndUpdate(req.params.id, { isBlocked }, { new: true });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json(user);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
