@@ -331,6 +331,7 @@ export default function InvoiceGenerator() {
           minHeight: '297mm', 
           margin: '0 auto', 
           background: 'white', 
+          color: 'black',
           position: 'relative', 
           boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
           fontFamily: 'Arial, Helvetica, sans-serif',
