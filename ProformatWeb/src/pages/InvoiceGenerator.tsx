@@ -389,7 +389,7 @@ export default function InvoiceGenerator() {
             <div style={{ border: '1px solid black', flex: 1, display: 'flex', flexDirection: 'column' }}>
               <div style={{ 
                 display: 'flex', 
-                background: 'linear-gradient(to right, #b91d1d 0%, #eb5e5e 40%, #00a5bb 80%, #6892b1 100%)', 
+                background: '#00a5bb', 
                 color: 'white', 
                 fontWeight: 'bold', 
                 fontSize: '15px' 
@@ -436,11 +436,11 @@ export default function InvoiceGenerator() {
                 borderTop: '1px solid black', 
                 fontSize: '15px', 
                 fontWeight: 'bold',
-                background: 'linear-gradient(to right, #b91d1d 0%, #eb5e5e 40%, #00a5bb 80%, #6892b1 100%)',
+                background: '#00a5bb',
                 color: 'white'
               }}>
-                <div style={{ width: '70%', padding: '6px', textAlign: 'center', borderRight: '1px solid black' }}>Total général</div>
-                <div style={{ width: '30%', padding: '6px', textAlign: 'center' }}>{total.toFixed(2).replace('.', ',')} {invoiceCurrency}</div>
+                <div style={{ width: '70%', padding: '6px', textAlign: 'center', borderRight: '1px solid black', color: 'white' }}>Total général</div>
+                <div style={{ width: '30%', padding: '6px', textAlign: 'center', color: 'white' }}>{total.toFixed(2).replace('.', ',')} {invoiceCurrency}</div>
               </div>
             </div>
             
