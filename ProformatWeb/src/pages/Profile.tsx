@@ -46,8 +46,6 @@ export default function Profile() {
         setLoading(false);
       }
     };
-
-  useEffect(() => {
     fetchProfile();
   }, [navigate]);
 
