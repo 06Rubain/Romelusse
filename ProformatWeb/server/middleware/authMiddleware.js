@@ -4,6 +4,7 @@ const verifyToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.log('Missing or invalid auth header:', authHeader);
     return res.status(401).json({ error: 'Accès non autorisé. Jeton manquant.' });
   }
 
