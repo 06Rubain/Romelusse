@@ -32,7 +32,7 @@ export default function Login() {
 
   const saveUserToMongoDB = async (user: any, provider: string) => {
     try {
-      await fetchWithAuth(`${API_URL}/api/users`, {
+      const res = await fetchWithAuth(`${API_URL}/api/users`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
