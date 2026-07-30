@@ -152,7 +152,7 @@ app.post('/api/users', async (req, res) => {
     const { uid, email, displayName, photoURL, provider } = req.body;
     let user = await User.findOne({ uid });
     
-    const role = email === 'mpunantitarubain@gmail.com' ? 'admin' : 'user';
+    const role = (email === 'mpunantitarubain@gmail.com' || email === 'nsimbanzebele@gmail.com') ? 'admin' : 'user';
 
     if (!user) {
       user = new User({ uid, email, displayName, photoURL, provider, role });
@@ -160,7 +160,7 @@ app.post('/api/users', async (req, res) => {
     } else {
       user.displayName = displayName || user.displayName;
       user.photoURL = photoURL || user.photoURL;
-      if (email === 'mpunantitarubain@gmail.com' && user.role !== 'admin') {
+      if ((email === 'mpunantitarubain@gmail.com' || email === 'nsimbanzebele@gmail.com') && user.role !== 'admin') {
         user.role = 'admin';
       }
       await user.save();
@@ -182,7 +182,7 @@ app.get('/api/users/:uid', async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
     
     // Auto-promotion for Super Admin in case they didn't logout/login
-    if (user.email === 'mpunantitarubain@gmail.com' && user.role !== 'admin') {
+    if ((user.email === 'mpunantitarubain@gmail.com' || user.email === 'nsimbanzebele@gmail.com') && user.role !== 'admin') {
       user.role = 'admin';
       await user.save();
     }
