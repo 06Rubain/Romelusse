@@ -389,7 +389,7 @@ export default function InvoiceGenerator() {
             <div style={{ border: '1px solid black', flex: 1, display: 'flex', flexDirection: 'column' }}>
               <div style={{ 
                 display: 'flex', 
-                background: '#00a5bb', 
+                background: 'linear-gradient(to right, #b91d1d 0%, #eb5e5e 40%, #00a5bb 80%, #6892b1 100%)', 
                 color: 'white', 
                 fontWeight: 'bold', 
                 fontSize: '15px' 
@@ -424,23 +424,23 @@ export default function InvoiceGenerator() {
               </div>
               
               <div style={{ display: 'flex', borderTop: '1px solid black', fontSize: '15px', fontWeight: 'bold' }}>
-                <div style={{ width: '70%', padding: '6px', textAlign: 'center', borderRight: '1px solid black' }}>Total</div>
-                <div style={{ width: '30%', padding: '6px', textAlign: 'center' }}>{total.toFixed(2).replace('.', ',')} {invoiceCurrency}</div>
+                <div style={{ width: '85%', padding: '6px', textAlign: 'center', borderRight: '1px solid black' }}>Total</div>
+                <div style={{ width: '15%', padding: '6px', textAlign: 'center' }}>{total.toFixed(2).replace('.', ',')} {invoiceCurrency}</div>
               </div>
               <div style={{ display: 'flex', borderTop: '1px solid black', fontSize: '15px', fontWeight: 'bold' }}>
-                <div style={{ width: '70%', padding: '6px', textAlign: 'center', borderRight: '1px solid black' }}>Remise</div>
-                <div style={{ width: '30%', padding: '6px', textAlign: 'center' }}>-</div>
+                <div style={{ width: '85%', padding: '6px', textAlign: 'center', borderRight: '1px solid black' }}>Remise</div>
+                <div style={{ width: '15%', padding: '6px', textAlign: 'center' }}>-</div>
               </div>
               <div style={{ 
                 display: 'flex', 
                 borderTop: '1px solid black', 
                 fontSize: '15px', 
                 fontWeight: 'bold',
-                background: '#00a5bb',
+                background: 'linear-gradient(to right, #b91d1d 0%, #eb5e5e 40%, #00a5bb 80%, #6892b1 100%)',
                 color: 'white'
               }}>
-                <div style={{ width: '70%', padding: '6px', textAlign: 'center', borderRight: '1px solid black', color: 'white' }}>Total général</div>
-                <div style={{ width: '30%', padding: '6px', textAlign: 'center', color: 'white' }}>{total.toFixed(2).replace('.', ',')} {invoiceCurrency}</div>
+                <div style={{ width: '85%', padding: '6px', textAlign: 'center', borderRight: '1px solid black', color: 'white' }}>Total général</div>
+                <div style={{ width: '15%', padding: '6px', textAlign: 'center', color: 'white' }}>{total.toFixed(2).replace('.', ',')} {invoiceCurrency}</div>
               </div>
             </div>
             
