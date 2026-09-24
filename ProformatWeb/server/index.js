@@ -5,6 +5,8 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { authenticator } = require('otplib');
 const qrcode = require('qrcode');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 
 require('dotenv').config();
 const verifyToken = require('./middleware/authMiddleware');
@@ -17,7 +19,23 @@ const Activity = require('./models/Activity');
 const app = express();
 app.use(helmet());
 app.use(cors());
-app.use(express.json());
+app.use(
+  express.json({
+    // Accepter les deux formes de content‑type JSON
+    type: ['application/json', 'application/json; charset=utf-8'],
+    // Hook de vérification : journaliser les payloads invalides
+    verify: (req, res, buf) => {
+      try {
+        JSON.parse(buf);
+      } catch (_) {
+        console.warn('⚠️  Payload JSON invalide reçu :', buf.toString());
+        // Lever une exception déclenche le gestionnaire d’erreur intégré d’Express
+        throw new Error('Invalid JSON');
+      }
+    },
+  })
+);
+
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -30,7 +48,13 @@ app.use('/api/', apiLimiter);
 const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/proformat';
 
 // Ensure DB is connected before every request (Serverless best practice)
+app.use((req, res, next) => { console.log('DB Middleware Path:', req.path); next(); });
+// Ensure DB is connected before every request (Serverless best practice)
 app.use(async (req, res, next) => {
+  // Skip DB connection for authentication routes to avoid unnecessary DB errors during login
+  if (req.path.startsWith('/api/auth')) {
+    return next();
+  }
   if (mongoose.connection.readyState !== 1) {
     try {
       await mongoose.connect(mongoUri, {
@@ -46,7 +70,7 @@ app.use(async (req, res, next) => {
   next();
 });
 
-app.use('/api', verifyToken);
+app.use('/api', (req, res, next) => { if (req.path.startsWith('/auth')) { return next(); } verifyToken(req, res, next); });
 
 // ---- Products API ----
 app.get('/api/products', async (req, res) => {
@@ -149,17 +173,27 @@ app.patch('/api/invoices/:id/status', async (req, res) => {
 // ---- Users API ----
 app.post('/api/users', async (req, res) => {
   try {
-    const { uid, email, displayName, photoURL, provider } = req.body;
+    const { uid, email, displayName, photoURL, provider, password } = req.body;
     let user = await User.findOne({ uid });
     
     const role = (email === 'mpunantitarubain@gmail.com' || email === 'nsimbanzebele@gmail.com') ? 'admin' : 'user';
-
+    
+    // Hash password if provided
+    let passwordHash = undefined;
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      passwordHash = await bcrypt.hash(password, salt);
+    }
+    
     if (!user) {
-      user = new User({ uid, email, displayName, photoURL, provider, role });
+      user = new User({ uid, email, displayName, photoURL, provider, role, passwordHash });
       await user.save();
     } else {
       user.displayName = displayName || user.displayName;
       user.photoURL = photoURL || user.photoURL;
+      if (passwordHash) {
+        user.passwordHash = passwordHash;
+      }
       if ((email === 'mpunantitarubain@gmail.com' || email === 'nsimbanzebele@gmail.com') && user.role !== 'admin') {
         user.role = 'admin';
       }
@@ -219,6 +253,23 @@ app.get('/api/activities', async (req, res) => {
     const activities = await Activity.find().sort({ date: -1 }).limit(100);
     res.json(activities);
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---- Authentication ----
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password) return res.status(400).json({ error: 'Password required' });
+    const hash = process.env.APP_PASSWORD_HASH;
+    if (!hash) return res.status(500).json({ error: 'Server password not configured' });
+    const valid = await bcrypt.compare(password, hash);
+    if (!valid) return res.status(401).json({ error: 'Invalid password' });
+    const token = jwt.sign({ role: 'user' }, process.env.JWT_SECRET, { expiresIn: '1d' });
+    res.json({ token });
+  } catch (err) {
+    console.error('Login error:', err);
     res.status(500).json({ error: err.message });
   }
 });

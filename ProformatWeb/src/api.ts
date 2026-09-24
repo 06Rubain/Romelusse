@@ -1,15 +1,13 @@
-import { auth } from './firebase';
+// No Firebase auth; JWT token is stored in localStorage
 
 export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
-  let token = '';
-  if (auth.currentUser) {
-    token = await auth.currentUser.getIdToken();
-  }
-
+  let token = localStorage.getItem('jwt') || '';
+  // If token exists, set Authorization header
   const headers = new Headers(options.headers || {});
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
   }
+
 
   // Si c'est du JSON et pas spécifié, on ajoute l'entête
   if (options.body && typeof options.body === 'string' && !headers.has('Content-Type')) {

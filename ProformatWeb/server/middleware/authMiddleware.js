@@ -1,4 +1,4 @@
-const admin = require('../firebaseAdmin');
+const jwt = require('jsonwebtoken');
 
 const verifyToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -11,10 +11,10 @@ const verifyToken = async (req, res, next) => {
   const token = authHeader.split('Bearer ')[1];
 
   try {
-    const decodedToken = await admin.auth().verifyIdToken(token);
-    // On ajoute l'utilisateur vérifié à l'objet req
-    req.user = decodedToken;
-    next();
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  // Attach verified user payload to request
+  req.user = decoded;
+  next();
   } catch (error) {
     console.error('Erreur de vérification du jeton:', error);
     return res.status(401).json({ error: 'Accès non autorisé. Jeton invalide ou expiré.' });
