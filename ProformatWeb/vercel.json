@@ -24,6 +24,8 @@
     }
   ],
   "env": {
-    "MONGODB_URI": "mongodb+srv://mpunantitarubain_db_user:qApAAINwaSF6GInq@cluster0.uyfmpzs.mongodb.net/proformat?retryWrites=true&w=majority"
+    "MONGODB_URI": "mongodb+srv://mpunantitarubain_db_user:EbCUTlJNX7VInKXT@cluster0.uyfmpzs.mongodb.net/proformat?retryWrites=true&w=majority",
+    "APP_PASSWORD_HASH": "$2a$10$cE6mzDF.f.Zqr9AIv/klE.w2ewtMRIuFW2G2BKeeIvRQq8NTf3PCi",
+    "JWT_SECRET": "supersecretkey123"
   }
 }
