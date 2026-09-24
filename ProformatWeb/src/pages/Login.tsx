@@ -10,7 +10,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = async (e) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
@@ -24,7 +24,7 @@ export default function Login() {
       if (!res.ok) throw new Error(data.error || 'Login failed');
       localStorage.setItem('jwt', data.token);
       navigate('/dashboard');
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
