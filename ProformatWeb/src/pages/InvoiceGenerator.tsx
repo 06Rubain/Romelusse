@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRightLeft, Ban, Plus, Printer, Save, Trash2, Wallet } from 'lucide-react';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, ArrowRightLeft, Ban, Copy, MessageCircle, Minus, Plus, Printer, Save, Trash2, Wallet } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
 import { api, errorMessage } from '../lib/api';
 import { useFeedback } from '../components/feedback';
@@ -18,8 +18,19 @@ interface EditLine { key: string; productId: string | null; name: string; quanti
 let lineSeq = 0;
 const newKey = () => `l${++lineSeq}`;
 
+// Message prêt à envoyer au client sur WhatsApp (numéro de sa fiche si renseigné)
+const whatsappLink = (invoice: Invoice, companyName: string, phone?: string) => {
+  const due = invoice.type === 'Facture' && invoice.balance > 0 && invoice.status !== 'Annulée'
+    ? `\nReste à payer : ${formatMoney(invoice.balance, invoice.currency)}` : '';
+  const text = `Bonjour ${invoice.client},\nVoici votre ${invoice.type === 'Proforma' ? 'proforma' : 'facture'} ${invoice.number}`
+    + `${companyName ? ` de ${companyName}` : ''}.\nMontant : ${formatMoney(invoice.totalAmount, invoice.currency)}${due}\nMerci pour votre confiance.`;
+  const digits = (phone || '').replace(/\D/g, '').replace(/^0+/, '');
+  const number = digits && digits.length <= 9 ? `243${digits}` : digits;
+  return `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
+};
+
 export default function InvoiceGenerator() {
-  const { confirm, prompt } = useFeedback();
+  const { confirm, prompt, toast } = useFeedback();
   const { id } = useParams();
   const navigate = useNavigate();
   const { company: settings, can } = useAuth();
@@ -33,6 +44,7 @@ export default function InvoiceGenerator() {
 
   // Formulaire
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const [type, setType] = useState<'Proforma' | 'Facture'>(() => (searchParams.get('type') === 'Facture' ? 'Facture' : 'Proforma'));
   const [number, setNumber] = useState('');
   const [suggestedNumber, setSuggestedNumber] = useState('');
@@ -52,6 +64,7 @@ export default function InvoiceGenerator() {
   const [overflow, setOverflow] = useState<string[]>([]);
 
   const [productSearch, setProductSearch] = useState('');
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [manualName, setManualName] = useState('');
   const [manualPrice, setManualPrice] = useState('');
 
@@ -89,7 +102,7 @@ export default function InvoiceGenerator() {
   };
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { setInvoice(null); if (id) loadInvoice(); else resetForm(); }, [id]);
+  useEffect(() => { setInvoice(null); if (id) loadInvoice(); else resetForm(); }, [id, location.key]);
 
   useEffect(() => {
     if (id) return;
@@ -98,13 +111,16 @@ export default function InvoiceGenerator() {
   }, [type, id]);
 
   function resetForm() {
-    setType('Proforma'); setNumber(''); setClientName(''); setClientActivity(''); setIssueDate(toInputDate());
-    setDueDate(''); setCurrency('USD'); setDiscount(''); setNotes(''); setLines([]);
+    const copy = (location.state as { copy?: Invoice } | null)?.copy;
+    setType(copy?.type || (searchParams.get('type') === 'Facture' ? 'Facture' : 'Proforma'));
+    setNumber(''); setClientName(copy?.client || ''); setClientActivity(copy?.clientActivity || ''); setIssueDate(toInputDate());
+    setDueDate(''); setCurrency(copy?.currency || 'USD'); setDiscount(copy?.discount ? String(copy.discount) : ''); setNotes(copy?.notes || '');
+    setLines(copy ? copy.products.map((l) => ({ key: newKey(), productId: l.productId, name: l.name, quantity: l.quantity, unitPrice: l.unitPrice })) : []);
   }
 
   const filteredCatalog = useMemo(() => {
     const q = productSearch.trim().toLowerCase();
-    return catalog.filter((p) => !q || p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q)).slice(0, 8);
+    return catalog.filter((p) => !q || p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q)).slice(0, 12);
   }, [catalog, productSearch]);
 
   const addProduct = (p: Product) => {
@@ -115,6 +131,7 @@ export default function InvoiceGenerator() {
       return [...prev, { key: newKey(), productId: p._id, name: p.name, quantity: 1, unitPrice: price }];
     });
     setProductSearch('');
+    setPickerOpen(false);
   };
 
   const addManual = () => {
@@ -128,6 +145,21 @@ export default function InvoiceGenerator() {
     setManualPrice('');
     setError('');
   };
+
+  const changeQuantity = (key: string, delta: number) =>
+    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, quantity: Math.max(1, round2(l.quantity + delta)) } : l)));
+
+  const existingClient = clients.find((c) => c.name.toLowerCase() === clientName.trim().toLowerCase());
+  const clientPhone = existingClient?.phone || clients.find((c) => c._id === invoice?.clientId)?.phone;
+  const duplicate = () => invoice && navigate('/invoice', { state: { copy: invoice } });
+  const shareButtons = invoice && (
+    <>
+      <a className="btn btn-whatsapp btn-block" href={whatsappLink(invoice, settings?.name || '', clientPhone)} target="_blank" rel="noreferrer">
+        <MessageCircle size={18} /> Envoyer par WhatsApp
+      </a>
+      {can('invoices.create') && <button className="btn btn-ghost btn-block" onClick={duplicate}><Copy size={18} /> Refaire un document identique</button>}
+    </>
+  );
 
   const updateLine = (key: string, patch: Partial<EditLine>) => setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
 
@@ -173,8 +205,10 @@ export default function InvoiceGenerator() {
       if (id) {
         await api.put(`/invoices/${id}`, body);
         await loadInvoice();
+        toast('Modifications enregistrées.');
       } else {
         const created = await api.post<Invoice>('/invoices', body);
+        toast(`${created.type} ${created.number} enregistrée. Vous pouvez l'imprimer ou l'envoyer.`);
         navigate(`/invoice/${created._id}`, { replace: true });
       }
     } catch (err) {
@@ -223,122 +257,146 @@ export default function InvoiceGenerator() {
 
         {editable ? (
           <>
-            <div className="form-grid">
-              <div className="input-group">
-                <span className="label">Type</span>
-                <div className="segmented" role="radiogroup" aria-label="Type de document">
-                  {(['Proforma', 'Facture'] as const).map((t) => (
-                    <button key={t} type="button" role="radio" aria-checked={type === t} className={type === t ? 'active' : ''}
-                      onClick={() => setType(t)} disabled={!!id && type !== t}>
-                      {t === 'Proforma' ? 'Proforma (devis)' : 'Facture'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <Field label="Numéro" hint={id ? undefined : 'Laisser vide pour la numérotation automatique'}>
-                <input className="input-field" value={number} onChange={(e) => setNumber(e.target.value)} placeholder={suggestedNumber} disabled={!!id} />
-              </Field>
+            <div className="step-title"><span>1</span>Type et client</div>
+            <div className="segmented segmented-lg" role="radiogroup" aria-label="Type de document">
+              {(['Proforma', 'Facture'] as const).map((t) => (
+                <button key={t} type="button" role="radio" aria-checked={type === t} className={type === t ? 'active' : ''}
+                  onClick={() => setType(t)} disabled={!!id && type !== t}>
+                  {t === 'Proforma' ? 'Proforma (devis)' : 'Facture'}
+                </button>
+              ))}
             </div>
 
-            <Field label="Client">
-              <input className="input-field" list="clients-list" value={clientName} onChange={(e) => pickClient(e.target.value)} placeholder="Choisir ou saisir un nouveau client" />
+            <Field label="Client" hint={clientName.trim() && !existingClient ? 'Nouveau client : sa fiche sera créée automatiquement.' : undefined}>
+              <input className="input-field" list="clients-list" value={clientName} onChange={(e) => pickClient(e.target.value)} placeholder="Nom du client" autoFocus={!id} />
               <datalist id="clients-list">{clients.map((c) => <option key={c._id} value={c.name} />)}</datalist>
-            </Field>
-            <Field label="Activité / Réf. client (optionnel)">
-              <input className="input-field" value={clientActivity} onChange={(e) => setClientActivity(e.target.value)} />
             </Field>
 
             <div className="form-grid">
               <Field label="Date">
                 <input type="date" className="input-field" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} />
               </Field>
-              {type === 'Facture' && (
-                <Field label="Échéance" hint={settings ? `Par défaut : ${settings.paymentTermDays} jours` : undefined}>
+              {type === 'Facture' ? (
+                <Field label="À payer avant le" hint={settings ? `Vide = ${settings.paymentTermDays} jours` : undefined}>
                   <input type="date" className="input-field" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
                 </Field>
+              ) : (
+                <div className="input-group">
+                  <span className="label">Devise</span>
+                  <CurrencySwitch value={currency} onChange={changeCurrency} />
+                </div>
               )}
-              <Field label="Devise">
-                <select className="input-field" value={currency} onChange={(e) => changeCurrency(e.target.value as Currency)}>
-                  <option value="USD">USD</option>
-                  <option value="FC">Franc congolais (FC)</option>
-                </select>
-              </Field>
-              <Field label="Taux (1 USD = ? FC)">
-                <input type="number" min="0" className="input-field" value={rate} onChange={(e) => setRate(parseFloat(e.target.value) || 0)} />
-              </Field>
             </div>
+            {type === 'Facture' && (
+              <div className="input-group">
+                <span className="label">Devise</span>
+                <CurrencySwitch value={currency} onChange={changeCurrency} />
+              </div>
+            )}
 
-            <h3 className="section-title">Articles</h3>
+            <div className="step-title"><span>2</span>Articles</div>
             <div className="product-picker">
-              <input className="input-field" placeholder="Rechercher un produit du catalogue…" value={productSearch} onChange={(e) => setProductSearch(e.target.value)} />
-              {productSearch && (
+              <input className="input-field" placeholder={catalog.length ? 'Touchez ici pour choisir dans le catalogue…' : 'Rechercher un produit…'} value={productSearch}
+                onChange={(e) => { setProductSearch(e.target.value); setPickerOpen(true); }}
+                onFocus={() => setPickerOpen(true)} onBlur={() => setPickerOpen(false)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && filteredCatalog[0]) { e.preventDefault(); addProduct(filteredCatalog[0]); }
+                  if (e.key === 'Escape') setPickerOpen(false);
+                }} />
+              {pickerOpen && (productSearch || catalog.length > 0) && (
                 <div className="picker-results">
                   {filteredCatalog.map((p) => (
-                    <button key={p._id} type="button" onClick={() => addProduct(p)}>
+                    <button key={p._id} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => addProduct(p)}>
                       <span>{p.name}<small className="muted"> · {p.category}{p.trackStock ? ` · stock ${p.stockQuantity}` : ''}</small></span>
                       <strong>{p.priceOnQuote ? 'Sur devis' : formatMoney(p.unitPrice, p.currency)}</strong>
                     </button>
                   ))}
-                  {filteredCatalog.length === 0 && <div className="muted" style={{ padding: 10 }}>Aucun produit trouvé.</div>}
+                  {filteredCatalog.length === 0 && <div className="muted" style={{ padding: 10 }}>Aucun produit trouvé : ajoutez-le comme article libre ci-dessous.</div>}
                 </div>
               )}
             </div>
-            <div className="manual-line">
-              <input className="input-field" placeholder="Article personnalisé" value={manualName} onChange={(e) => setManualName(e.target.value)} />
+            <form className="manual-line" onSubmit={(e) => { e.preventDefault(); addManual(); }}>
+              <input className="input-field" placeholder="Ou un article libre" value={manualName} onChange={(e) => setManualName(e.target.value)} />
               <input className="input-field" placeholder={`Prix ${currency}`} inputMode="decimal" value={manualPrice} onChange={(e) => setManualPrice(e.target.value)} style={{ width: 110 }} />
-              <button className="btn btn-outline" type="button" onClick={addManual} aria-label="Ajouter"><Plus size={16} /></button>
-            </div>
+              <button className="btn btn-outline" type="submit" aria-label="Ajouter"><Plus size={16} /></button>
+            </form>
 
             <div className="line-list">
-              {lines.length > 0 && <div className="line-head muted small"><span>Désignation</span><span>Qté</span><span>P.U</span><span /></div>}
               {lines.map((l) => (
-                <div key={l.key} className="line-row">
-                  <input className="input-field" value={l.name} onChange={(e) => updateLine(l.key, { name: e.target.value })} />
-                  <input className="input-field" type="number" min="0" step="any" value={l.quantity} onChange={(e) => updateLine(l.key, { quantity: parseFloat(e.target.value) || 0 })} aria-label="Quantité" />
-                  <input className="input-field" type="number" min="0" step="any" value={l.unitPrice} onChange={(e) => updateLine(l.key, { unitPrice: parseFloat(e.target.value) || 0 })} aria-label="Prix unitaire" />
-                  <button className="icon-btn text-danger" onClick={() => setLines((prev) => prev.filter((x) => x.key !== l.key))} aria-label="Retirer"><Trash2 size={16} /></button>
+                <div key={l.key} className="line-card">
+                  <div className="line-card-top">
+                    <input className="input-field" value={l.name} onChange={(e) => updateLine(l.key, { name: e.target.value })} aria-label="Désignation" />
+                    <button className="icon-btn text-danger" onClick={() => setLines((prev) => prev.filter((x) => x.key !== l.key))} aria-label="Retirer"><Trash2 size={16} /></button>
+                  </div>
+                  <div className="line-card-bottom">
+                    <div className="stepper">
+                      <button type="button" onClick={() => changeQuantity(l.key, -1)} disabled={l.quantity <= 1} aria-label="Diminuer"><Minus size={14} /></button>
+                      <input type="number" min="0" step="any" value={l.quantity} onChange={(e) => updateLine(l.key, { quantity: parseFloat(e.target.value) || 0 })} aria-label="Quantité" />
+                      <button type="button" onClick={() => changeQuantity(l.key, 1)} aria-label="Augmenter"><Plus size={14} /></button>
+                    </div>
+                    <span className="muted small">×</span>
+                    <input className="input-field price" type="number" min="0" step="any" value={l.unitPrice} onChange={(e) => updateLine(l.key, { unitPrice: parseFloat(e.target.value) || 0 })} aria-label="Prix unitaire" />
+                    <strong className="line-total">{formatMoney(l.quantity * l.unitPrice, currency)}</strong>
+                  </div>
                 </div>
               ))}
-              {lines.length === 0 && <div className="muted small">Aucun article. Recherchez un produit ou ajoutez un article personnalisé.</div>}
+              {lines.length === 0 && <div className="line-empty">Aucun article pour l'instant. Choisissez un produit du catalogue ou tapez un article libre avec son prix.</div>}
             </div>
             {lowStock.length > 0 && (
               <Alert tone="info">Stock insuffisant : {lowStock.map((l) => l.name).join(', ')}. La facture reste possible, le stock deviendra négatif.</Alert>
             )}
 
-            <div className="form-grid">
-              <Field label={`Remise (${currency})`}>
-                <input className="input-field" inputMode="decimal" value={discount} onChange={(e) => setDiscount(e.target.value)} placeholder="0" />
+            <div className="step-title"><span>3</span>Vérifier et enregistrer</div>
+            <details className="more-options">
+              <summary>Plus d'options : remise, notes, numéro, taux, format</summary>
+              <div className="form-grid">
+                <Field label={`Remise (${currency})`}>
+                  <input className="input-field" inputMode="decimal" value={discount} onChange={(e) => setDiscount(e.target.value)} placeholder="0" />
+                </Field>
+                <Field label="Numéro" hint={id ? undefined : 'Vide = automatique'}>
+                  <input className="input-field" value={number} onChange={(e) => setNumber(e.target.value)} placeholder={suggestedNumber} disabled={!!id} />
+                </Field>
+                <Field label="Taux (1 USD = ? FC)">
+                  <input type="number" min="0" className="input-field" value={rate} onChange={(e) => setRate(parseFloat(e.target.value) || 0)} />
+                </Field>
+                {customTemplate ? (
+                  <Field label="Modèle"><div className="muted small" style={{ paddingTop: 10 }}>Votre modèle importé ({customTemplate.pageSize})</div></Field>
+                ) : (
+                  <Field label="Format d'impression">
+                    <select className="input-field" value={printFormat} onChange={(e) => setPrintFormat(e.target.value as 'A4' | 'A5' | 'A6')}>
+                      <option value="A4">A4 (standard)</option>
+                      <option value="A5">A5 (moyen)</option>
+                      <option value="A6">A6 (petit)</option>
+                    </select>
+                  </Field>
+                )}
+              </div>
+              <Field label="Activité / Réf. client">
+                <input className="input-field" value={clientActivity} onChange={(e) => setClientActivity(e.target.value)} />
               </Field>
-              {customTemplate ? (
-                <Field label="Modèle"><div className="muted small" style={{ paddingTop: 10 }}>Votre modèle importé ({customTemplate.pageSize})</div></Field>
-              ) : (
-              <Field label="Format d'impression">
-                <select className="input-field" value={printFormat} onChange={(e) => setPrintFormat(e.target.value as 'A4' | 'A5' | 'A6')}>
-                  <option value="A4">A4 (standard)</option>
-                  <option value="A5">A5 (moyen)</option>
-                  <option value="A6">A6 (petit)</option>
-                </select>
+              <Field label="Notes / conditions">
+                <textarea className="input-field" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
               </Field>
-              )}
-            </div>
-            <Field label="Notes / conditions">
-              <textarea className="input-field" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
-            </Field>
+            </details>
 
-            <div className="totals">
-              <div><span>Sous-total</span><span>{formatMoney(subtotal, currency)}</span></div>
-              {discountValue > 0 && <div><span>Remise</span><span>- {formatMoney(discountValue, currency)}</span></div>}
-              <div className="strong"><span>Total</span><span>{formatMoney(total, currency)}</span></div>
-            </div>
-
-            <div className="stack-sm">
-              <button className="btn btn-primary btn-block" onClick={save} disabled={busy}>
+            <div className="save-bar">
+              <div className="totals">
+                {discountValue > 0 && <div><span>Sous-total</span><span>{formatMoney(subtotal, currency)}</span></div>}
+                {discountValue > 0 && <div><span>Remise</span><span>- {formatMoney(discountValue, currency)}</span></div>}
+                <div className="strong"><span>Total</span><span>{formatMoney(total, currency)}</span></div>
+              </div>
+              <button className="btn btn-primary btn-block btn-lg" onClick={save} disabled={busy}>
                 <Save size={18} /> {busy ? 'Enregistrement…' : id ? 'Enregistrer les modifications' : `Enregistrer ${type === 'Proforma' ? 'la proforma' : 'la facture'}`}
               </button>
-              {id && <button className="btn btn-outline btn-block" onClick={() => print()}><Printer size={18} /> Imprimer / PDF</button>}
-              {invoice?.type === 'Proforma' && <button className="btn btn-outline btn-block" onClick={convert}><ArrowRightLeft size={18} /> Convertir en facture</button>}
-              {invoice && can('invoices.cancel') && <button className="btn btn-ghost btn-block text-danger" onClick={cancel}><Ban size={18} /> Annuler la proforma</button>}
             </div>
+            {id && (
+              <div className="stack-sm" style={{ marginTop: 10 }}>
+                <button className="btn btn-outline btn-block" onClick={() => print()}><Printer size={18} /> Imprimer / PDF</button>
+                {shareButtons}
+                {invoice?.type === 'Proforma' && <button className="btn btn-outline btn-block" onClick={convert}><ArrowRightLeft size={18} /> Le client accepte : convertir en facture</button>}
+                {invoice && can('invoices.cancel') && <button className="btn btn-ghost btn-block text-danger" onClick={cancel}><Ban size={18} /> Annuler la proforma</button>}
+              </div>
+            )}
           </>
         ) : invoice && (
           <>
@@ -364,10 +422,11 @@ export default function InvoiceGenerator() {
             </Field>
             )}
             <div className="stack-sm">
-              <button className="btn btn-primary btn-block" onClick={() => print()}><Printer size={18} /> Imprimer / PDF</button>
               {invoice.type === 'Facture' && invoice.balance > 0 && invoice.status !== 'Annulée' && can('payments.create') && (
-                <button className="btn btn-outline btn-block" onClick={() => setPaying(true)}><Wallet size={18} /> Enregistrer un paiement</button>
+                <button className="btn btn-primary btn-block btn-lg" onClick={() => setPaying(true)}><Wallet size={18} /> Le client a payé : encaisser</button>
               )}
+              <button className={`btn btn-block ${invoice.type === 'Facture' && invoice.balance > 0 && invoice.status !== 'Annulée' ? 'btn-outline' : 'btn-primary btn-lg'}`} onClick={() => print()}><Printer size={18} /> Imprimer / PDF</button>
+              {shareButtons}
               {can('invoices.cancel') && invoice.status !== 'Annulée' && invoice.status !== 'Convertie' && invoice.amountPaid === 0 && (
                 <button className="btn btn-ghost btn-block text-danger" onClick={cancel}><Ban size={18} /> Annuler la facture</button>
               )}
@@ -437,6 +496,18 @@ export default function InvoiceGenerator() {
       `}</style>
 
       {paying && invoice && <PaymentModal invoice={invoice} onClose={() => setPaying(false)} onSaved={loadInvoice} />}
+    </div>
+  );
+}
+
+function CurrencySwitch({ value, onChange }: { value: Currency; onChange: (c: Currency) => void }) {
+  return (
+    <div className="segmented" role="radiogroup" aria-label="Devise">
+      {(['USD', 'FC'] as const).map((c) => (
+        <button key={c} type="button" role="radio" aria-checked={value === c} className={value === c ? 'active' : ''} onClick={() => onChange(c)}>
+          {c === 'USD' ? 'Dollar ($)' : 'Franc (FC)'}
+        </button>
+      ))}
     </div>
   );
 }

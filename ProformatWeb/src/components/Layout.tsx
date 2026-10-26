@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   BarChart3, FileText, Users, Package, Wallet, Receipt, PieChart, UserCog, Settings as SettingsIcon,
-  History, LogOut, Menu, X, User as UserIcon, FilePlus2, ShieldCheck, Building2, LayoutTemplate,
+  History, LogOut, Menu, X, User as UserIcon, FilePlus2, ShieldCheck, Building2, LayoutTemplate, Search, Home, Plus,
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import ThemeToggle from './ThemeToggle';
+import QuickSearch from './QuickSearch';
 import { APP_NAME, type Permission } from '../lib/types';
 
 interface NavItem { to: string; label: string; icon: typeof BarChart3; permissions?: Permission[] }
@@ -16,7 +17,7 @@ const COMPANY_SECTIONS: { title: string; items: NavItem[] }[] = [
     { to: '/reports', label: 'Rapports', icon: PieChart, permissions: ['reports.view'] },
   ] },
   { title: 'Ventes', items: [
-    { to: '/invoice', label: 'Nouvelle facture', icon: FilePlus2, permissions: ['invoices.create'] },
+    { to: '/invoice', label: 'Nouveau document', icon: FilePlus2, permissions: ['invoices.create'] },
     { to: '/invoices', label: 'Factures & proformas', icon: FileText },
     { to: '/payments', label: 'Encaissements', icon: Wallet },
     { to: '/clients', label: 'Clients', icon: Users },
@@ -45,9 +46,20 @@ const PLATFORM_SECTIONS: { title: string; items: NavItem[] }[] = [
 export default function Layout() {
   const { user, company, logout, can, acting, exitCompany } = useAuth();
   const [open, setOpen] = useState(false);
+  const [searching, setSearching] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setSearching((v) => !v); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   const navigate = useNavigate();
   const inPlatform = Boolean(user?.isSuperAdmin && !acting);
   const sections = inPlatform ? PLATFORM_SECTIONS : COMPANY_SECTIONS;
+  const actions = sections.flatMap((section) => section.items.filter((i) => !i.permissions || can(...i.permissions)))
+    .map(({ to, label, icon }) => ({ to, label, icon }));
   const title = inPlatform ? 'OmniCom' : company?.name || APP_NAME;
 
   const backToPlatform = () => {
@@ -65,7 +77,7 @@ export default function Layout() {
       <header className="mobile-topbar no-print">
         <button className="icon-btn" onClick={() => setOpen(true)} aria-label="Ouvrir le menu"><Menu size={22} /></button>
         <strong>{title}</strong>
-        <span style={{ width: 22 }} />
+        <button className="icon-btn" onClick={() => setSearching(true)} aria-label="Rechercher"><Search size={20} /></button>
       </header>
 
       {open && <div className="sidebar-backdrop no-print" onClick={() => setOpen(false)} />}
@@ -83,6 +95,10 @@ export default function Layout() {
           </div>
           <button className="icon-btn mobile-only" onClick={() => setOpen(false)} aria-label="Fermer le menu"><X size={20} /></button>
         </div>
+
+        <button className="search-trigger" onClick={() => { setOpen(false); setSearching(true); }}>
+          <Search size={16} /><span>Rechercher…</span><kbd>Ctrl K</kbd>
+        </button>
 
         <nav className="nav">
           {sections.map((section) => {
@@ -128,6 +144,18 @@ export default function Layout() {
         )}
         <Outlet />
       </main>
+
+      {!inPlatform && (
+        <nav className="bottom-nav no-print" aria-label="Navigation principale">
+          <NavLink to="/dashboard" className={({ isActive }) => (isActive ? 'active' : '')}><Home size={20} /><span>Accueil</span></NavLink>
+          <NavLink to="/invoices" className={({ isActive }) => (isActive ? 'active' : '')}><FileText size={20} /><span>Factures</span></NavLink>
+          {can('invoices.create') && <NavLink to="/invoice" end className="bottom-nav-main" aria-label="Nouveau document"><Plus size={26} /></NavLink>}
+          <NavLink to="/clients" className={({ isActive }) => (isActive ? 'active' : '')}><Users size={20} /><span>Clients</span></NavLink>
+          <button onClick={() => setOpen(true)}><Menu size={20} /><span>Menu</span></button>
+        </nav>
+      )}
+
+      {searching && <QuickSearch actions={actions} searchData={!inPlatform} onClose={() => setSearching(false)} />}
     </div>
   );
 }

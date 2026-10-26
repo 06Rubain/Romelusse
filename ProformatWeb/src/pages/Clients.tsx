@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Archive, Download, Edit2, Plus, Search, Users } from 'lucide-react';
 import { api, errorMessage } from '../lib/api';
@@ -24,6 +24,8 @@ export default function Clients() {
     () => (searchParams.get('new') && can('clients.manage') ? { id: null, form: EMPTY } : null),
   );
   const [detailId, setDetailId] = useState<string | null>(null);
+  // Fiche ouverte depuis la recherche rapide
+  useEffect(() => { const open = searchParams.get('open'); if (open) setDetailId(open); }, [searchParams]);
   const [error, setError] = useState('');
   const { data, loading, reload } = useFetch(() => api.get<Client[]>('/clients', { search }), [search]);
 

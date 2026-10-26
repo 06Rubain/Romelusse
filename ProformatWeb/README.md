@@ -60,6 +60,14 @@ qu'une entreprise ne peut ni lire ni modifier les données d'une autre.
 | **Entreprise & logo** | Logo, bandeau de bas de page, trois couleurs, coordonnées légales et bancaires, taux de change |
 | **Modèle de facture** | Modèle standard, ou **import du modèle de l'entreprise** (PDF, PNG, JPEG ; A4 ou A5) adapté dans un éditeur visuel |
 
+## Pensé pour être simple
+
+- **Créer un document en 3 étapes** : type et client → articles (catalogue en un clic, quantités avec − / +, article libre avec Entrée) → enregistrer. Les réglages rares (remise, numéro, taux, format, notes) sont repliés dans « Plus d'options ».
+- **Après l'enregistrement** : imprimer, **envoyer par WhatsApp** (message prêt avec le montant et le reste à payer, au numéro de la fiche client), encaisser en un clic, ou **refaire un document identique**.
+- **Recherche rapide** (`Ctrl + K` ou « Rechercher… ») : une page, un client ou un numéro de facture.
+- **Sur téléphone** : barre de navigation en bas avec un gros bouton « + » pour créer un document.
+- Tableau de bord avec actions rapides et guide « Bien démarrer », thème clair ou sombre, confirmations claires.
+
 ## Importer son propre modèle de facture
 
 Dans **Modèle de facture** (permission « Paramètres et personnalisation ») :
