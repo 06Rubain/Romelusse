@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   BarChart3, FileText, Users, Package, Wallet, Receipt, PieChart, UserCog, Settings as SettingsIcon,
-  History, LogOut, Menu, X, User as UserIcon, FilePlus2, ShieldCheck, Building2,
+  History, LogOut, Menu, X, User as UserIcon, FilePlus2, ShieldCheck, Building2, LayoutTemplate,
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { APP_NAME, type Permission } from '../lib/types';
@@ -29,6 +29,7 @@ const COMPANY_SECTIONS: { title: string; items: NavItem[] }[] = [
     { to: '/roles', label: 'Rôles & permissions', icon: ShieldCheck, permissions: ['roles.manage'] },
     { to: '/activities', label: 'Journal d\'activité', icon: History, permissions: ['activities.view'] },
     { to: '/settings', label: 'Entreprise & logo', icon: SettingsIcon, permissions: ['settings.manage'] },
+    { to: '/template', label: 'Modèle de facture', icon: LayoutTemplate, permissions: ['settings.manage'] },
   ] },
 ];
 

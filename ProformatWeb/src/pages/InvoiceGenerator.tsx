@@ -5,9 +5,11 @@ import { useReactToPrint } from 'react-to-print';
 import { api, errorMessage } from '../lib/api';
 import { useAuth } from '../auth/AuthContext';
 import { convertAmount, formatDate, formatMoney, PRINT_SCALE, round2, toInputDate } from '../lib/format';
-import type { Client, Currency, Invoice, Product } from '../lib/types';
+import { ZONE_LABELS, type Client, type Currency, type Invoice, type InvoiceTemplate, type Product, type ZoneKey } from '../lib/types';
 import { Alert, Field, StatusBadge } from '../components/ui';
 import InvoiceDocument from '../components/InvoiceDocument';
+import TemplateDocument from '../components/TemplateDocument';
+import { useFetch } from '../lib/useFetch';
 import PaymentModal from '../components/PaymentModal';
 
 interface EditLine { key: string; productId: string | null; name: string; quantity: number; unitPrice: number }
@@ -41,6 +43,10 @@ export default function InvoiceGenerator() {
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState<EditLine[]>([]);
   const [printFormat, setPrintFormat] = useState<'A4' | 'A5' | 'A6'>('A4');
+  // Modèle importé par l'entreprise (sinon modèle standard)
+  const { data: template } = useFetch(() => api.get<InvoiceTemplate>('/company/template'), []);
+  const customTemplate = template?.mode === 'custom' && template.background ? template : null;
+  const [overflow, setOverflow] = useState<string[]>([]);
 
   const [productSearch, setProductSearch] = useState('');
   const [manualName, setManualName] = useState('');
@@ -208,6 +214,9 @@ export default function InvoiceGenerator() {
         ) : <h2>Nouveau document</h2>}
 
         <Alert>{error}</Alert>
+        {customTemplate && overflow.length > 0 && (
+          <Alert tone="info">Le modèle importé ne peut pas afficher tout le contenu ({overflow.map((k) => ZONE_LABELS[k as ZoneKey]).join(', ')}). Répartissez les articles sur deux documents ou agrandissez la zone dans « Modèle de facture ».</Alert>
+        )}
 
         {editable ? (
           <>
@@ -292,6 +301,9 @@ export default function InvoiceGenerator() {
               <Field label={`Remise (${currency})`}>
                 <input className="input-field" inputMode="decimal" value={discount} onChange={(e) => setDiscount(e.target.value)} placeholder="0" />
               </Field>
+              {customTemplate ? (
+                <Field label="Modèle"><div className="muted small" style={{ paddingTop: 10 }}>Votre modèle importé ({customTemplate.pageSize})</div></Field>
+              ) : (
               <Field label="Format d'impression">
                 <select className="input-field" value={printFormat} onChange={(e) => setPrintFormat(e.target.value as 'A4' | 'A5' | 'A6')}>
                   <option value="A4">A4 (standard)</option>
@@ -299,6 +311,7 @@ export default function InvoiceGenerator() {
                   <option value="A6">A6 (petit)</option>
                 </select>
               </Field>
+              )}
             </div>
             <Field label="Notes / conditions">
               <textarea className="input-field" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
@@ -333,6 +346,7 @@ export default function InvoiceGenerator() {
             {invoice.convertedTo && <Alert tone="info">Convertie en facture : <Link to={`/invoice/${invoice.convertedTo}`}>voir la facture</Link></Alert>}
             {invoice.sourceProforma && <p className="muted small">Issue de la <Link to={`/invoice/${invoice.sourceProforma}`}>proforma d'origine</Link>.</p>}
 
+            {!customTemplate && (
             <Field label="Format d'impression">
               <select className="input-field" value={printFormat} onChange={(e) => setPrintFormat(e.target.value as 'A4' | 'A5' | 'A6')}>
                 <option value="A4">A4 (standard)</option>
@@ -340,6 +354,7 @@ export default function InvoiceGenerator() {
                 <option value="A6">A6 (petit)</option>
               </select>
             </Field>
+            )}
             <div className="stack-sm">
               <button className="btn btn-primary btn-block" onClick={() => print()}><Printer size={18} /> Imprimer / PDF</button>
               {invoice.type === 'Facture' && invoice.balance > 0 && invoice.status !== 'Annulée' && can('payments.create') && (
@@ -374,6 +389,17 @@ export default function InvoiceGenerator() {
 
       <div className="editor-preview">
         <div className="preview-fit">
+        {customTemplate ? (
+          <TemplateDocument
+            ref={contentRef}
+            template={customTemplate}
+            onOverflowChange={setOverflow}
+            data={{
+              type, number: number || suggestedNumber, client: clientName, clientActivity, issueDate, dueDate, currency, lines,
+              discount: discountValue, paid: invoice?.status === 'Payée', cancelled: invoice?.status === 'Annulée', notes,
+            }}
+          />
+        ) : (
         <InvoiceDocument
           ref={contentRef}
           type={type}
@@ -391,13 +417,14 @@ export default function InvoiceGenerator() {
           company={settings}
           printFormat={printFormat}
         />
+        )}
         </div>
       </div>
 
       <style>{`
         @media print {
-          @page { size: ${printFormat}; margin: 0; }
-          #print-area { box-shadow: none !important; transform: ${PRINT_SCALE[printFormat] === 1 ? 'none' : `scale(${PRINT_SCALE[printFormat]})`} !important; transform-origin: top left !important; }
+          @page { size: ${customTemplate ? customTemplate.pageSize : printFormat}; margin: 0; }
+          #print-area { box-shadow: none !important; transform: ${customTemplate || PRINT_SCALE[printFormat] === 1 ? 'none' : `scale(${PRINT_SCALE[printFormat]})`} !important; transform-origin: top left !important; }
         }
       `}</style>
 

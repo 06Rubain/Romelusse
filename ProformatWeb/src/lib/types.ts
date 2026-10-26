@@ -234,3 +234,44 @@ export const PERMISSION_GROUPS: { title: string; items: [Permission, string][] }
 ];
 
 export const APP_NAME = 'OmniCom Facturation';
+
+export type ZoneKey = 'meta' | 'client' | 'items' | 'totals' | 'words' | 'notes' | 'stamp';
+export interface Zone { x: number; y: number; w: number; h: number; visible: boolean; align: 'left' | 'center' | 'right' }
+
+export interface InvoiceTemplate {
+  mode: 'standard' | 'custom';
+  background: string;
+  pageSize: 'A4' | 'A5';
+  zones: Record<ZoneKey, Zone>;
+  style: {
+    fontFamily: string;
+    fontSize: number;
+    textColor: string;
+    headerBg: string;
+    headerText: string;
+    borderColor: string;
+    showBorders: boolean;
+  };
+  labels: Record<TemplateLabel, string>;
+}
+
+export type TemplateLabel = 'facture' | 'proforma' | 'client' | 'date' | 'dueDate' | 'quantity' | 'designation' | 'unitPrice'
+  | 'lineTotal' | 'subtotal' | 'discount' | 'grandTotal' | 'amountInWords' | 'paid' | 'cancelled';
+
+export const ZONE_LABELS: Record<ZoneKey, string> = {
+  meta: 'Numéro et dates',
+  client: 'Client',
+  items: 'Tableau des articles',
+  totals: 'Totaux',
+  words: 'Montant en lettres',
+  notes: 'Notes / conditions',
+  stamp: 'Cachet PAYÉ / ANNULÉ',
+};
+
+export const TEMPLATE_LABELS: Record<TemplateLabel, string> = {
+  facture: 'Titre facture', proforma: 'Titre proforma', client: 'Client', date: 'Date', dueDate: 'Échéance',
+  quantity: 'Colonne quantité', designation: 'Colonne désignation', unitPrice: 'Colonne prix unitaire', lineTotal: 'Colonne prix total',
+  subtotal: 'Total', discount: 'Remise', grandTotal: 'Total général', amountInWords: 'Montant en lettres', paid: 'Cachet payé', cancelled: 'Cachet annulé',
+};
+
+export const TEMPLATE_FONTS = ['Arial, Helvetica, sans-serif', 'Georgia, serif', '\'Times New Roman\', serif', '\'Courier New\', monospace', 'Verdana, sans-serif', 'Inter, sans-serif'];

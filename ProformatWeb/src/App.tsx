@@ -15,6 +15,7 @@ import UsersList from './pages/UsersList';
 import Roles from './pages/Roles';
 import Activities from './pages/Activities';
 import SettingsPage from './pages/Settings';
+import TemplateEditor from './pages/TemplateEditor';
 import Profile from './pages/Profile';
 import PlatformCompanies from './pages/PlatformCompanies';
 import PlatformTeam from './pages/PlatformTeam';
@@ -70,6 +71,7 @@ function App() {
                 </Route>
                 <Route element={<ProtectedRoute permissions={['settings.manage']} />}>
                   <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/template" element={<TemplateEditor />} />
                 </Route>
               </Route>
             </Route>

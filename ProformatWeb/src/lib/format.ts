@@ -64,3 +64,5 @@ export const downloadCsv = (filename: string, headers: string[], rows: (string |
 };
 
 export const PRINT_SCALE = { A4: 1, A5: 0.71, A6: 0.5 } as const;
+
+export const PAGE_MM = { A4: { w: 210, h: 297 }, A5: { w: 148, h: 210 } } as const;

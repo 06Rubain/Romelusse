@@ -334,7 +334,9 @@ details summary { cursor: pointer; }
 @media print {
   body * { visibility: hidden; }
   #print-area, #print-area * { visibility: visible; }
-  #print-area { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; background: white !important; color: black !important; }
+  html, body { background: #fff !important; margin: 0 !important; }
+  /* Ancré à l'origine de la feuille, quel que soit le défilement ou la mise en page de l'écran */
+  #print-area { position: fixed !important; left: 0; top: 0; margin: 0 !important; padding: 0; background: white !important; color: black; }
   .no-print { display: none !important; }
   .main-content, .editor-preview { padding: 0 !important; background: white !important; margin: 0 !important; }
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -390,3 +392,34 @@ details summary { cursor: pointer; }
 .company-cell { display: flex; align-items: center; gap: 12px; }
 .company-cell img, .company-cell .placeholder { width: 40px; height: 40px; border-radius: 8px; background: #fff; object-fit: contain; padding: 3px; flex-shrink: 0; }
 .company-cell .placeholder { display: flex; align-items: center; justify-content: center; color: var(--secondary); font-weight: 700; }
+
+/* Éditeur de modèle de facture */
+.tpl-layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 24px; align-items: start; }
+.tpl-panel { display: flex; flex-direction: column; gap: 16px; }
+.tpl-panel h3 { margin-bottom: 12px; }
+.tpl-preview-col { position: sticky; top: 16px; min-width: 0; }
+.tpl-preview { border-radius: 12px; max-height: calc(100vh - 140px); }
+.radio-card { display: flex; gap: 10px; align-items: flex-start; padding: 10px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; cursor: pointer; }
+.radio-card input { accent-color: var(--primary); margin-top: 3px; }
+.radio-card span { display: flex; flex-direction: column; gap: 2px; }
+.zone-row { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 8px; cursor: pointer; font-size: 0.9rem; }
+.zone-row:hover { background: var(--surface-hover); }
+.zone-row.active { background: rgba(0, 168, 181, 0.12); color: var(--primary); }
+.zone-row input { accent-color: var(--primary); }
+.zone-detail { border-top: 1px solid var(--border); margin-top: 10px; padding-top: 10px; }
+.zone-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.zone-grid .input-field { width: 100%; }
+input[type=range] { width: 100%; accent-color: var(--primary); }
+.tpl-zone { outline: 1.5px dashed rgba(0, 168, 181, 0.9); background: rgba(0, 168, 181, 0.06); cursor: move; touch-action: none; user-select: none; }
+.tpl-zone.selected { outline: 2px solid #00a8b5; background: rgba(0, 168, 181, 0.12); z-index: 2; }
+.tpl-zone-label { position: absolute; top: 0; left: 0; background: #00a8b5; color: #fff; font: 600 9px Inter, sans-serif; padding: 1px 5px; border-bottom-right-radius: 4px; pointer-events: none; text-align: left; }
+.tpl-zone-handle { position: absolute; right: 0; bottom: 0; width: 12px; height: 12px; background: #00a8b5; cursor: nwse-resize; border-top-left-radius: 4px; }
+@media (max-width: 1100px) {
+  .tpl-layout { grid-template-columns: 1fr; }
+  .tpl-preview-col { position: static; }
+}
+
+/* Le document imprimé n'hérite pas des styles de tableaux de l'application */
+.tpl-doc table { font-size: inherit; }
+.tpl-doc th, .tpl-doc td { font-size: inherit; text-transform: none; letter-spacing: normal; white-space: normal; font-weight: inherit; color: inherit; vertical-align: top; }
+.tpl-doc tr:hover td { background: transparent; }

@@ -3,13 +3,13 @@ const { HttpError } = require('./helpers');
 const MAX_IMAGE_BYTES = 800 * 1024;
 
 // Valide une image envoyée en data URL (logo, bandeau) ; '' supprime l'image
-const validateImage = (value, label) => {
+const validateImage = (value, label, maxBytes = MAX_IMAGE_BYTES) => {
   if (value === undefined) return undefined;
   if (value === '' || value === null) return '';
   const match = /^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/.exec(String(value));
   if (!match) throw new HttpError(400, `${label} : format accepté PNG, JPEG ou WebP.`);
   const bytes = Math.floor((match[2].length * 3) / 4);
-  if (bytes > MAX_IMAGE_BYTES) throw new HttpError(400, `${label} : 800 Ko maximum.`);
+  if (bytes > maxBytes) throw new HttpError(400, `${label} : ${Math.round(maxBytes / 1024)} Ko maximum.`);
   return value;
 };
 

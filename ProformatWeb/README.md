@@ -52,6 +52,25 @@ qu'une entreprise ne peut ni lire ni modifier les données d'une autre.
 | **Produits & stock** | Catalogue USD/FC, prix sur devis, stock décrémenté à la facturation, mouvements, seuils d'alerte |
 | **Dépenses & rapports** | Dépenses par catégorie, rapports consolidés au taux de change de l'entreprise |
 | **Entreprise & logo** | Logo, bandeau de bas de page, trois couleurs, coordonnées légales et bancaires, taux de change |
+| **Modèle de facture** | Modèle standard, ou **import du modèle de l'entreprise** (PDF, PNG, JPEG ; A4 ou A5) adapté dans un éditeur visuel |
+
+## Importer son propre modèle de facture
+
+Dans **Modèle de facture** (permission « Paramètres et personnalisation ») :
+
+1. **Importer** une page vierge de son modèle : PDF (1re page convertie dans le navigateur), PNG ou JPEG.
+   En-tête, pied de page, filigrane et coordonnées restent tels quels ; le format A4/A5 est détecté.
+2. **Placer les zones** à la souris sur l'aperçu (déplacer, redimensionner par le coin) ou au pourcentage près :
+   numéro et dates, client, tableau des articles, totaux, montant en lettres, notes, cachet PAYÉ/ANNULÉ.
+   Chaque zone peut être masquée et alignée.
+3. **Adapter** la police, la taille du texte, les couleurs du tableau et tous les libellés
+   (ex. « FACTURE D'ACHAT N° », « P.U »).
+
+Le rendu est **adaptatif** : chaque zone réduit automatiquement sa taille de texte pour que tout son contenu
+tienne (un tableau de 25 lignes reste lisible en A5). Si une zone ne peut vraiment pas tout contenir,
+un avertissement s'affiche dans l'éditeur et sur la facture. Le modèle s'applique à toutes les factures
+et proformas, réimpressions comprises ; on peut revenir au modèle standard à tout moment sans perdre
+le modèle importé.
 
 ## Installation
 
@@ -99,5 +118,5 @@ npm run lint && npm run build                                                   
 ```
 
 Couverture : installation protégée, création d'entreprise réservée à OmniCom, rôles sur mesure et
-permissions, blocage et suspension, personnalisation (logo, couleurs), 2FA, cycle de facturation
+permissions, blocage et suspension, personnalisation (logo, couleurs), modèle importé (validation, droits, isolation), 2FA, cycle de facturation
 complet, isolation entre entreprises et migration des anciennes données.
