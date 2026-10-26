@@ -1,10 +1,12 @@
-import { useState } from 'react';
-import { ShieldCheck, User as UserIcon } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Camera, ShieldCheck, Trash2 } from 'lucide-react';
 import { api, errorMessage } from '../lib/api';
 import { useAuth } from '../auth/AuthContext';
 import { formatDate } from '../lib/format';
 import type { User } from '../lib/types';
 import { Alert, Field, PageHeader } from '../components/ui';
+import Avatar from '../components/Avatar';
+import { squarePhoto } from '../lib/photo';
 
 export default function Profile() {
   const { user, refreshUser } = useAuth();
@@ -16,6 +18,7 @@ export default function Profile() {
   const [disablePassword, setDisablePassword] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const run = async (fn: () => Promise<unknown>, success: string) => {
     setError('');
@@ -36,10 +39,32 @@ export default function Profile() {
       <Alert tone="success">{message}</Alert>
 
       <div className="card profile-head">
-        <div className="avatar"><UserIcon size={36} /></div>
-        <div>
+        <button type="button" className="avatar-edit" onClick={() => fileRef.current?.click()} title="Changer la photo" aria-label="Changer la photo de profil">
+          <Avatar name={user.displayName || user.email} photo={user.photoURL} size={96} />
+          <span className="avatar-edit-badge"><Camera size={16} /></span>
+        </button>
+        <input ref={fileRef} type="file" accept="image/*" hidden onChange={async (e) => {
+          const file = e.target.files?.[0];
+          e.target.value = '';
+          if (!file) return;
+          try {
+            const photoURL = await squarePhoto(file);
+            await run(() => api.patch<User>('/auth/me', { photoURL }), 'Photo de profil mise à jour.');
+          } catch (err) { setError(errorMessage(err)); }
+        }} />
+        <div style={{ flex: 1, minWidth: 220 }}>
           <h2 style={{ margin: 0 }}>{user.displayName || user.email}</h2>
           <div className="muted">{user.email} · {user.roleName} · membre depuis le {formatDate(user.createdAt)}</div>
+          <div className="row-gap" style={{ marginTop: 12 }}>
+            <button type="button" className="btn btn-sm btn-outline" onClick={() => fileRef.current?.click()}>
+              <Camera size={15} /> {user.photoURL ? 'Changer la photo' : 'Ajouter une photo'}
+            </button>
+            {user.photoURL && (
+              <button type="button" className="btn btn-sm btn-ghost text-danger" onClick={() => run(() => api.patch<User>('/auth/me', { photoURL: '' }), 'Photo retirée.')}>
+                <Trash2 size={15} /> Retirer
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

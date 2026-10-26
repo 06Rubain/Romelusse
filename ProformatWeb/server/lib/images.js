@@ -20,4 +20,8 @@ const validateColor = (value, label) => {
   return value;
 };
 
-module.exports = { validateImage, validateColor };
+// Photo de profil : petite image carrée (redimensionnée par le navigateur avant l'envoi)
+const MAX_PHOTO_BYTES = 300 * 1024;
+const validatePhoto = (value) => validateImage(value, 'Photo de profil', MAX_PHOTO_BYTES);
+
+module.exports = { validateImage, validateColor, validatePhoto };

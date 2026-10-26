@@ -66,6 +66,7 @@ qu'une entreprise ne peut ni lire ni modifier les données d'une autre.
 - **Après l'enregistrement** : imprimer, **envoyer par WhatsApp** (message prêt avec le montant et le reste à payer, au numéro de la fiche client), encaisser en un clic, ou **refaire un document identique**.
 - **Recherche rapide** (`Ctrl + K` ou « Rechercher… ») : une page, un client ou un numéro de facture.
 - **Sur téléphone** : barre de navigation en bas avec un gros bouton « + » pour créer un document.
+- **Photos de profil** : chacun ajoute la sienne dans **Mon profil** (recadrée et allégée automatiquement) ; un administrateur peut mettre celle d'un collaborateur depuis **Utilisateurs**. Sans photo, les initiales s'affichent.
 - Tableau de bord avec actions rapides et guide « Bien démarrer », thème clair ou sombre, confirmations claires.
 
 ## Importer son propre modèle de facture
@@ -137,5 +138,5 @@ npm run lint && npm run build                                                   
 ```
 
 Couverture : installation protégée, création d'entreprise réservée à OmniCom, rôles sur mesure et
-permissions, blocage et suspension, personnalisation (logo, couleurs), modèle importé (validation, droits, isolation), 2FA, cycle de facturation
+permissions, blocage et suspension, personnalisation (logo, couleurs), modèle importé (validation, droits, isolation), 2FA, photos de profil, cycle de facturation
 complet, isolation entre entreprises et migration des anciennes données.

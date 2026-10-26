@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   BarChart3, FileText, Users, Package, Wallet, Receipt, PieChart, UserCog, Settings as SettingsIcon,
-  History, LogOut, Menu, X, User as UserIcon, FilePlus2, ShieldCheck, Building2, LayoutTemplate, Search, Home, Plus,
+  History, LogOut, Menu, X, FilePlus2, ShieldCheck, Building2, LayoutTemplate, Search, Home, Plus,
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import ThemeToggle from './ThemeToggle';
 import QuickSearch from './QuickSearch';
+import Avatar from './Avatar';
 import { APP_NAME, type Permission } from '../lib/types';
 
 interface NavItem { to: string; label: string; icon: typeof BarChart3; permissions?: Permission[] }
@@ -119,7 +120,7 @@ export default function Layout() {
 
         <div className="sidebar-footer">
           <NavLink to="/profile" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} onClick={() => setOpen(false)}>
-            <UserIcon size={18} />
+            <Avatar name={user?.displayName || user?.email || ''} photo={user?.photoURL} size={30} />
             <span className="user-chip">
               <span>{user?.displayName || user?.email}</span>
               <small className="muted">{user?.roleName}</small>

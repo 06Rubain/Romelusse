@@ -431,7 +431,12 @@ td.actions > * { margin-left: 2px; }
 
 /* ---------- Profil ---------- */
 .profile-head { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
-.avatar { width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), #7c3aed); color: #fff; display: flex; align-items: center; justify-content: center; }
+.user-avatar { border-radius: 50%; object-fit: cover; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; letter-spacing: 0.02em; }
+.person { display: flex; align-items: center; gap: 12px; }
+.avatar-edit { position: relative; padding: 0; border: none; background: none; border-radius: 50%; cursor: pointer; }
+.avatar-edit .user-avatar { box-shadow: 0 0 0 4px var(--surface), 0 0 0 5px var(--border); }
+.avatar-edit-badge { position: absolute; right: 0; bottom: 0; width: 32px; height: 32px; border-radius: 50%; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; border: 3px solid var(--surface); }
+.avatar-edit:hover .avatar-edit-badge { filter: brightness(1.1); }
 .qr { background: white; padding: 10px; display: inline-block; border-radius: 8px; }
 .qr img { width: 200px; height: 200px; display: block; }
 .manual-line { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }

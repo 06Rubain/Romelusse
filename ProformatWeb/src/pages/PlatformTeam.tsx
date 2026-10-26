@@ -5,6 +5,7 @@ import { useFetch } from '../lib/useFetch';
 import { formatDateTime } from '../lib/format';
 import type { User } from '../lib/types';
 import { Alert, Field, Modal, PageHeader } from '../components/ui';
+import Avatar from '../components/Avatar';
 
 export default function PlatformTeam() {
   const { data, reload } = useFetch(() => api.get<User[]>('/platform/admins'), []);
@@ -28,7 +29,7 @@ export default function PlatformTeam() {
           <tbody>
             {data?.map((u) => (
               <tr key={u._id}>
-                <td className="strong">{u.displayName || '—'}</td>
+                <td><div className="person"><Avatar name={u.displayName || u.email} photo={u.photoURL} /><span className="strong">{u.displayName || '—'}</span></div></td>
                 <td className="muted">{u.email}</td>
                 <td>{u.twoFactorEnabled ? <span className="text-success">Activée</span> : <span className="text-warning">À activer</span>}</td>
                 <td className="muted small">{formatDateTime(u.lastLoginAt)}</td>

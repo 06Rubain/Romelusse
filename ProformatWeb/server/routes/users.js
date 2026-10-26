@@ -5,6 +5,7 @@ const Role = require('../models/Role');
 const { HttpError } = require('../lib/helpers');
 const { requirePermission, sessionUser } = require('../lib/auth');
 const { logActivity } = require('../lib/activity');
+const { validatePhoto } = require('../lib/images');
 const { validatePassword, normalizeEmail } = require('./auth');
 
 const router = express.Router();
@@ -67,6 +68,11 @@ router.patch('/:id', async (req, res) => {
     changes.push(user.isBlocked ? 'bloqué' : 'débloqué');
   }
   if (typeof displayName === 'string') user.displayName = displayName.trim();
+  const photo = validatePhoto(req.body.photoURL);
+  if (photo !== undefined) {
+    user.photoURL = photo;
+    changes.push(photo ? 'nouvelle photo' : 'photo retirée');
+  }
   await user.save();
   await logActivity(req.user, 'Équipe', `Modification du compte ${user.email}${changes.length ? ` — ${changes.join(', ')}` : ''}`);
   res.json(sessionUser(user));

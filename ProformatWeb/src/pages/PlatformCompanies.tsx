@@ -8,6 +8,7 @@ import { useFetch } from '../lib/useFetch';
 import { formatDate, formatDateTime } from '../lib/format';
 import type { Company, User } from '../lib/types';
 import { Alert, EmptyRow, EmptyState, Field, Modal, PageHeader, StatCard } from '../components/ui';
+import Avatar from '../components/Avatar';
 import CompanyForm from '../components/CompanyForm';
 import { EMPTY_COMPANY, toDraft, type CompanyDraft } from '../lib/company';
 
@@ -178,7 +179,7 @@ function CompanyDetail({ id, onClose, onChanged }: { id: string; onClose: () => 
           <tbody>
             {users.map((u) => (
               <tr key={u._id}>
-                <td><div className="strong">{u.displayName || 'Sans nom'}</div><div className="muted small">{u.email}{u.isBlocked ? ' · bloqué' : ''}</div></td>
+                <td><div className="person"><Avatar name={u.displayName || u.email} photo={u.photoURL} /><div><div className="strong">{u.displayName || 'Sans nom'}</div><div className="muted small">{u.email}{u.isBlocked ? ' · bloqué' : ''}</div></div></div></td>
                 <td>{u.roleName}</td>
                 <td className="muted small">{formatDateTime(u.lastLoginAt)}</td>
                 <td className="actions">

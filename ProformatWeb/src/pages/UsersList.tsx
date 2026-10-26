@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { KeyRound, Plus, ShieldAlert, ShieldCheck, ShieldOff } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Camera, KeyRound, Plus, ShieldAlert, ShieldCheck, ShieldOff } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api, errorMessage } from '../lib/api';
 import { useFeedback } from '../components/feedback';
@@ -8,15 +8,19 @@ import { useAuth } from '../auth/AuthContext';
 import { formatDateTime } from '../lib/format';
 import type { Role, User } from '../lib/types';
 import { Alert, Field, Modal, PageHeader } from '../components/ui';
+import Avatar from '../components/Avatar';
+import { squarePhoto } from '../lib/photo';
 
 export default function UsersList() {
-  const { confirm, prompt } = useFeedback();
-  const { user: me, can } = useAuth();
+  const { confirm, prompt, toast } = useFeedback();
+  const { user: me, can, refreshUser } = useAuth();
   const { data, reload } = useFetch(() => api.get<User[]>('/users'), []);
   const roles = useFetch(() => api.get<Role[]>('/roles'), []);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ email: '', displayName: '', roleId: '', password: '' });
   const [error, setError] = useState('');
+  const photoInput = useRef<HTMLInputElement>(null);
+  const [photoFor, setPhotoFor] = useState<User | null>(null);
 
   const run = async (fn: () => Promise<unknown>) => {
     setError('');
@@ -51,6 +55,19 @@ export default function UsersList() {
           {can('roles.manage') && <Link className="btn btn-outline" to="/roles"><ShieldCheck size={18} /> Gérer les rôles</Link>}
           <button className="btn btn-primary" onClick={openCreate}><Plus size={18} /> Nouvel utilisateur</button>
         </>} />
+      <input ref={photoInput} type="file" accept="image/*" hidden onChange={async (e) => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file || !photoFor) return;
+        try {
+          const photoURL = await squarePhoto(file);
+          await run(async () => {
+            await api.patch(`/users/${photoFor._id}`, { photoURL });
+            if (photoFor._id === me?._id) await refreshUser();
+            toast(`Photo de ${photoFor.displayName || photoFor.email} mise à jour.`);
+          });
+        } catch (err) { setError(errorMessage(err)); }
+      }} />
       <Alert>{error}</Alert>
       <div className="card">
         <div className="table-container">
@@ -61,7 +78,7 @@ export default function UsersList() {
                 const self = u._id === me?._id;
                 return (
                   <tr key={u._id} style={{ opacity: u.isBlocked ? 0.6 : 1 }}>
-                    <td><div className="strong">{u.displayName || 'Sans nom'}{self && <span className="muted small"> (vous)</span>}</div><div className="muted small">{u.email}</div></td>
+                    <td><div className="person"><Avatar name={u.displayName || u.email} photo={u.photoURL} /><div><div className="strong">{u.displayName || 'Sans nom'}{self && <span className="muted small"> (vous)</span>}</div><div className="muted small">{u.email}</div></div></div></td>
                     <td>
                       <select className="input-field input-sm" value={u.roleId || ''} disabled={self} onChange={(e) => run(() => api.patch(`/users/${u._id}`, { roleId: e.target.value }))}>
                         {roleOptions}
@@ -73,6 +90,7 @@ export default function UsersList() {
                       ? <span className="text-danger row-gap"><ShieldAlert size={16} /> Bloqué</span>
                       : <span className="text-success row-gap"><ShieldCheck size={16} /> Actif</span>}</td>
                     <td className="actions">
+                      <button className="icon-btn" title="Changer la photo" onClick={() => { setPhotoFor(u); photoInput.current?.click(); }}><Camera size={16} /></button>
                       <button className="icon-btn" title="Réinitialiser le mot de passe" onClick={() => resetPassword(u)}><KeyRound size={16} /></button>
                       {u.twoFactorEnabled && !self && (
                         <button className="icon-btn" title="Réinitialiser la 2FA" onClick={async () => (await confirm({ title: 'Désactiver la double authentification ?', message: u.email, confirmLabel: 'Désactiver', danger: true })) && run(() => api.post(`/users/${u._id}/reset-2fa`))}><ShieldOff size={16} /></button>

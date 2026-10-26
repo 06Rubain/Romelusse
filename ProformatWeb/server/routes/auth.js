@@ -8,6 +8,7 @@ const User = require('../models/User');
 const Company = require('../models/Company');
 const { HttpError } = require('../lib/helpers');
 const { logActivity } = require('../lib/activity');
+const { validatePhoto } = require('../lib/images');
 const {
   signSession, signTwoFactorChallenge, verifyTwoFactorChallenge, requireAuth, sessionUser,
 } = require('../lib/auth');
@@ -106,6 +107,8 @@ router.get('/me', (req, res) => res.json(sessionUser(req.user)));
 
 router.patch('/me', async (req, res) => {
   if (typeof req.body.displayName === 'string') req.user.displayName = req.body.displayName.trim();
+  const photo = validatePhoto(req.body.photoURL);
+  if (photo !== undefined) req.user.photoURL = photo;
   await req.user.save();
   res.json(sessionUser(req.user));
 });
