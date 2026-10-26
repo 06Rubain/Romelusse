@@ -1,12 +1,20 @@
 export type Currency = 'USD' | 'FC';
-export type Role = 'admin' | 'manager' | 'user';
+export type Permission =
+  | 'invoices.create' | 'invoices.cancel' | 'payments.create' | 'payments.delete'
+  | 'clients.manage' | 'clients.delete' | 'products.manage' | 'stock.manage'
+  | 'expenses.manage' | 'reports.view' | 'activities.view'
+  | 'users.manage' | 'roles.manage' | 'settings.manage';
 
 export interface User {
   _id: string;
   email: string;
   displayName: string;
   photoURL?: string;
-  role: Role;
+  isSuperAdmin: boolean;
+  company: string | null;
+  roleId: string | null;
+  roleName: string;
+  permissions: Permission[];
   isBlocked: boolean;
   twoFactorEnabled: boolean;
   lastLoginAt?: string;
@@ -131,8 +139,15 @@ export interface Activity {
   date: string;
 }
 
-export interface Settings {
-  companyName: string;
+export interface Company {
+  _id: string;
+  name: string;
+  isActive: boolean;
+  logo: string;
+  footerImage: string;
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
   legalName: string;
   address: string;
   city: string;
@@ -146,6 +161,20 @@ export interface Settings {
   exchangeRate: number;
   reportingCurrency: Currency;
   paymentTermDays: number;
+  createdAt: string;
+  // Statistiques renvoyées par la console OmniCom
+  userCount?: number;
+  invoiceCount?: number;
+  lastInvoiceAt?: string | null;
+}
+
+export interface Role {
+  _id: string;
+  name: string;
+  description: string;
+  permissions: Permission[];
+  isSystem: boolean;
+  userCount?: number;
 }
 
 export interface Paginated<T> {
@@ -179,4 +208,29 @@ export interface Summary {
 }
 
 export const PAYMENT_METHODS = ['Espèces', 'Mobile Money', 'Virement', 'Chèque', 'Carte'];
-export const ROLE_LABELS: Record<Role, string> = { admin: 'Administrateur', manager: 'Gestionnaire', user: 'Employé' };
+export const PERMISSION_GROUPS: { title: string; items: [Permission, string][] }[] = [
+  { title: 'Ventes', items: [
+    ['invoices.create', 'Créer et modifier factures et proformas'],
+    ['invoices.cancel', 'Annuler des factures'],
+    ['payments.create', 'Enregistrer des encaissements'],
+    ['payments.delete', 'Supprimer des encaissements'],
+    ['clients.manage', 'Gérer les clients'],
+    ['clients.delete', 'Supprimer / archiver des clients'],
+  ] },
+  { title: 'Opérations', items: [
+    ['products.manage', 'Gérer le catalogue de produits'],
+    ['stock.manage', 'Mouvements de stock'],
+    ['expenses.manage', 'Gérer les dépenses'],
+  ] },
+  { title: 'Pilotage', items: [
+    ['reports.view', 'Rapports et résultats financiers'],
+    ['activities.view', 'Journal d\'activité'],
+  ] },
+  { title: 'Administration', items: [
+    ['users.manage', 'Gérer les utilisateurs'],
+    ['roles.manage', 'Gérer les rôles'],
+    ['settings.manage', 'Paramètres et personnalisation (logo, couleurs)'],
+  ] },
+];
+
+export const APP_NAME = 'OmniCom Facturation';

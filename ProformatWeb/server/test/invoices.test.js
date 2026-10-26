@@ -1,17 +1,19 @@
 const { test, before, after } = require('node:test');
 const assert = require('node:assert');
-const { startDb, stopDb, setupAdmin, createUser, client } = require('./helpers');
+const { startDb, stopDb, setupPlatform, createCompany, createUser, client } = require('./helpers');
 
 let app;
 let admin;
 let adminToken;
+let superToken;
 let product;
 
 before(async () => {
   app = await startDb();
-  adminToken = await setupAdmin(app);
+  superToken = await setupPlatform(app);
+  ({ token: adminToken } = await createCompany(app, superToken, 'Mélanine Print', 'admin@melanine.cd'));
   admin = client(app, adminToken);
-  await admin.put('/api/settings', { exchangeRate: 2000, paymentTermDays: 15 }).expect(200);
+  await admin.put('/api/company', { exchangeRate: 2000, paymentTermDays: 15 }).expect(200);
   product = (await admin.post('/api/products', {
     name: 'Bâche 1x1 m', unitPrice: 8, currency: 'USD', trackStock: true, minStock: 5, initialStock: 10,
   }).expect(201)).body;
@@ -133,11 +135,50 @@ test('dépenses et résultat', async () => {
 });
 
 test('un employé peut facturer mais pas annuler', async () => {
-  const user = client(app, await createUser(app, adminToken, 'user'));
+  const user = client(app, await createUser(app, adminToken, 'Employé', 'employe@melanine.cd'));
   const inv = (await user.post('/api/invoices', {
     client: 'Delta', products: [{ name: 'Flyers', quantity: 100, unitPrice: 0.5 }],
   }).expect(201)).body;
   await user.post(`/api/invoices/${inv._id}/payments`, { amount: 10 }).expect(201);
   await user.post(`/api/invoices/${inv._id}/cancel`).expect(403);
   await user.del(`/api/invoices/${inv._id}/payments/x`).expect(403);
+});
+
+test('isolation : une entreprise ne voit jamais les données d\'une autre', async () => {
+  const { token } = await createCompany(app, superToken, 'Imprimerie Concurrente', 'admin@concurrent.cd');
+  const other = client(app, token);
+  const year = new Date().getFullYear();
+
+  // Numérotation indépendante
+  const inv = (await other.post('/api/invoices', { client: 'Société Alpha', products: [{ name: 'A', quantity: 1, unitPrice: 5 }] }).expect(201)).body;
+  assert.strictEqual(inv.number, `FAC-${year}-0001`);
+  // Même nom de client : fiche distincte
+  const mine = (await admin.get('/api/clients?search=Alpha').expect(200)).body[0];
+  assert.notStrictEqual(String(inv.clientId), String(mine._id));
+
+  for (const url of ['/api/invoices', '/api/payments', '/api/expenses', '/api/products/movements', '/api/activities']) {
+    const body = (await other.get(url).expect(200)).body;
+    const items = body.items || body;
+    assert.ok(items.every((x) => !x.client || x.client === 'Société Alpha'), url);
+  }
+  assert.strictEqual((await other.get('/api/products').expect(200)).body.length, 0);
+  assert.strictEqual((await other.get('/api/invoices').expect(200)).body.total, 1);
+  assert.strictEqual((await other.get('/api/expenses').expect(200)).body.total, 0);
+
+  // Accès direct aux identifiants de l'autre entreprise
+  const foreign = (await admin.get('/api/invoices').expect(200)).body.items[0];
+  await other.get(`/api/invoices/${foreign._id}`).expect(404);
+  await other.post(`/api/invoices/${foreign._id}/payments`, { amount: 1 }).expect(404);
+  await other.post(`/api/invoices/${foreign._id}/cancel`).expect(404);
+  await other.put(`/api/products/${product._id}`, { name: 'Volé' }).expect(404);
+  await other.post(`/api/products/${product._id}/stock`, { type: 'in', quantity: 5 }).expect(404);
+  await other.get(`/api/clients/${mine._id}`).expect(404);
+  // Une ligne pointant vers le produit d'une autre entreprise ne touche pas son stock
+  const before = (await admin.get('/api/products?search=Bâche').expect(200)).body[0].stockQuantity;
+  await other.post('/api/invoices', { type: 'Facture', client: 'X', products: [{ productId: product._id, name: 'x', quantity: 2, unitPrice: 1 }] }).expect(201);
+  assert.strictEqual((await admin.get('/api/products?search=Bâche').expect(200)).body[0].stockQuantity, before);
+
+  const summary = (await other.get('/api/reports/summary').expect(200)).body;
+  assert.strictEqual(summary.invoiced.count, 2);
+  assert.strictEqual(summary.counts.clients, 2);
 });

@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const CATEGORIES = ['Matières premières', 'Loyer', 'Salaires', 'Électricité / Eau', 'Transport', 'Maintenance', 'Communication', 'Impôts & taxes', 'Fournitures', 'Autre'];
 
 const expenseSchema = new mongoose.Schema({
+  company: { type: mongoose.Schema.Types.ObjectId, ref: 'Company', required: true },
   date: { type: Date, default: Date.now },
   category: { type: String, default: 'Autre', trim: true },
   description: { type: String, required: true, trim: true },
@@ -14,7 +15,7 @@ const expenseSchema = new mongoose.Schema({
   createdBy: { type: String, default: '' },
 }, { timestamps: true });
 
-expenseSchema.index({ date: -1 });
+expenseSchema.index({ company: 1, date: -1 });
 
 module.exports = mongoose.model('Expense', expenseSchema);
 module.exports.CATEGORIES = CATEGORIES;

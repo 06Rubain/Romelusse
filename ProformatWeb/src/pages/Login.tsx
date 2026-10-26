@@ -3,7 +3,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { LogIn, ShieldCheck, UserPlus } from 'lucide-react';
 import { api, errorMessage } from '../lib/api';
 import { useAuth } from '../auth/AuthContext';
-import type { User } from '../lib/types';
+import { APP_NAME, type User } from '../lib/types';
 import { Alert } from '../components/ui';
 
 type Mode = 'loading' | 'setup' | 'login' | '2fa';
@@ -19,6 +19,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [code, setCode] = useState('');
+  const [setupKey, setSetupKey] = useState('');
   const [challenge, setChallenge] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -31,12 +32,12 @@ export default function Login() {
 
   if (user) {
     const from = (location.state as { from?: string } | null)?.from;
-    return <Navigate to={from && from !== '/login' ? from : '/dashboard'} replace />;
+    return <Navigate to={from && from !== '/login' ? from : user.isSuperAdmin ? '/platform' : '/dashboard'} replace />;
   }
 
   const finish = (res: SessionResponse) => {
     setSession(res.token, res.user);
-    navigate('/dashboard');
+    navigate(res.user.isSuperAdmin ? '/platform' : '/dashboard');
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -45,7 +46,7 @@ export default function Login() {
     setBusy(true);
     try {
       if (mode === 'setup') {
-        finish(await api.post<SessionResponse>('/auth/setup', { email, password, displayName }));
+        finish(await api.post<SessionResponse>('/auth/setup', { email, password, displayName, setupKey }));
       } else if (mode === 'login') {
         const res = await api.post<LoginResponse>('/auth/login', { email, password });
         if (res.requires2fa && res.challenge) {
@@ -74,10 +75,10 @@ export default function Login() {
       <div className="glass login-card animate-fade-in">
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <div className="login-icon"><Icon size={32} color="var(--primary)" /></div>
-          <h1 className="gradient-text" style={{ fontSize: '2.2rem', marginBottom: 10 }}>Mélanine Print</h1>
+          <h1 className="gradient-text" style={{ fontSize: '2rem', marginBottom: 10 }}>{APP_NAME}</h1>
           <p className="muted" style={{ margin: 0 }}>
-            {mode === 'setup' && 'Première configuration : créez le compte administrateur'}
-            {mode === 'login' && 'Bienvenue sur votre espace de gestion'}
+            {mode === 'setup' && 'Installation : créez le compte super-administrateur OmniCom'}
+            {mode === 'login' && 'Facturation, proformas et gestion de votre entreprise'}
             {mode === '2fa' && 'Saisissez le code de votre application d\'authentification'}
             {mode === 'loading' && 'Chargement…'}
           </p>
@@ -87,6 +88,13 @@ export default function Login() {
 
         {mode !== 'loading' && (
           <form onSubmit={submit}>
+            {mode === 'setup' && (
+              <label className="input-group">
+                <span className="label">Clé d'installation</span>
+                <input type="password" className="input-field" value={setupKey} onChange={(e) => setSetupKey(e.target.value)} required autoComplete="off" />
+                <small className="muted">Valeur de SETUP_KEY définie sur le serveur</small>
+              </label>
+            )}
             {mode === 'setup' && (
               <label className="input-group">
                 <span className="label">Nom complet</span>
@@ -115,7 +123,7 @@ export default function Login() {
               </label>
             )}
             <button type="submit" className="btn btn-primary btn-block" disabled={busy || (mode === '2fa' && code.length !== 6)}>
-              {busy ? 'Veuillez patienter…' : mode === 'setup' ? 'Créer le compte administrateur' : mode === '2fa' ? 'Vérifier' : 'Se connecter'}
+              {busy ? 'Veuillez patienter…' : mode === 'setup' ? 'Créer le compte OmniCom' : mode === '2fa' ? 'Vérifier' : 'Se connecter'}
             </button>
             {mode === '2fa' && (
               <button type="button" className="btn btn-ghost btn-block" style={{ marginTop: 8 }} onClick={() => { setMode('login'); setCode(''); }}>

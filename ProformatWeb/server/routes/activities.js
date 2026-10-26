@@ -5,10 +5,10 @@ const { paginate, dateRangeFilter, escapeRegex } = require('../lib/helpers');
 const router = express.Router();
 
 router.get('/', async (req, res) => {
-  const filter = {};
+  const filter = { company: req.company._id };
   const range = dateRangeFilter(req.query.from, req.query.to);
   if (range) filter.date = range;
-  if (req.query.action) filter.action = req.query.action;
+  if (req.query.action) filter.action = String(req.query.action);
   if (req.query.search) {
     const rx = new RegExp(escapeRegex(req.query.search), 'i');
     filter.$or = [{ userEmail: rx }, { details: rx }, { action: rx }];

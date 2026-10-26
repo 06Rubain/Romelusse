@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const productSchema = new mongoose.Schema({
+  company: { type: mongoose.Schema.Types.ObjectId, ref: 'Company', required: true },
   name: { type: String, required: true, trim: true },
   description: { type: String, default: '' },
   category: { type: String, default: 'Général', trim: true },
@@ -21,5 +22,7 @@ const productSchema = new mongoose.Schema({
 productSchema.pre('save', function setLegacyPrice() {
   this.price = this.priceOnQuote ? 'Sur devis' : `${this.unitPrice} ${this.currency}`;
 });
+
+productSchema.index({ company: 1, category: 1, name: 1 });
 
 module.exports = mongoose.model('Product', productSchema);

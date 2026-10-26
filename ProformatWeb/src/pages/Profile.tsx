@@ -3,7 +3,7 @@ import { ShieldCheck, User as UserIcon } from 'lucide-react';
 import { api, errorMessage } from '../lib/api';
 import { useAuth } from '../auth/AuthContext';
 import { formatDate } from '../lib/format';
-import { ROLE_LABELS, type User } from '../lib/types';
+import type { User } from '../lib/types';
 import { Alert, Field, PageHeader } from '../components/ui';
 
 export default function Profile() {
@@ -39,7 +39,7 @@ export default function Profile() {
         <div className="avatar"><UserIcon size={36} /></div>
         <div>
           <h2 style={{ margin: 0 }}>{user.displayName || user.email}</h2>
-          <div className="muted">{user.email} · {ROLE_LABELS[user.role]} · membre depuis le {formatDate(user.createdAt)}</div>
+          <div className="muted">{user.email} · {user.roleName} · membre depuis le {formatDate(user.createdAt)}</div>
         </div>
       </div>
 

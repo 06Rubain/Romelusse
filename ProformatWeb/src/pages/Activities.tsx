@@ -6,13 +6,13 @@ import { formatDateTime } from '../lib/format';
 import type { Activity, Paginated } from '../lib/types';
 import { EmptyRow, PageHeader, Pagination } from '../components/ui';
 
-export default function Activities() {
+export default function Activities({ endpoint = '/activities', title = 'Journal d\'activité' }: { endpoint?: string; title?: string }) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
-  const { data, loading } = useFetch(() => api.get<Paginated<Activity>>('/activities', { search, page }), [search, page]);
+  const { data, loading } = useFetch(() => api.get<Paginated<Activity>>(endpoint, { search, page }), [endpoint, search, page]);
   return (
     <div className="animate-fade-in">
-      <PageHeader title="Journal d'activité" subtitle="Traçabilité des connexions et des opérations" />
+      <PageHeader title={title} subtitle="Traçabilité des connexions et des opérations" />
       <div className="toolbar card">
         <div className="search-box"><Search size={16} /><input className="input-field" placeholder="Utilisateur, action, détail…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} /></div>
       </div>

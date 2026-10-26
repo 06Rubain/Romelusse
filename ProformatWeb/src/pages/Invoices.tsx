@@ -13,7 +13,7 @@ const STATUSES = ['En attente', 'Partiellement payée', 'Payée', 'Convertie', '
 
 export default function Invoices() {
   const navigate = useNavigate();
-  const { hasRole } = useAuth();
+  const { can } = useAuth();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [type, setType] = useState('');
@@ -64,7 +64,7 @@ export default function Invoices() {
         subtitle={data ? `${data.total} document(s)` : undefined}
         actions={<>
           <button className="btn btn-outline" onClick={exportCsv}><Download size={18} /> Exporter</button>
-          <button className="btn btn-primary" onClick={() => navigate('/invoice')}><FilePlus2 size={18} /> Nouvelle</button>
+          {can('invoices.create') && <button className="btn btn-primary" onClick={() => navigate('/invoice')}><FilePlus2 size={18} /> Nouvelle</button>}
         </>}
       />
       <Alert>{error}</Alert>
@@ -109,13 +109,13 @@ export default function Invoices() {
                   <td><StatusBadge status={inv.status} /></td>
                   <td className="actions">
                     <button className="icon-btn" title="Voir / imprimer" onClick={() => navigate(`/invoice/${inv._id}`)}><Printer size={17} /></button>
-                    {inv.type === 'Facture' && inv.balance > 0 && !['Annulée', 'Convertie'].includes(inv.status) && (
+                    {inv.type === 'Facture' && inv.balance > 0 && !['Annulée', 'Convertie'].includes(inv.status) && can('payments.create') && (
                       <button className="icon-btn text-success" title="Encaisser" onClick={() => setPaying(inv)}><Wallet size={17} /></button>
                     )}
-                    {inv.type === 'Proforma' && inv.status === 'En attente' && (
+                    {inv.type === 'Proforma' && inv.status === 'En attente' && can('invoices.create') && (
                       <button className="icon-btn text-primary" title="Convertir en facture" onClick={() => convert(inv)}><ArrowRightLeft size={17} /></button>
                     )}
-                    {hasRole('admin', 'manager') && inv.status !== 'Annulée' && inv.status !== 'Convertie' && inv.amountPaid === 0 && (
+                    {can('invoices.cancel') && inv.status !== 'Annulée' && inv.status !== 'Convertie' && inv.amountPaid === 0 && (
                       <button className="icon-btn text-danger" title="Annuler" onClick={() => cancel(inv)}><Ban size={17} /></button>
                     )}
                   </td>

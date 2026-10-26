@@ -11,7 +11,7 @@ const getSecret = () => {
 };
 
 const signSession = (user) => jwt.sign(
-  { sub: String(user._id), role: user.role },
+  { sub: String(user._id) },
   getSecret(),
   { expiresIn: process.env.JWT_EXPIRES_IN || '12h' }
 );
@@ -48,28 +48,62 @@ const requireAuth = async (req, res, next) => {
   if (payload.purpose) {
     return res.status(401).json({ error: 'Jeton invalide.' });
   }
-  // Le rôle et le blocage sont relus en base : un changement prend effet immédiatement
-  const user = await User.findById(payload.sub);
+  // Rôle, permissions et blocage sont relus en base : un changement prend effet immédiatement
+  const user = await User.findById(payload.sub).populate('roleId').populate('company');
   if (!user) return res.status(401).json({ error: 'Utilisateur introuvable.' });
   if (user.isBlocked) return res.status(403).json({ error: 'Compte bloqué.', isBlocked: true });
+  if (!user.isSuperAdmin) {
+    if (!user.company) return res.status(403).json({ error: 'Aucune entreprise rattachée à ce compte.' });
+    if (!user.company.isActive) return res.status(403).json({ error: 'L\'accès de votre entreprise est suspendu. Contactez OmniCom.', suspended: true });
+  }
   req.user = user;
+  req.company = user.company || null;
+  req.permissions = new Set(user.roleId?.permissions || []);
   next();
 };
 
-const requireRole = (...roles) => (req, res, next) => {
-  if (!req.user || !roles.includes(req.user.role)) {
+const can = (req, permission) => req.permissions?.has(permission);
+
+// Accès réservé aux utilisateurs d'une entreprise (les super-admins OmniCom n'ont pas de données métier)
+const requireCompany = (req, res, next) => {
+  if (!req.company) return res.status(403).json({ error: 'Cet espace est réservé aux comptes entreprise.' });
+  next();
+};
+
+// Autorise si l'utilisateur possède au moins une des permissions
+const requirePermission = (...permissions) => (req, res, next) => {
+  if (!permissions.some((p) => can(req, p))) {
     return res.status(403).json({ error: 'Vous n\'avez pas les droits nécessaires pour cette action.' });
   }
   next();
 };
 
-const isManager = (user) => user && (user.role === 'admin' || user.role === 'manager');
+const requireSuperAdmin = (req, res, next) => {
+  if (!req.user?.isSuperAdmin) return res.status(403).json({ error: 'Réservé à l\'équipe OmniCom.' });
+  next();
+};
+
+// Vue publique d'un utilisateur pour le frontend
+const sessionUser = (user) => {
+  const json = user.toJSON();
+  const role = user.roleId && typeof user.roleId === 'object' ? user.roleId : null;
+  return {
+    ...json,
+    company: user.company && typeof user.company === 'object' ? user.company._id : user.company,
+    roleId: role ? role._id : user.roleId,
+    roleName: user.isSuperAdmin ? 'Super-admin OmniCom' : role?.name || '',
+    permissions: role?.permissions || [],
+  };
+};
 
 module.exports = {
   signSession,
   signTwoFactorChallenge,
   verifyTwoFactorChallenge,
   requireAuth,
-  requireRole,
-  isManager,
+  requireCompany,
+  requirePermission,
+  requireSuperAdmin,
+  can,
+  sessionUser,
 };

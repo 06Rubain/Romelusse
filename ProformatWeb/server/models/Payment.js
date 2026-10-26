@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const METHODS = ['Espèces', 'Mobile Money', 'Virement', 'Chèque', 'Carte'];
 
 const paymentSchema = new mongoose.Schema({
+  company: { type: mongoose.Schema.Types.ObjectId, ref: 'Company', required: true },
   invoice: { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice', required: true },
   invoiceNumber: { type: String, default: '' },
   client: { type: String, default: '' },
@@ -16,7 +17,7 @@ const paymentSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 paymentSchema.index({ invoice: 1 });
-paymentSchema.index({ date: -1 });
+paymentSchema.index({ company: 1, date: -1 });
 
 module.exports = mongoose.model('Payment', paymentSchema);
 module.exports.METHODS = METHODS;

@@ -1,8 +1,9 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const Product = require('../models/Product');
 const StockMovement = require('../models/StockMovement');
 const { HttpError, pick, toNumber, escapeRegex, paginate } = require('../lib/helpers');
-const { requireRole } = require('../lib/auth');
+const { requirePermission } = require('../lib/auth');
 const { logActivity } = require('../lib/activity');
 const { moveStock } = require('../lib/stock');
 
@@ -16,10 +17,17 @@ const sanitize = (body) => {
   return data;
 };
 
+const findProduct = async (req) => {
+  if (!mongoose.isValidObjectId(req.params.id)) throw new HttpError(404, 'Produit introuvable.');
+  const product = await Product.findOne({ _id: req.params.id, company: req.company._id });
+  if (!product) throw new HttpError(404, 'Produit introuvable.');
+  return product;
+};
+
 router.get('/', async (req, res) => {
-  const filter = {};
+  const filter = { company: req.company._id };
   if (req.query.active === 'true') filter.isActive = { $ne: false };
-  if (req.query.category) filter.category = req.query.category;
+  if (req.query.category) filter.category = String(req.query.category);
   if (req.query.lowStock === 'true') {
     filter.trackStock = true;
     filter.$expr = { $lte: ['$stockQuantity', '$minStock'] };
@@ -32,46 +40,45 @@ router.get('/', async (req, res) => {
 });
 
 router.get('/categories', async (req, res) => {
-  res.json((await Product.distinct('category')).filter(Boolean).sort());
+  res.json((await Product.distinct('category', { company: req.company._id })).filter(Boolean).sort());
 });
 
 router.get('/movements', async (req, res) => {
-  const filter = {};
-  if (req.query.product) filter.product = req.query.product;
+  const filter = { company: req.company._id };
+  if (req.query.product && mongoose.isValidObjectId(req.query.product)) filter.product = req.query.product;
   res.json(await paginate(StockMovement, filter, req.query, { createdAt: -1 }, 30));
 });
 
-router.post('/', requireRole('admin', 'manager'), async (req, res) => {
+router.post('/', requirePermission('products.manage'), async (req, res) => {
   const data = sanitize(req.body);
   if (!data.name?.trim()) throw new HttpError(400, 'Le nom du produit est obligatoire.');
-  const product = new Product(data);
+  const product = new Product({ ...data, company: req.company._id });
   await product.save();
   const initialStock = toNumber(req.body.initialStock);
   if (product.trackStock && initialStock) {
-    await moveStock({ productId: product._id, delta: initialStock, type: 'adjust', reason: 'Stock initial', user: req.user });
+    await moveStock({ company: req.company._id, productId: product._id, delta: initialStock, type: 'adjust', reason: 'Stock initial', user: req.user });
   }
   await logActivity(req.user, 'Produit', `Création du produit ${product.name}`);
   res.status(201).json(await Product.findById(product._id));
 });
 
 // Import en masse (grille tarifaire) ; ignore les produits déjà présents
-router.post('/bulk', requireRole('admin', 'manager'), async (req, res) => {
+router.post('/bulk', requirePermission('products.manage'), async (req, res) => {
   const items = Array.isArray(req.body.products) ? req.body.products : [];
   let created = 0;
   for (const item of items) {
     const data = sanitize(item);
     if (!data.name?.trim()) continue;
-    if (await Product.exists({ name: data.name.trim() })) continue;
-    await new Product(data).save();
+    if (await Product.exists({ company: req.company._id, name: data.name.trim() })) continue;
+    await new Product({ ...data, company: req.company._id }).save();
     created += 1;
   }
   await logActivity(req.user, 'Produit', `Import de ${created} produit(s)`);
   res.status(201).json({ created, skipped: items.length - created });
 });
 
-router.put('/:id', requireRole('admin', 'manager'), async (req, res) => {
-  const product = await Product.findById(req.params.id);
-  if (!product) throw new HttpError(404, 'Produit introuvable.');
+router.put('/:id', requirePermission('products.manage'), async (req, res) => {
+  const product = await findProduct(req);
   product.set(sanitize(req.body));
   await product.save();
   await logActivity(req.user, 'Produit', `Modification du produit ${product.name}`);
@@ -79,9 +86,8 @@ router.put('/:id', requireRole('admin', 'manager'), async (req, res) => {
 });
 
 // Mouvement de stock manuel : entrée, sortie ou inventaire (quantité absolue)
-router.post('/:id/stock', requireRole('admin', 'manager'), async (req, res) => {
-  const product = await Product.findById(req.params.id);
-  if (!product) throw new HttpError(404, 'Produit introuvable.');
+router.post('/:id/stock', requirePermission('stock.manage'), async (req, res) => {
+  const product = await findProduct(req);
   if (!product.trackStock) throw new HttpError(400, 'Le suivi de stock n\'est pas activé pour ce produit.');
   const { type, reason = '', reference = '' } = req.body;
   const quantity = toNumber(req.body.quantity, NaN);
@@ -92,14 +98,14 @@ router.post('/:id/stock', requireRole('admin', 'manager'), async (req, res) => {
   else if (type === 'adjust') delta = quantity - product.stockQuantity;
   else throw new HttpError(400, 'Type de mouvement invalide.');
   if (delta === 0) return res.json(product);
-  const updated = await moveStock({ productId: product._id, delta, type, reason, reference, user: req.user });
+  const updated = await moveStock({ company: req.company._id, productId: product._id, delta, type, reason, reference, user: req.user });
   await logActivity(req.user, 'Stock', `${product.name} : ${delta > 0 ? '+' : ''}${delta} (${reason || type})`);
   res.json(updated);
 });
 
-router.delete('/:id', requireRole('admin', 'manager'), async (req, res) => {
-  const product = await Product.findByIdAndDelete(req.params.id);
-  if (!product) throw new HttpError(404, 'Produit introuvable.');
+router.delete('/:id', requirePermission('products.manage'), async (req, res) => {
+  const product = await findProduct(req);
+  await product.deleteOne();
   await logActivity(req.user, 'Produit', `Suppression du produit ${product.name}`);
   res.json({ success: true });
 });

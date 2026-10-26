@@ -6,13 +6,14 @@ const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const { connectDb } = require('./lib/db');
-const { requireAuth, requireRole } = require('./lib/auth');
+const { requireAuth, requireCompany, requirePermission } = require('./lib/auth');
 
 const app = express();
 app.set('trust proxy', 1);
 app.use(helmet());
 app.use(cors({ origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim()) : true }));
-app.use(express.json({ limit: '1mb' }));
+// Limite relevée pour les logos envoyés en data URL
+app.use(express.json({ limit: '3mb' }));
 
 const isTest = process.env.NODE_ENV === 'test';
 
@@ -47,15 +48,20 @@ app.use('/api', async (req, res, next) => {
 app.use('/api/auth', require('./routes/auth'));
 
 app.use('/api', requireAuth);
+app.use('/api/platform', require('./routes/platform'));
+
+// Espace entreprise : toutes les données sont filtrées par l'entreprise de l'utilisateur
+app.use('/api', requireCompany);
+app.use('/api/company', require('./routes/company'));
+app.use('/api/roles', require('./routes/roles'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/clients', require('./routes/clients'));
 app.use('/api/products', require('./routes/products'));
 app.use('/api/invoices', require('./routes/invoices'));
 app.use('/api/payments', require('./routes/payments'));
-app.use('/api/expenses', requireRole('admin', 'manager'), require('./routes/expenses'));
+app.use('/api/expenses', requirePermission('expenses.manage'), require('./routes/expenses'));
 app.use('/api/reports', require('./routes/reports'));
-app.use('/api/settings', require('./routes/settings'));
-app.use('/api/activities', requireRole('admin', 'manager'), require('./routes/activities'));
+app.use('/api/activities', requirePermission('activities.view'), require('./routes/activities'));
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'Route introuvable.' }));
 

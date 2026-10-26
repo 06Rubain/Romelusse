@@ -2,39 +2,50 @@ import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   BarChart3, FileText, Users, Package, Wallet, Receipt, PieChart, UserCog, Settings as SettingsIcon,
-  History, LogOut, Menu, X, User as UserIcon, FilePlus2,
+  History, LogOut, Menu, X, User as UserIcon, FilePlus2, ShieldCheck, Building2,
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
-import { ROLE_LABELS, type Role } from '../lib/types';
+import { APP_NAME, type Permission } from '../lib/types';
 
-interface NavItem { to: string; label: string; icon: typeof BarChart3; roles?: Role[] }
+interface NavItem { to: string; label: string; icon: typeof BarChart3; permissions?: Permission[] }
 
-const SECTIONS: { title: string; items: NavItem[] }[] = [
+const COMPANY_SECTIONS: { title: string; items: NavItem[] }[] = [
   { title: 'Pilotage', items: [
     { to: '/dashboard', label: 'Tableau de bord', icon: BarChart3 },
-    { to: '/reports', label: 'Rapports', icon: PieChart, roles: ['admin', 'manager'] },
+    { to: '/reports', label: 'Rapports', icon: PieChart, permissions: ['reports.view'] },
   ] },
   { title: 'Ventes', items: [
-    { to: '/invoice', label: 'Nouvelle facture', icon: FilePlus2 },
+    { to: '/invoice', label: 'Nouvelle facture', icon: FilePlus2, permissions: ['invoices.create'] },
     { to: '/invoices', label: 'Factures & proformas', icon: FileText },
     { to: '/payments', label: 'Encaissements', icon: Wallet },
     { to: '/clients', label: 'Clients', icon: Users },
   ] },
   { title: 'Opérations', items: [
     { to: '/products', label: 'Produits & stock', icon: Package },
-    { to: '/expenses', label: 'Dépenses', icon: Receipt, roles: ['admin', 'manager'] },
+    { to: '/expenses', label: 'Dépenses', icon: Receipt, permissions: ['expenses.manage'] },
   ] },
   { title: 'Administration', items: [
-    { to: '/users', label: 'Équipe', icon: UserCog, roles: ['admin'] },
-    { to: '/activities', label: 'Journal d\'activité', icon: History, roles: ['admin', 'manager'] },
-    { to: '/settings', label: 'Paramètres', icon: SettingsIcon, roles: ['admin'] },
+    { to: '/users', label: 'Utilisateurs', icon: UserCog, permissions: ['users.manage'] },
+    { to: '/roles', label: 'Rôles & permissions', icon: ShieldCheck, permissions: ['roles.manage'] },
+    { to: '/activities', label: 'Journal d\'activité', icon: History, permissions: ['activities.view'] },
+    { to: '/settings', label: 'Entreprise & logo', icon: SettingsIcon, permissions: ['settings.manage'] },
+  ] },
+];
+
+const PLATFORM_SECTIONS: { title: string; items: NavItem[] }[] = [
+  { title: 'Plateforme OmniCom', items: [
+    { to: '/platform', label: 'Entreprises', icon: Building2 },
+    { to: '/platform/team', label: 'Équipe OmniCom', icon: ShieldCheck },
+    { to: '/platform/activities', label: 'Journal plateforme', icon: History },
   ] },
 ];
 
 export default function Layout() {
-  const { user, settings, logout } = useAuth();
+  const { user, company, logout, can } = useAuth();
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+  const sections = user?.isSuperAdmin ? PLATFORM_SECTIONS : COMPANY_SECTIONS;
+  const title = user?.isSuperAdmin ? 'OmniCom' : company?.name || APP_NAME;
 
   const handleLogout = () => {
     logout();
@@ -45,7 +56,7 @@ export default function Layout() {
     <div className="app-container">
       <header className="mobile-topbar no-print">
         <button className="icon-btn" onClick={() => setOpen(true)} aria-label="Ouvrir le menu"><Menu size={22} /></button>
-        <strong className="gradient-text">{settings?.companyName || 'Mélanine Print'}</strong>
+        <strong>{title}</strong>
         <span style={{ width: 22 }} />
       </header>
 
@@ -53,22 +64,25 @@ export default function Layout() {
 
       <aside className={`sidebar nav-sidebar no-print ${open ? 'open' : ''}`}>
         <div className="sidebar-brand">
-          <div>
-            <h2 className="gradient-text" style={{ margin: 0 }}>{settings?.companyName || 'Mélanine Print'}</h2>
-            <span className="muted small">ERP — Gestion commerciale</span>
+          <div className="brand">
+            {company?.logo && <img src={company.logo} alt="" className="brand-logo" />}
+            <div style={{ minWidth: 0 }}>
+              <div className="brand-name">{title}</div>
+              <span className="muted small">{user?.isSuperAdmin ? 'Console plateforme' : APP_NAME}</span>
+            </div>
           </div>
           <button className="icon-btn mobile-only" onClick={() => setOpen(false)} aria-label="Fermer le menu"><X size={20} /></button>
         </div>
 
         <nav className="nav">
-          {SECTIONS.map((section) => {
-            const items = section.items.filter((i) => !i.roles || (user && i.roles.includes(user.role)));
+          {sections.map((section) => {
+            const items = section.items.filter((i) => !i.permissions || can(...i.permissions));
             if (!items.length) return null;
             return (
               <div key={section.title} className="nav-section">
                 <div className="nav-title">{section.title}</div>
                 {items.map(({ to, label, icon: Icon }) => (
-                  <NavLink key={to} to={to} end={to === '/invoice'} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} onClick={() => setOpen(false)}>
+                  <NavLink key={to} to={to} end={to === '/invoice' || to === '/platform'} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} onClick={() => setOpen(false)}>
                     <Icon size={18} /> <span>{label}</span>
                   </NavLink>
                 ))}
@@ -82,12 +96,13 @@ export default function Layout() {
             <UserIcon size={18} />
             <span className="user-chip">
               <span>{user?.displayName || user?.email}</span>
-              <small className="muted">{user ? ROLE_LABELS[user.role] : ''}</small>
+              <small className="muted">{user?.roleName}</small>
             </span>
           </NavLink>
           <button className="nav-link danger" onClick={handleLogout}>
             <LogOut size={18} /> <span>Déconnexion</span>
           </button>
+          <div className="powered muted small">{APP_NAME}</div>
         </div>
       </aside>
 

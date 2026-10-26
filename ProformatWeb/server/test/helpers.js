@@ -2,7 +2,8 @@ const mongoose = require('mongoose');
 const request = require('supertest');
 
 process.env.NODE_ENV = 'test';
-process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-with-enough-length';
+process.env.JWT_SECRET = 'test-secret-with-enough-length';
+process.env.SETUP_KEY = 'cle-installation-test';
 
 let memoryServer = null;
 
@@ -27,18 +28,35 @@ const stopDb = async () => {
   if (memoryServer) await memoryServer.stop();
 };
 
-const ADMIN = { email: 'admin@example.com', password: 'motdepasse-admin', displayName: 'Admin' };
+const SUPER = { email: 'equipe@omnicom.cd', password: 'motdepasse-omnicom', displayName: 'OmniCom', setupKey: 'cle-installation-test' };
 
-const setupAdmin = async (app) => {
-  const res = await request(app).post('/api/auth/setup').send(ADMIN).expect(201);
+// Crée le super-admin OmniCom et renvoie son jeton
+const setupPlatform = async (app) => {
+  const res = await request(app).post('/api/auth/setup').send(SUPER).expect(201);
   return res.body.token;
 };
 
-const createUser = async (app, adminToken, role, email = `${role}@example.com`) => {
-  await request(app).post('/api/users').set('Authorization', `Bearer ${adminToken}`)
-    .send({ email, password: 'motdepasse-user', role }).expect(201);
-  const res = await request(app).post('/api/auth/login').send({ email, password: 'motdepasse-user' }).expect(200);
+const login = async (app, email, password) => {
+  const res = await request(app).post('/api/auth/login').send({ email, password }).expect(200);
   return res.body.token;
+};
+
+// OmniCom crée une entreprise et son administrateur ; renvoie le jeton de l'admin
+const createCompany = async (app, superToken, name, adminEmail) => {
+  const res = await request(app).post('/api/platform/companies').set('Authorization', `Bearer ${superToken}`)
+    .send({ name, exchangeRate: 2000, admin: { email: adminEmail, password: 'motdepasse-admin', displayName: `Admin ${name}` } })
+    .expect(201);
+  return { company: res.body.company, token: await login(app, adminEmail, 'motdepasse-admin') };
+};
+
+// L'admin d'une entreprise crée un utilisateur avec le rôle donné (par nom)
+const createUser = async (app, adminToken, roleName, email) => {
+  const roles = await request(app).get('/api/roles').set('Authorization', `Bearer ${adminToken}`).expect(200);
+  const role = roles.body.find((r) => r.name === roleName);
+  if (!role) throw new Error(`Rôle ${roleName} introuvable`);
+  await request(app).post('/api/users').set('Authorization', `Bearer ${adminToken}`)
+    .send({ email, password: 'motdepasse-user', roleId: role._id }).expect(201);
+  return login(app, email, 'motdepasse-user');
 };
 
 const client = (app, token) => {
@@ -52,4 +70,4 @@ const client = (app, token) => {
   };
 };
 
-module.exports = { startDb, stopDb, setupAdmin, createUser, client, ADMIN };
+module.exports = { startDb, stopDb, setupPlatform, createCompany, createUser, login, client, SUPER };

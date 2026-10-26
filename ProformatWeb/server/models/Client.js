@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const clientSchema = new mongoose.Schema({
+  company: { type: mongoose.Schema.Types.ObjectId, ref: 'Company', required: true },
   name: { type: String, required: true, trim: true },
   activity: { type: String, default: '', trim: true },
   contactPerson: { type: String, default: '', trim: true },
@@ -12,6 +13,6 @@ const clientSchema = new mongoose.Schema({
   isArchived: { type: Boolean, default: false },
 }, { timestamps: true });
 
-clientSchema.index({ name: 1 });
+clientSchema.index({ company: 1, name: 1 });
 
 module.exports = mongoose.model('Client', clientSchema);

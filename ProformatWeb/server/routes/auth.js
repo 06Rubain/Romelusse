@@ -1,12 +1,14 @@
+const crypto = require('crypto');
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const qrcode = require('qrcode');
 const otp = require('otplib');
 const User = require('../models/User');
+const Company = require('../models/Company');
 const { HttpError } = require('../lib/helpers');
 const { logActivity } = require('../lib/activity');
 const {
-  signSession, signTwoFactorChallenge, verifyTwoFactorChallenge, requireAuth,
+  signSession, signTwoFactorChallenge, verifyTwoFactorChallenge, requireAuth, sessionUser,
 } = require('../lib/auth');
 
 const router = express.Router();
@@ -21,13 +23,24 @@ const validatePassword = (password) => {
 
 const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
 
-const needsSetup = async () => !(await User.exists({ role: 'admin', passwordHash: { $exists: true, $ne: null } }));
+const needsSetup = async () => !(await User.exists({ isSuperAdmin: true }));
+
+const loadSessionUser = (id) => User.findById(id).populate('roleId').populate('company');
 
 const sessionResponse = async (user) => {
   user.lastLoginAt = new Date();
   await user.save();
   await logActivity(user, 'Connexion', 'Connexion à l\'application');
-  return { token: signSession(user), user };
+  return { token: signSession(user), user: sessionUser(await loadSessionUser(user._id)) };
+};
+
+const ensureCanLogIn = async (user) => {
+  if (user.isBlocked) throw new HttpError(403, 'Compte bloqué. Contactez votre administrateur.');
+  if (!user.isSuperAdmin) {
+    const company = await Company.findById(user.company);
+    if (!company) throw new HttpError(403, 'Aucune entreprise rattachée à ce compte.');
+    if (!company.isActive) throw new HttpError(403, 'L\'accès de votre entreprise est suspendu. Contactez OmniCom.');
+  }
 };
 
 const verifyCode = (secret, code) => {
@@ -39,24 +52,24 @@ router.get('/status', async (req, res) => {
   res.json({ needsSetup: await needsSetup() });
 });
 
-// Création du premier administrateur (uniquement si aucun n'existe)
+// Création du premier super-admin OmniCom, protégée par la clé SETUP_KEY du serveur
 router.post('/setup', async (req, res) => {
-  if (!(await needsSetup())) throw new HttpError(409, 'L\'application est déjà configurée.');
+  if (!(await needsSetup())) throw new HttpError(409, 'La plateforme est déjà configurée.');
+  const setupKey = process.env.SETUP_KEY;
+  if (!setupKey) throw new HttpError(503, 'Configuration désactivée : définissez SETUP_KEY sur le serveur.');
+  const given = Buffer.from(String(req.body.setupKey || ''));
+  const expected = Buffer.from(setupKey);
+  if (given.length !== expected.length || !crypto.timingSafeEqual(given, expected)) {
+    throw new HttpError(403, 'Clé d\'installation invalide.');
+  }
   const email = normalizeEmail(req.body.email);
   const { password, displayName } = req.body;
   if (!email.includes('@')) throw new HttpError(400, 'Adresse e-mail invalide.');
   validatePassword(password);
-  const passwordHash = await bcrypt.hash(password, 12);
-  let user = await User.findOne({ email });
-  if (user) {
-    user.passwordHash = passwordHash;
-    user.role = 'admin';
-    user.isBlocked = false;
-    if (displayName) user.displayName = displayName;
-  } else {
-    user = new User({ email, passwordHash, displayName: displayName || '', role: 'admin' });
-  }
-  await user.save();
+  if (await User.exists({ email })) throw new HttpError(409, 'Cet e-mail est déjà utilisé par un compte entreprise.');
+  const user = await User.create({
+    email, displayName: displayName || '', isSuperAdmin: true, passwordHash: await bcrypt.hash(password, 12),
+  });
   res.status(201).json(await sessionResponse(user));
 });
 
@@ -67,7 +80,7 @@ router.post('/login', async (req, res) => {
   const user = await User.findOne({ email }).select('+passwordHash');
   const valid = user?.passwordHash && await bcrypt.compare(String(password), user.passwordHash);
   if (!valid) throw new HttpError(401, 'E-mail ou mot de passe incorrect.');
-  if (user.isBlocked) throw new HttpError(403, 'Compte bloqué. Contactez un administrateur.');
+  await ensureCanLogIn(user);
   if (user.twoFactorEnabled) {
     return res.json({ requires2fa: true, challenge: signTwoFactorChallenge(user) });
   }
@@ -77,7 +90,8 @@ router.post('/login', async (req, res) => {
 router.post('/login/2fa', async (req, res) => {
   const userId = verifyTwoFactorChallenge(req.body.challenge);
   const user = await User.findById(userId).select('+twoFactorSecret');
-  if (!user || user.isBlocked) throw new HttpError(403, 'Accès refusé.');
+  if (!user) throw new HttpError(403, 'Accès refusé.');
+  await ensureCanLogIn(user);
   if (!verifyCode(user.twoFactorSecret, req.body.code)) throw new HttpError(400, 'Code invalide.');
   res.json(await sessionResponse(user));
 });
@@ -85,12 +99,12 @@ router.post('/login/2fa', async (req, res) => {
 // ---- Routes nécessitant une session ----
 router.use(requireAuth);
 
-router.get('/me', (req, res) => res.json(req.user));
+router.get('/me', (req, res) => res.json(sessionUser(req.user)));
 
 router.patch('/me', async (req, res) => {
   if (typeof req.body.displayName === 'string') req.user.displayName = req.body.displayName.trim();
   await req.user.save();
-  res.json(req.user);
+  res.json(sessionUser(req.user));
 });
 
 router.post('/change-password', async (req, res) => {
@@ -112,7 +126,7 @@ router.post('/2fa/setup', async (req, res) => {
   const secret = otp.generateSecret();
   user.twoFactorSecret = secret;
   await user.save();
-  const uri = otp.generateURI({ issuer: 'Melanine Print', label: user.email, secret });
+  const uri = otp.generateURI({ issuer: 'OmniCom Facturation', label: user.email, secret });
   res.json({ secret, qrCodeImage: await qrcode.toDataURL(uri) });
 });
 
@@ -122,7 +136,7 @@ router.post('/2fa/enable', async (req, res) => {
   user.twoFactorEnabled = true;
   await user.save();
   await logActivity(user, 'Sécurité', 'Activation de la double authentification');
-  res.json({ success: true, user });
+  res.json({ success: true });
 });
 
 router.post('/2fa/disable', async (req, res) => {
@@ -134,7 +148,7 @@ router.post('/2fa/disable', async (req, res) => {
   user.twoFactorSecret = null;
   await user.save();
   await logActivity(user, 'Sécurité', 'Désactivation de la double authentification');
-  res.json({ success: true, user });
+  res.json({ success: true });
 });
 
 module.exports = router;

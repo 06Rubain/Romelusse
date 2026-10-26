@@ -15,7 +15,7 @@ const dueOf = (balances?: Partial<Record<Currency, Balance>>) =>
   Object.fromEntries(Object.entries(balances || {}).map(([c, b]) => [c, b?.due || 0]));
 
 export default function Clients() {
-  const { hasRole } = useAuth();
+  const { can } = useAuth();
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState<{ id: string | null; form: ClientForm } | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -53,7 +53,7 @@ export default function Clients() {
     <div className="animate-fade-in">
       <PageHeader title="Clients" subtitle={data ? `${data.length} client(s)` : undefined} actions={<>
         <button className="btn btn-outline" onClick={exportCsv}><Download size={18} /> Exporter</button>
-        <button className="btn btn-primary" onClick={() => setEditing({ id: null, form: EMPTY })}><Plus size={18} /> Nouveau client</button>
+        {can('clients.manage') && <button className="btn btn-primary" onClick={() => setEditing({ id: null, form: EMPTY })}><Plus size={18} /> Nouveau client</button>}
       </>} />
       <Alert>{error}</Alert>
       <div className="toolbar card">
@@ -71,8 +71,8 @@ export default function Clients() {
                   <td className="num">{c.invoiceCount || 0}</td>
                   <td className="num strong">{formatByCurrency(dueOf(c.balances))}</td>
                   <td className="actions" onClick={(e) => e.stopPropagation()}>
-                    <button className="icon-btn" title="Modifier" onClick={() => setEditing({ id: c._id, form: { ...EMPTY, ...Object.fromEntries(Object.keys(EMPTY).map((k) => [k, (c as unknown as Record<string, string>)[k] || ''])) } as ClientForm })}><Edit2 size={16} /></button>
-                    {hasRole('admin', 'manager') && <button className="icon-btn text-danger" title="Supprimer / archiver" onClick={() => remove(c)}><Archive size={16} /></button>}
+                    {can('clients.manage') && <button className="icon-btn" title="Modifier" onClick={() => setEditing({ id: c._id, form: { ...EMPTY, ...Object.fromEntries(Object.keys(EMPTY).map((k) => [k, (c as unknown as Record<string, string>)[k] || ''])) } as ClientForm })}><Edit2 size={16} /></button>}
+                    {can('clients.delete') && <button className="icon-btn text-danger" title="Supprimer / archiver" onClick={() => remove(c)}><Archive size={16} /></button>}
                   </td>
                 </tr>
               ))}

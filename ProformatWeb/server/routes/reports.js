@@ -5,8 +5,7 @@ const Expense = require('../models/Expense');
 const Product = require('../models/Product');
 const Client = require('../models/Client');
 const { round2, dateRangeFilter } = require('../lib/helpers');
-const { isManager } = require('../lib/auth');
-const { getSettings } = require('../lib/settings');
+const { can } = require('../lib/auth');
 
 const router = express.Router();
 
@@ -56,10 +55,14 @@ const monthlySeries = async (model, match, dateField, valueField, reporting, rat
 };
 
 router.get('/summary', async (req, res) => {
-  const settings = await getSettings();
+  const settings = req.company;
+  const company = settings._id;
   const reporting = settings.reportingCurrency;
   const rate = settings.exchangeRate;
-  const canSeeFinance = isManager(req.user);
+  // Dépenses et résultat réservés aux rôles ayant accès aux rapports
+  const canSeeFinance = can(req, 'reports.view');
+  const ACTIVE = { ...ACTIVE_INVOICE, company };
+  const OPEN = { ...OPEN_INVOICE, company };
 
   const now = new Date();
   const defaultFrom = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
@@ -69,17 +72,17 @@ router.get('/summary', async (req, res) => {
   const since = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - 1), 1));
 
   const [invoiced, collected, expenses, receivables, overdue] = await Promise.all([
-    sumByCurrency(Invoice, { ...ACTIVE_INVOICE, issueDate: range }, '$totalAmount', reporting, rate),
-    sumByCurrency(Payment, { date: range }, '$amount', reporting, rate),
-    canSeeFinance ? sumByCurrency(Expense, { date: range }, '$amount', reporting, rate) : null,
-    sumByCurrency(Invoice, OPEN_INVOICE, { $subtract: ['$totalAmount', '$amountPaid'] }, reporting, rate),
-    sumByCurrency(Invoice, { ...OPEN_INVOICE, dueDate: { $lt: now } }, { $subtract: ['$totalAmount', '$amountPaid'] }, reporting, rate),
+    sumByCurrency(Invoice, { ...ACTIVE, issueDate: range }, '$totalAmount', reporting, rate),
+    sumByCurrency(Payment, { company, date: range }, '$amount', reporting, rate),
+    canSeeFinance ? sumByCurrency(Expense, { company, date: range }, '$amount', reporting, rate) : null,
+    sumByCurrency(Invoice, OPEN, { $subtract: ['$totalAmount', '$amountPaid'] }, reporting, rate),
+    sumByCurrency(Invoice, { ...OPEN, dueDate: { $lt: now } }, { $subtract: ['$totalAmount', '$amountPaid'] }, reporting, rate),
   ]);
 
   const [monthlyInvoiced, monthlyCollected, monthlyExpenses] = await Promise.all([
-    monthlySeries(Invoice, ACTIVE_INVOICE, 'issueDate', '$totalAmount', reporting, rate, since),
-    monthlySeries(Payment, {}, 'date', '$amount', reporting, rate, since),
-    canSeeFinance ? monthlySeries(Expense, {}, 'date', '$amount', reporting, rate, since) : {},
+    monthlySeries(Invoice, ACTIVE, 'issueDate', '$totalAmount', reporting, rate, since),
+    monthlySeries(Payment, { company }, 'date', '$amount', reporting, rate, since),
+    canSeeFinance ? monthlySeries(Expense, { company }, 'date', '$amount', reporting, rate, since) : {},
   ]);
   const monthly = [];
   for (let i = 0; i < months; i += 1) {
@@ -94,13 +97,13 @@ router.get('/summary', async (req, res) => {
 
   const [topClients, topProducts, lowStock, pendingProformas, clientCount, productCount] = await Promise.all([
     Invoice.aggregate([
-      { $match: { ...ACTIVE_INVOICE, issueDate: range } },
+      { $match: { ...ACTIVE, issueDate: range } },
       { $group: { _id: '$client', total: { $sum: toReporting('$totalAmount', reporting, rate) }, count: { $sum: 1 } } },
       { $sort: { total: -1 } },
       { $limit: 5 },
     ]),
     Invoice.aggregate([
-      { $match: { ...ACTIVE_INVOICE, issueDate: range } },
+      { $match: { ...ACTIVE, issueDate: range } },
       { $unwind: '$products' },
       { $group: {
         _id: '$products.name',
@@ -110,11 +113,11 @@ router.get('/summary', async (req, res) => {
       { $sort: { total: -1 } },
       { $limit: 5 },
     ]),
-    Product.find({ trackStock: true, isActive: { $ne: false }, $expr: { $lte: ['$stockQuantity', '$minStock'] } })
+    Product.find({ company, trackStock: true, isActive: { $ne: false }, $expr: { $lte: ['$stockQuantity', '$minStock'] } })
       .sort({ stockQuantity: 1 }).limit(20),
-    Invoice.countDocuments({ type: 'Proforma', status: 'En attente' }),
-    Client.countDocuments({ isArchived: { $ne: true } }),
-    Product.countDocuments({ isActive: { $ne: false } }),
+    Invoice.countDocuments({ company, type: 'Proforma', status: 'En attente' }),
+    Client.countDocuments({ company, isArchived: { $ne: true } }),
+    Product.countDocuments({ company, isActive: { $ne: false } }),
   ]);
 
   res.json({

@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const stockMovementSchema = new mongoose.Schema({
+  company: { type: mongoose.Schema.Types.ObjectId, ref: 'Company', required: true },
   product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
   productName: { type: String, default: '' },
   // in : entrée (achat, retour), out : sortie (vente, perte), adjust : inventaire

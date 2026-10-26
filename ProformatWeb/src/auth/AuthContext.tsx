@@ -1,28 +1,35 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { api, getToken, setToken } from '../lib/api';
-import type { Role, Settings, User } from '../lib/types';
+import type { Company, Permission, User } from '../lib/types';
 
 interface AuthState {
   user: User | null;
-  settings: Settings | null;
+  company: Company | null;
   loading: boolean;
   setSession: (token: string, user: User) => void;
   logout: () => void;
   refreshUser: () => Promise<void>;
-  refreshSettings: () => Promise<void>;
-  hasRole: (...roles: Role[]) => boolean;
+  refreshCompany: () => Promise<void>;
+  can: (...permissions: Permission[]) => boolean;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [settings, setSettings] = useState<Settings | null>(null);
+  const [company, setCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const refreshSettings = useCallback(async () => {
-    try { setSettings(await api.get<Settings>('/settings')); } catch { /* non bloquant */ }
+  const refreshCompany = useCallback(async () => {
+    try { setCompany(await api.get<Company>('/company')); } catch { setCompany(null); }
   }, []);
+
+  const loadSession = useCallback(async (nextUser: User | null) => {
+    setUser(nextUser);
+    // Les super-admins OmniCom n'appartiennent à aucune entreprise
+    if (nextUser && !nextUser.isSuperAdmin) await refreshCompany();
+    else setCompany(null);
+  }, [refreshCompany]);
 
   const refreshUser = useCallback(async () => {
     if (!getToken()) {
@@ -39,30 +46,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     (async () => {
-      await refreshUser();
-      if (getToken()) await refreshSettings();
+      let me: User | null = null;
+      if (getToken()) {
+        try { me = await api.get<User>('/auth/me'); } catch { setToken(null); }
+      }
+      await loadSession(me);
       setLoading(false);
     })();
-    const onLogout = () => setUser(null);
+    const onLogout = () => { setUser(null); setCompany(null); };
     window.addEventListener('auth:logout', onLogout);
     return () => window.removeEventListener('auth:logout', onLogout);
-  }, [refreshUser, refreshSettings]);
+  }, [loadSession]);
 
   const setSession = useCallback((token: string, nextUser: User) => {
     setToken(token);
-    setUser(nextUser);
-    refreshSettings();
-  }, [refreshSettings]);
+    loadSession(nextUser);
+  }, [loadSession]);
 
   const logout = useCallback(() => {
     setToken(null);
     setUser(null);
+    setCompany(null);
   }, []);
 
-  const hasRole = useCallback((...roles: Role[]) => !!user && roles.includes(user.role), [user]);
+  const can = useCallback((...permissions: Permission[]) => !!user && permissions.some((p) => user.permissions.includes(p)), [user]);
 
   return (
-    <AuthContext.Provider value={{ user, settings, loading, setSession, logout, refreshUser, refreshSettings, hasRole }}>
+    <AuthContext.Provider value={{ user, company, loading, setSession, logout, refreshUser, refreshCompany, can }}>
       {children}
     </AuthContext.Provider>
   );

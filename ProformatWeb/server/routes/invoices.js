@@ -7,26 +7,25 @@ const { METHODS } = require('../models/Payment');
 const {
   HttpError, toNumber, round2, parseDate, escapeRegex, paginate, dateRangeFilter, CURRENCIES,
 } = require('../lib/helpers');
-const { requireRole } = require('../lib/auth');
+const { requirePermission } = require('../lib/auth');
 const { logActivity } = require('../lib/activity');
 const { nextInvoiceNumber, peekInvoiceNumber } = require('../lib/counter');
 const { applyInvoiceStock } = require('../lib/stock');
-const { getSettings } = require('../lib/settings');
 
 const router = express.Router();
 
 const fmt = (amount, currency) => `${round2(amount).toFixed(2)} ${currency}`;
 
-const resolveClient = async (body) => {
+const resolveClient = async (companyId, body) => {
   if (body.clientId && mongoose.isValidObjectId(body.clientId)) {
-    const client = await Client.findById(body.clientId);
+    const client = await Client.findOne({ _id: body.clientId, company: companyId });
     if (client) return client;
   }
   const name = String(body.client || '').trim();
   if (!name) throw new HttpError(400, 'Le client est obligatoire.');
   // Crée automatiquement la fiche client si elle n'existe pas encore
-  return (await Client.findOne({ name, isArchived: { $ne: true } }))
-    || Client.create({ name, activity: body.clientActivity || '' });
+  return (await Client.findOne({ company: companyId, name, isArchived: { $ne: true } }))
+    || Client.create({ company: companyId, name, activity: body.clientActivity || '' });
 };
 
 const buildLines = (products) => {
@@ -52,7 +51,7 @@ const buildLines = (products) => {
 
 // Construit les champs modifiables d'une facture ; les totaux sont toujours recalculés côté serveur
 const buildInvoiceFields = async (body, settings) => {
-  const client = await resolveClient(body);
+  const client = await resolveClient(settings._id, body);
   const currency = CURRENCIES.includes(body.currency) ? body.currency : 'USD';
   const products = buildLines(body.products);
   const subtotal = round2(products.reduce((sum, l) => sum + l.lineTotal, 0));
@@ -96,18 +95,19 @@ const refreshPaymentStatus = async (invoice) => {
   return invoice;
 };
 
-const findInvoice = async (id) => {
+const findInvoice = async (req) => {
+  const id = req.params.id;
   if (!mongoose.isValidObjectId(id)) throw new HttpError(404, 'Facture introuvable.');
-  const invoice = await Invoice.findById(id);
+  const invoice = await Invoice.findOne({ _id: id, company: req.company._id });
   if (!invoice) throw new HttpError(404, 'Facture introuvable.');
   return invoice;
 };
 
 router.get('/', async (req, res) => {
-  const filter = {};
+  const filter = { company: req.company._id };
   const { search, type, status, clientId, from, to, unpaid, overdue } = req.query;
-  if (type) filter.type = type;
-  if (status) filter.status = status;
+  if (type) filter.type = String(type);
+  if (status) filter.status = String(status);
   if (clientId && mongoose.isValidObjectId(clientId)) filter.clientId = clientId;
   const range = dateRangeFilter(from, to);
   if (range) filter.issueDate = range;
@@ -124,26 +124,26 @@ router.get('/', async (req, res) => {
 });
 
 router.get('/next-number', async (req, res) => {
-  res.json({ nextNumber: await peekInvoiceNumber(req.query.type === 'Proforma' ? 'Proforma' : 'Facture') });
+  res.json({ nextNumber: await peekInvoiceNumber(req.company._id, req.query.type === 'Proforma' ? 'Proforma' : 'Facture') });
 });
 
 router.get('/:id', async (req, res) => {
-  const invoice = await findInvoice(req.params.id);
+  const invoice = await findInvoice(req);
   const payments = await Payment.find({ invoice: invoice._id }).sort({ date: 1 });
   res.json({ ...invoice.toJSON(), payments });
 });
 
-router.post('/', async (req, res) => {
-  const settings = await getSettings();
+router.post('/', requirePermission('invoices.create'), async (req, res) => {
+  const settings = req.company;
   const type = req.body.type === 'Proforma' ? 'Proforma' : 'Facture';
   const fields = await buildInvoiceFields({ ...req.body, type }, settings);
   let number = String(req.body.number || '').trim();
   if (number) {
-    if (await Invoice.exists({ number })) throw new HttpError(409, `Le numéro ${number} est déjà utilisé.`);
+    if (await Invoice.exists({ company: req.company._id, number })) throw new HttpError(409, `Le numéro ${number} est déjà utilisé.`);
   } else {
-    number = await nextInvoiceNumber(type, fields.issueDate);
+    number = await nextInvoiceNumber(req.company._id, type, fields.issueDate);
   }
-  const invoice = await Invoice.create({ ...fields, type, number, createdBy: req.user.email });
+  const invoice = await Invoice.create({ ...fields, company: req.company._id, type, number, createdBy: req.user.email });
   if (type === 'Facture') {
     await applyInvoiceStock(invoice, req.user, -1);
     invoice.stockApplied = true;
@@ -155,8 +155,8 @@ router.post('/', async (req, res) => {
 });
 
 // Seules les proformas sont modifiables ; une facture se corrige par annulation puis réémission
-router.put('/:id', async (req, res) => {
-  const invoice = await findInvoice(req.params.id);
+router.put('/:id', requirePermission('invoices.create'), async (req, res) => {
+  const invoice = await findInvoice(req);
   if (invoice.type !== 'Proforma' || invoice.status !== 'En attente') {
     if (req.body.notes !== undefined || req.body.dueDate !== undefined) {
       if (req.body.notes !== undefined) invoice.notes = String(req.body.notes);
@@ -166,22 +166,22 @@ router.put('/:id', async (req, res) => {
     }
     throw new HttpError(400, 'Une facture émise ne peut plus être modifiée. Annulez-la puis créez-en une nouvelle.');
   }
-  const settings = await getSettings();
-  invoice.set(await buildInvoiceFields({ ...req.body, type: 'Proforma' }, settings));
+  invoice.set(await buildInvoiceFields({ ...req.body, type: 'Proforma' }, req.company));
   await invoice.save();
   await logActivity(req.user, 'Modification de proforma', `Proforma N° ${invoice.number}`);
   res.json(invoice);
 });
 
 // Transforme une proforma acceptée en facture
-router.post('/:id/convert', async (req, res) => {
-  const proforma = await findInvoice(req.params.id);
+router.post('/:id/convert', requirePermission('invoices.create'), async (req, res) => {
+  const proforma = await findInvoice(req);
   if (proforma.type !== 'Proforma') throw new HttpError(400, 'Seule une proforma peut être convertie.');
   if (proforma.status !== 'En attente') throw new HttpError(400, 'Cette proforma a déjà été convertie ou annulée.');
-  const settings = await getSettings();
+  const settings = req.company;
   const issueDate = new Date();
-  const number = await nextInvoiceNumber('Facture', issueDate);
+  const number = await nextInvoiceNumber(req.company._id, 'Facture', issueDate);
   const invoice = await Invoice.create({
+    company: req.company._id,
     number,
     type: 'Facture',
     clientId: proforma.clientId,
@@ -211,8 +211,8 @@ router.post('/:id/convert', async (req, res) => {
   res.status(201).json(invoice);
 });
 
-router.post('/:id/cancel', requireRole('admin', 'manager'), async (req, res) => {
-  const invoice = await findInvoice(req.params.id);
+router.post('/:id/cancel', requirePermission('invoices.cancel'), async (req, res) => {
+  const invoice = await findInvoice(req);
   if (invoice.status === 'Annulée') throw new HttpError(400, 'Cette facture est déjà annulée.');
   if (invoice.amountPaid > 0) throw new HttpError(400, 'Supprimez d\'abord les paiements enregistrés sur cette facture.');
   if (invoice.stockApplied) {
@@ -227,8 +227,8 @@ router.post('/:id/cancel', requireRole('admin', 'manager'), async (req, res) => 
 });
 
 // ---- Paiements ----
-router.post('/:id/payments', async (req, res) => {
-  const invoice = await findInvoice(req.params.id);
+router.post('/:id/payments', requirePermission('payments.create'), async (req, res) => {
+  const invoice = await findInvoice(req);
   if (invoice.type !== 'Facture') throw new HttpError(400, 'Les paiements ne s\'enregistrent que sur une facture.');
   if (['Annulée', 'Convertie'].includes(invoice.status)) throw new HttpError(400, 'Cette facture est annulée.');
   const amount = round2(toNumber(req.body.amount));
@@ -236,6 +236,7 @@ router.post('/:id/payments', async (req, res) => {
   const balance = round2(invoice.totalAmount - invoice.amountPaid);
   if (amount > balance + 0.005) throw new HttpError(400, `Le montant dépasse le solde restant (${fmt(balance, invoice.currency)}).`);
   const payment = await Payment.create({
+    company: req.company._id,
     invoice: invoice._id,
     invoiceNumber: invoice.number,
     client: invoice.client,
@@ -252,8 +253,8 @@ router.post('/:id/payments', async (req, res) => {
   res.status(201).json({ invoice, payment });
 });
 
-router.delete('/:id/payments/:paymentId', requireRole('admin', 'manager'), async (req, res) => {
-  const invoice = await findInvoice(req.params.id);
+router.delete('/:id/payments/:paymentId', requirePermission('payments.delete'), async (req, res) => {
+  const invoice = await findInvoice(req);
   const payment = await Payment.findOneAndDelete({ _id: req.params.paymentId, invoice: invoice._id });
   if (!payment) throw new HttpError(404, 'Paiement introuvable.');
   await refreshPaymentStatus(invoice);

@@ -10,7 +10,7 @@ import MonthlyChart from '../components/MonthlyChart';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { user, hasRole } = useAuth();
+  const { user, can } = useAuth();
   const summary = useFetch(() => api.get<Summary>('/reports/summary'), []);
   const recent = useFetch(() => api.get<Paginated<Invoice>>('/invoices', { limit: 8 }), []);
   const overdue = useFetch(() => api.get<Paginated<Invoice>>('/invoices', { overdue: 'true', limit: 5 }), []);
@@ -22,7 +22,7 @@ export default function Dashboard() {
       <PageHeader
         title={`Bonjour ${user?.displayName?.split(' ')[0] || ''}`.trim()}
         subtitle="Activité du mois en cours"
-        actions={<button className="btn btn-primary" onClick={() => navigate('/invoice')}><FilePlus2 size={18} /> Nouvelle facture</button>}
+        actions={can('invoices.create') && <button className="btn btn-primary" onClick={() => navigate('/invoice')}><FilePlus2 size={18} /> Nouvelle facture</button>}
       />
       <Alert>{summary.error}</Alert>
 
@@ -30,7 +30,7 @@ export default function Dashboard() {
         <StatCard label="Facturé ce mois" value={formatMoney(s?.invoiced.total, cur)} hint={`${s?.invoiced.count ?? 0} facture(s) · ${formatByCurrency(s?.invoiced.byCurrency)}`} />
         <StatCard label="Encaissé ce mois" value={formatMoney(s?.collected.total, cur)} hint={formatByCurrency(s?.collected.byCurrency)} tone="success" />
         <StatCard label="Créances clients" value={formatMoney(s?.receivables.total, cur)} hint={`dont ${formatMoney(s?.overdue.total, cur)} en retard`} tone={s && s.overdue.total > 0 ? 'danger' : undefined} />
-        {hasRole('admin', 'manager') ? (
+        {can('reports.view') ? (
           <StatCard label="Résultat (encaissé − dépenses)" value={formatMoney(s?.profit, cur)} hint={`Dépenses : ${formatMoney(s?.expenses?.total, cur)}`} tone={s && (s.profit ?? 0) < 0 ? 'danger' : 'success'} />
         ) : (
           <StatCard label="Proformas en attente" value={s?.counts.pendingProformas ?? 0} hint="à convertir en facture" />

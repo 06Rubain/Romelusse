@@ -21,8 +21,9 @@ const EMPTY: ProductForm = {
 const MOVEMENT_LABELS = { in: 'Entrée', out: 'Sortie', adjust: 'Inventaire' };
 
 export default function ProductsList() {
-  const { hasRole } = useAuth();
-  const canEdit = hasRole('admin', 'manager');
+  const { can } = useAuth();
+  const canEdit = can('products.manage');
+  const canStock = can('stock.manage');
   const [tab, setTab] = useState<'catalog' | 'movements'>('catalog');
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
@@ -106,7 +107,7 @@ export default function ProductsList() {
           <div className="card">
             <div className="table-container">
               <table>
-                <thead><tr><th>Produit</th><th>Catégorie</th><th className="num">Prix</th><th className="num">Stock</th>{canEdit && <th className="actions">Actions</th>}</tr></thead>
+                <thead><tr><th>Produit</th><th>Catégorie</th><th className="num">Prix</th><th className="num">Stock</th>{(canEdit || canStock) && <th className="actions">Actions</th>}</tr></thead>
                 <tbody>
                   {data?.map((p) => {
                     const low = p.trackStock && p.stockQuantity <= p.minStock;
@@ -118,11 +119,11 @@ export default function ProductsList() {
                         <td className={`num ${low ? (p.stockQuantity <= 0 ? 'text-danger' : 'text-warning') : ''}`}>
                           {p.trackStock ? <>{p.stockQuantity} <span className="muted small">(min. {p.minStock})</span></> : <span className="muted">—</span>}
                         </td>
-                        {canEdit && (
+                        {(canEdit || canStock) && (
                           <td className="actions">
-                            {p.trackStock && <button className="icon-btn" title="Mouvement de stock" onClick={() => setStockFor(p)}><Boxes size={16} /></button>}
-                            <button className="icon-btn" title="Modifier" onClick={() => openEdit(p)}><Edit2 size={16} /></button>
-                            <button className="icon-btn text-danger" title="Supprimer" onClick={() => remove(p)}><Trash2 size={16} /></button>
+                            {p.trackStock && canStock && <button className="icon-btn" title="Mouvement de stock" onClick={() => setStockFor(p)}><Boxes size={16} /></button>}
+                            {canEdit && <button className="icon-btn" title="Modifier" onClick={() => openEdit(p)}><Edit2 size={16} /></button>}
+                            {canEdit && <button className="icon-btn text-danger" title="Supprimer" onClick={() => remove(p)}><Trash2 size={16} /></button>}
                           </td>
                         )}
                       </tr>

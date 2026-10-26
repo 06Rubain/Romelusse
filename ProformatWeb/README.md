@@ -1,66 +1,82 @@
-# Mélanine Print — ERP de gestion commerciale
+# OmniCom Facturation
 
-Application web de gestion pour l'imprimerie Mélanine Print : facturation, clients, stock,
-encaissements, dépenses et rapports, avec gestion d'équipe et traçabilité.
+Plateforme de facturation multi-entreprise éditée par **OmniCom**. Chaque entreprise cliente dispose
+d'un espace isolé pour émettre ses **proformas** et **factures** à son logo et à ses couleurs, suivre
+ses encaissements, ses clients, son stock et ses dépenses.
 
 - **Frontend** : React 19 + TypeScript + Vite (`src/`)
 - **API** : Express 5 + MongoDB/Mongoose (`server/`), déployable sur Vercel ou en Node classique
 
-## Modules
+## Qui fait quoi
+
+| Niveau | Qui | Peut |
+|---|---|---|
+| **Plateforme** | Équipe OmniCom (super-admins) | Créer les entreprises et leur administrateur, personnaliser leur profil, suspendre / réactiver un compte, réinitialiser un mot de passe, ajouter d'autres super-admins. N'accède pas aux données de facturation des entreprises. |
+| **Entreprise** | Administrateur de l'entreprise | Tout dans son entreprise : logo et couleurs des factures, coordonnées, **création de rôles sur mesure**, utilisateurs. |
+| **Entreprise** | Utilisateurs | Ce que leur rôle autorise (cases à cocher par permission). |
+
+Seul OmniCom peut créer un compte entreprise : il n'y a pas d'inscription publique.
+
+### Rôles et permissions
+
+Chaque entreprise reçoit trois rôles de départ : **Administrateur** (verrouillé, accès complet),
+**Gestionnaire** et **Employé**. L'administrateur peut les modifier ou créer les siens (ex. Caissier,
+Magasinier) en combinant les permissions :
+
+| Domaine | Permissions |
+|---|---|
+| Ventes | créer/modifier factures et proformas · annuler des factures · enregistrer / supprimer des encaissements · gérer / supprimer des clients |
+| Opérations | gérer le catalogue · mouvements de stock · dépenses |
+| Pilotage | rapports et résultats financiers · journal d'activité |
+| Administration | utilisateurs · rôles · paramètres et personnalisation |
+
+Tout utilisateur peut consulter les factures, clients et produits de son entreprise. Les droits sont
+relus à chaque requête : un changement de rôle, un blocage ou la suspension d'une entreprise
+prend effet immédiatement.
+
+### Isolation des données
+
+Chaque document (client, produit, facture, paiement, dépense, mouvement de stock, journal) porte
+l'identifiant de son entreprise et toutes les requêtes de l'API sont filtrées dessus. La numérotation
+(`FAC-2026-0001`, `PRO-2026-0001`) est propre à chaque entreprise. Les tests automatisés vérifient
+qu'une entreprise ne peut ni lire ni modifier les données d'une autre.
+
+## Modules d'une entreprise
 
 | Module | Fonctionnalités |
 |---|---|
-| **Tableau de bord** | CA facturé et encaissé du mois, créances et retards, résultat, graphique sur 12 mois, alertes de stock |
-| **Factures & proformas** | Numérotation automatique par année (`FAC-2026-0001`, `PRO-2026-0001`), remise, échéance, notes, impression A4/A5/A6 au gabarit maison, conversion proforma → facture, annulation avec motif, recherche et filtres, export CSV |
-| **Encaissements** | Paiements partiels ou totaux (espèces, Mobile Money, virement…), statut automatique (En attente → Partiellement payée → Payée), journal exportable |
-| **Clients** | Fiches clients (contact, n° impôt…), solde dû par devise, historique des documents ; création automatique lors de la facturation |
-| **Produits & stock** | Catalogue par catégorie, prix numérique en USD ou FC, prix « sur devis », suivi de stock optionnel : sortie automatique à la facturation, retour à l'annulation, entrées / sorties / inventaire manuels, seuils d'alerte, historique des mouvements, import de la grille tarifaire 2026 |
-| **Dépenses** | Saisie par catégorie et fournisseur, totaux par devise, export CSV |
-| **Rapports** | Période libre, montants consolidés dans la devise de reporting au taux paramétré, meilleurs clients et produits, évolution mensuelle |
-| **Équipe** | Comptes nominatifs, rôles, blocage immédiat, réinitialisation du mot de passe et de la 2FA |
-| **Sécurité** | Connexion par e-mail et mot de passe (bcrypt), sessions JWT, double authentification TOTP, limitation des tentatives, journal d'activité côté serveur |
-| **Paramètres** | Coordonnées imprimées sur les factures, taux de change, devise des rapports, délai de paiement |
+| **Tableau de bord** | CA facturé et encaissé, créances et retards, résultat, graphique sur 12 mois, alertes de stock |
+| **Factures & proformas** | Modèle imprimable A4/A5/A6 au logo, aux couleurs et aux coordonnées de l'entreprise, remise, échéance, conversion proforma → facture, annulation, export CSV |
+| **Encaissements** | Paiements partiels ou totaux, statut automatique, journal exportable |
+| **Clients** | Fiches, solde dû par devise, historique |
+| **Produits & stock** | Catalogue USD/FC, prix sur devis, stock décrémenté à la facturation, mouvements, seuils d'alerte |
+| **Dépenses & rapports** | Dépenses par catégorie, rapports consolidés au taux de change de l'entreprise |
+| **Entreprise & logo** | Logo, bandeau de bas de page, trois couleurs, coordonnées légales et bancaires, taux de change |
 
-### Rôles
-
-| Action | Employé | Gestionnaire | Administrateur |
-|---|:-:|:-:|:-:|
-| Créer factures/proformas, encaisser, gérer les clients | ✅ | ✅ | ✅ |
-| Gérer le catalogue et le stock, annuler une facture, supprimer un paiement | | ✅ | ✅ |
-| Dépenses, rapports, journal d'activité | | ✅ | ✅ |
-| Équipe et paramètres | | | ✅ |
-
-> Une facture émise n'est plus modifiable : pour la corriger, annulez-la (après suppression
-> des paiements éventuels) puis créez-en une nouvelle. Les proformas restent modifiables
-> jusqu'à leur conversion.
-
-## Démarrage local
+## Installation
 
 ```bash
-# 1. Base de données (ou utilisez MongoDB Atlas)
-docker compose up -d mongodb
+docker compose up -d mongodb          # ou MongoDB Atlas
 
-# 2. API
 cd server
-cp .env.example .env     # puis renseignez MONGODB_URI et JWT_SECRET
-npm install
-npm run dev              # http://localhost:5000
+cp .env.example .env                  # MONGODB_URI, JWT_SECRET, SETUP_KEY
+npm install && npm run dev            # http://localhost:5000
 
-# 3. Frontend (dans un autre terminal, à la racine de ProformatWeb)
-npm install
-npm run dev              # http://localhost:5173
+# autre terminal, dans ProformatWeb/
+npm install && npm run dev            # http://localhost:5173
 ```
 
-Au premier lancement, l'écran de connexion propose de **créer le compte administrateur**.
-Si un utilisateur existe déjà avec cet e-mail (ancienne version), il est promu administrateur.
-L'administrateur crée ensuite les comptes de l'équipe depuis **Équipe**.
+1. Ouvrez l'application : l'écran **Installation** demande la clé `SETUP_KEY` et crée le premier
+   super-admin OmniCom (une seule fois).
+2. Dans **Entreprises**, créez chaque entreprise avec son logo et son administrateur.
+3. L'administrateur se connecte, ajuste ses rôles et crée ses utilisateurs.
 
-## Reprise des données de l'ancienne version
+### Reprise des données existantes
 
-Les produits et factures enregistrés avec l'ancienne version (prix et totaux en texte comme
-`"300 FC"`) sont convertis automatiquement à la première requête de l'API : prix numériques,
-dates, création des fiches clients et, pour les factures marquées « Payée », d'un encaissement.
-La migration est idempotente ; elle peut aussi être lancée à la main : `npm --prefix server run migrate`.
+Les données de la version précédente (mono-entreprise) sont rattachées automatiquement à l'entreprise
+**Mélanine Print**, créée avec son logo, ses coordonnées et ses rôles ; les anciens comptes gardent leur
+niveau (admin → Administrateur, gestionnaire → Gestionnaire, employé → Employé). Migration idempotente,
+aussi disponible via `npm --prefix server run migrate`.
 
 ## Variables d'environnement (API)
 
@@ -68,20 +84,20 @@ La migration est idempotente ; elle peut aussi être lancée à la main : `npm -
 |---|:-:|---|
 | `MONGODB_URI` | ✅ | Chaîne de connexion MongoDB |
 | `JWT_SECRET` | ✅ | Secret de signature des sessions (32 caractères aléatoires ou plus) |
+| `SETUP_KEY` | ✅ à l'installation | Clé exigée pour créer le premier super-admin OmniCom ; peut être retirée ensuite |
 | `JWT_EXPIRES_IN` | | Durée d'une session (défaut `12h`) |
 | `CORS_ORIGIN` | | Origines autorisées, séparées par des virgules |
 
-Sur Vercel, définissez-les dans **Project → Settings → Environment Variables** (jamais dans
-`vercel.json` ni dans un fichier commité).
+Sur Vercel : **Project → Settings → Environment Variables** (jamais dans un fichier commité).
 
 ## Tests
 
 ```bash
-npm --prefix server test                                              # MongoDB en mémoire
-MONGODB_TEST_URI=mongodb://127.0.0.1:27017/proformat_test npm --prefix server test  # base locale
-npm run lint && npm run build                                         # frontend
+npm --prefix server test                                                             # MongoDB en mémoire
+MONGODB_TEST_URI=mongodb://127.0.0.1:27017/proformat_test npm --prefix server test   # base locale
+npm run lint && npm run build                                                        # frontend
 ```
 
-Les tests couvrent l'authentification (configuration initiale, rôles, blocage, 2FA), le cycle
-complet d'une facture (stock, paiements, annulation), la conversion de proforma, les rapports
-multi-devises et la migration des anciennes données.
+Couverture : installation protégée, création d'entreprise réservée à OmniCom, rôles sur mesure et
+permissions, blocage et suspension, personnalisation (logo, couleurs), 2FA, cycle de facturation
+complet, isolation entre entreprises et migration des anciennes données.

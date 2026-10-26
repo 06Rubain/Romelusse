@@ -18,7 +18,7 @@ const newKey = () => `l${++lineSeq}`;
 export default function InvoiceGenerator() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { settings, hasRole } = useAuth();
+  const { company: settings, can } = useAuth();
 
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [catalog, setCatalog] = useState<Product[]>([]);
@@ -316,7 +316,7 @@ export default function InvoiceGenerator() {
               </button>
               {id && <button className="btn btn-outline btn-block" onClick={() => print()}><Printer size={18} /> Imprimer / PDF</button>}
               {invoice?.type === 'Proforma' && <button className="btn btn-outline btn-block" onClick={convert}><ArrowRightLeft size={18} /> Convertir en facture</button>}
-              {invoice && hasRole('admin', 'manager') && <button className="btn btn-ghost btn-block text-danger" onClick={cancel}><Ban size={18} /> Annuler la proforma</button>}
+              {invoice && can('invoices.cancel') && <button className="btn btn-ghost btn-block text-danger" onClick={cancel}><Ban size={18} /> Annuler la proforma</button>}
             </div>
           </>
         ) : invoice && (
@@ -342,10 +342,10 @@ export default function InvoiceGenerator() {
             </Field>
             <div className="stack-sm">
               <button className="btn btn-primary btn-block" onClick={() => print()}><Printer size={18} /> Imprimer / PDF</button>
-              {invoice.type === 'Facture' && invoice.balance > 0 && invoice.status !== 'Annulée' && (
+              {invoice.type === 'Facture' && invoice.balance > 0 && invoice.status !== 'Annulée' && can('payments.create') && (
                 <button className="btn btn-outline btn-block" onClick={() => setPaying(true)}><Wallet size={18} /> Enregistrer un paiement</button>
               )}
-              {hasRole('admin', 'manager') && invoice.status !== 'Annulée' && invoice.status !== 'Convertie' && invoice.amountPaid === 0 && (
+              {can('invoices.cancel') && invoice.status !== 'Annulée' && invoice.status !== 'Convertie' && invoice.amountPaid === 0 && (
                 <button className="btn btn-ghost btn-block text-danger" onClick={cancel}><Ban size={18} /> Annuler la facture</button>
               )}
             </div>
@@ -359,7 +359,7 @@ export default function InvoiceGenerator() {
                       <span>{formatDate(p.date)} · {p.method}{p.reference ? ` · ${p.reference}` : ''}</span>
                       <span className="row-gap">
                         <strong>{formatMoney(p.amount, p.currency)}</strong>
-                        {hasRole('admin', 'manager') && <button className="icon-btn text-danger" onClick={() => deletePayment(p._id)} aria-label="Supprimer"><Trash2 size={15} /></button>}
+                        {can('payments.delete') && <button className="icon-btn text-danger" onClick={() => deletePayment(p._id)} aria-label="Supprimer"><Trash2 size={15} /></button>}
                       </span>
                     </li>
                   ))}
@@ -388,7 +388,7 @@ export default function InvoiceGenerator() {
           paid={invoice?.status === 'Payée'}
           cancelled={invoice?.status === 'Annulée'}
           notes={notes}
-          settings={settings}
+          company={settings}
           printFormat={printFormat}
         />
         </div>

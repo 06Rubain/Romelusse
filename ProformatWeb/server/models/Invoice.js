@@ -13,6 +13,7 @@ const lineSchema = new mongoose.Schema({
 }, { _id: false });
 
 const invoiceSchema = new mongoose.Schema({
+  company: { type: mongoose.Schema.Types.ObjectId, ref: 'Company', required: true },
   number: { type: String, required: true, trim: true },
   type: { type: String, enum: TYPES, default: 'Facture' },
   clientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Client', default: null },
@@ -38,8 +39,8 @@ const invoiceSchema = new mongoose.Schema({
   total: { type: String },
 }, { timestamps: true });
 
-invoiceSchema.index({ number: 1 });
-invoiceSchema.index({ issueDate: -1 });
+invoiceSchema.index({ company: 1, number: 1 });
+invoiceSchema.index({ company: 1, issueDate: -1 });
 invoiceSchema.index({ clientId: 1 });
 
 invoiceSchema.virtual('balance').get(function balance() {

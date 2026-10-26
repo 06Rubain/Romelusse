@@ -1,11 +1,7 @@
 import { forwardRef } from 'react';
-// @ts-ignore
-import logoUrl from '../assets/ELEMENT FACTURE MP-01.png';
-// @ts-ignore
-import footerUrl from '../assets/ELEMENT FACTURE MP-03.png';
 import { numberToFrenchWords } from '../utils/numberToWords';
 import { formatDate, PRINT_SCALE } from '../lib/format';
-import type { Currency, Settings } from '../lib/types';
+import type { Company, Currency } from '../lib/types';
 
 export interface DocumentLine { name: string; quantity: number; unitPrice: number }
 
@@ -22,17 +18,21 @@ interface Props {
   paid: boolean;
   cancelled: boolean;
   notes?: string;
-  settings: Settings | null;
+  company: Company | null;
   printFormat: 'A4' | 'A5' | 'A6';
 }
 
-const GRADIENT = 'linear-gradient(to right, #b91d1d 0%, #eb5e5e 40%, #00a5bb 80%, #6892b1 100%)';
 const amount = (n: number) => n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 
-// Modèle imprimable de la facture (charte graphique Mélanine Print)
+// Modèle imprimable de la facture, aux couleurs et au logo de l'entreprise
 const InvoiceDocument = forwardRef<HTMLDivElement, Props>(function InvoiceDocument(props, ref) {
-  const { type, number, client, clientActivity, issueDate, dueDate, currency, lines, discount, paid, cancelled, notes, settings, printFormat } = props;
+  const { type, number, client, clientActivity, issueDate, dueDate, currency, lines, discount, paid, cancelled, notes, company: settings, printFormat } = props;
+  const primary = settings?.primaryColor || '#009eb5';
+  const secondary = settings?.secondaryColor || '#e28882';
+  const accent = settings?.accentColor || '#c92a2a';
+  const HEADER = `linear-gradient(to right, ${primary} 40%, ${secondary} 100%)`;
+  const GRADIENT = `linear-gradient(to right, ${accent} 0%, ${primary} 80%, ${secondary} 100%)`;
   const subtotal = lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0);
   const total = Math.max(0, subtotal - discount);
   const scale = PRINT_SCALE[printFormat];
@@ -49,15 +49,17 @@ const InvoiceDocument = forwardRef<HTMLDivElement, Props>(function InvoiceDocume
       marginBottom: printFormat === 'A6' ? '-148.5mm' : printFormat === 'A5' ? '-88mm' : 0,
     }}>
       <div style={{
-        background: 'linear-gradient(to right, #009eb5 40%, #56a5c2 60%, #e28882 100%)', height: 130,
+        background: HEADER, height: 130,
         borderBottomLeftRadius: 25, borderBottomRightRadius: 25, display: 'flex', alignItems: 'center',
         padding: '0 30px', margin: '0 10mm 30px 10mm', boxSizing: 'border-box',
       }}>
-        <img src={logoUrl} alt="Logo" style={{ width: 190, objectFit: 'contain' }} />
+        {settings?.logo
+          ? <img src={settings.logo} alt="Logo" style={{ width: 190, maxHeight: 110, objectFit: 'contain' }} />
+          : <div style={{ width: 190, color: 'white', fontSize: 24, fontWeight: 800, lineHeight: 1.1 }}>{settings?.name}</div>}
         <div style={{ width: 2, height: 90, background: 'white', margin: '0 30px' }} />
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', marginBottom: 8, alignItems: 'center' }}>
-            <div style={{ background: '#c92a2a', color: 'white', padding: '6px 15px', fontWeight: 'bold', fontSize: 14, minWidth: 130, textAlign: 'center' }}>
+            <div style={{ background: accent, color: 'white', padding: '6px 15px', fontWeight: 'bold', fontSize: 14, minWidth: 130, textAlign: 'center' }}>
               {type === 'Proforma' ? 'PROFORMA N°' : 'FACTURE N°'}
             </div>
             <div style={{ background: 'white', color: 'black', padding: '6px 15px', fontWeight: 'bold', fontSize: 14, width: 220 }}>: {number}</div>
@@ -155,7 +157,9 @@ const InvoiceDocument = forwardRef<HTMLDivElement, Props>(function InvoiceDocume
       </div>
 
       <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 40, overflow: 'hidden', borderBottomLeftRadius: 25, borderBottomRightRadius: 25 }}>
-        <img src={footerUrl} alt="" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover' }} />
+        {settings?.footerImage
+          ? <img src={settings.footerImage} alt="" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover' }} />
+          : <div style={{ width: '100%', height: '100%', background: `linear-gradient(to right, ${primary}, ${secondary})` }} />}
       </div>
     </div>
   );
