@@ -2,7 +2,8 @@ const crypto = require('crypto');
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const qrcode = require('qrcode');
-const otp = require('otplib');
+// otplib n'est chargé qu'à l'usage : un souci de la 2FA ne peut pas empêcher l'API de démarrer
+const otp = () => require('otplib');
 const User = require('../models/User');
 const Company = require('../models/Company');
 const { HttpError } = require('../lib/helpers');
@@ -45,7 +46,7 @@ const ensureCanLogIn = async (user) => {
 
 const verifyCode = (secret, code) => {
   if (!secret || !/^\d{6}$/.test(String(code || ''))) return false;
-  return otp.verifySync({ secret, token: String(code), epochTolerance: 30 }).valid;
+  return otp().verifySync({ secret, token: String(code), epochTolerance: 30 }).valid;
 };
 
 router.get('/status', async (req, res) => {
@@ -125,10 +126,10 @@ router.post('/change-password', async (req, res) => {
 router.post('/2fa/setup', async (req, res) => {
   const user = await User.findById(req.user._id).select('+twoFactorSecret');
   if (user.twoFactorEnabled) throw new HttpError(409, 'La 2FA est déjà activée.');
-  const secret = otp.generateSecret();
+  const secret = otp().generateSecret();
   user.twoFactorSecret = secret;
   await user.save();
-  const uri = otp.generateURI({ issuer: 'OmniCom Facturation', label: user.email, secret });
+  const uri = otp().generateURI({ issuer: 'OmniCom Facturation', label: user.email, secret });
   res.json({ secret, qrCodeImage: await qrcode.toDataURL(uri) });
 });
 
