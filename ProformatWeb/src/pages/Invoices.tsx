@@ -1,23 +1,28 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Download, FilePlus2, Search, Wallet, Printer, ArrowRightLeft, Ban } from 'lucide-react';
 import { api, errorMessage } from '../lib/api';
+import { useFeedback } from '../components/feedback';
 import { useFetch } from '../lib/useFetch';
 import { useAuth } from '../auth/AuthContext';
 import { downloadCsv, formatDate, formatMoney } from '../lib/format';
 import type { Invoice, Paginated } from '../lib/types';
-import { Alert, EmptyRow, PageHeader, Pagination, StatusBadge } from '../components/ui';
+import { Alert, EmptyRow, EmptyState, PageHeader, Pagination, StatusBadge } from '../components/ui';
 import PaymentModal from '../components/PaymentModal';
 
 const STATUSES = ['En attente', 'Partiellement payée', 'Payée', 'Convertie', 'Annulée'];
 
+const CANCEL_DIALOG = { title: 'Annuler la facture ?', message: 'Elle restera visible avec le cachet ANNULÉE et le stock sera rétabli.', label: 'Motif de l\'annulation', placeholder: 'Ex : erreur de saisie', confirmLabel: 'Annuler la facture', danger: true };
+
 export default function Invoices() {
+  const { confirm, prompt } = useFeedback();
   const navigate = useNavigate();
   const { can } = useAuth();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [type, setType] = useState('');
-  const [status, setStatus] = useState('');
+  const [searchParams] = useSearchParams();
+  const [status, setStatus] = useState(() => searchParams.get('status') || '');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [paying, setPaying] = useState<Invoice | null>(null);
@@ -37,13 +42,13 @@ export default function Invoices() {
   };
 
   const convert = (inv: Invoice) => action(async () => {
-    if (!window.confirm(`Convertir la proforma ${inv.number} en facture ? Le stock sera mis à jour.`)) return;
+    if (!(await confirm({ title: `Convertir ${inv.number} en facture ?`, message: 'Une facture sera créée à partir de cette proforma et le stock sera mis à jour.', confirmLabel: 'Convertir' }))) return;
     const created = await api.post<Invoice>(`/invoices/${inv._id}/convert`);
     navigate(`/invoice/${created._id}`);
   });
 
   const cancel = (inv: Invoice) => action(async () => {
-    const reason = window.prompt(`Motif d'annulation de ${inv.number} :`);
+    const reason = await prompt({ ...CANCEL_DIALOG, title: `Annuler ${inv.number} ?` });
     if (reason === null) return;
     await api.post(`/invoices/${inv._id}/cancel`, { reason });
   });
@@ -121,7 +126,16 @@ export default function Invoices() {
                   </td>
                 </tr>
               ))}
-              {!loading && data?.items.length === 0 && <EmptyRow colSpan={8}>Aucun document ne correspond à ces critères.</EmptyRow>}
+              {!loading && data?.items.length === 0 && (
+                <EmptyRow colSpan={8}>
+                  {search || type || status || from || to ? 'Aucun document ne correspond à ces critères.' : (
+                    <EmptyState icon={<FilePlus2 size={28} />} title="Aucune facture pour l'instant"
+                      action={can('invoices.create') && <button className="btn btn-primary" onClick={() => navigate('/invoice')}><FilePlus2 size={18} /> Créer mon premier document</button>}>
+                      Commencez par une proforma (devis) : vous pourrez la convertir en facture en un clic une fois acceptée.
+                    </EmptyState>
+                  )}
+                </EmptyRow>
+              )}
             </tbody>
           </table>
         </div>

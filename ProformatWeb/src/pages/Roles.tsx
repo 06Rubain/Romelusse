@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Edit2, Lock, Plus, Trash2 } from 'lucide-react';
 import { api, errorMessage } from '../lib/api';
+import { useFeedback } from '../components/feedback';
 import { useFetch } from '../lib/useFetch';
 import { useAuth } from '../auth/AuthContext';
 import { PERMISSION_GROUPS, type Permission, type Role } from '../lib/types';
@@ -11,6 +12,7 @@ const LABELS = Object.fromEntries(PERMISSION_GROUPS.flatMap((g) => g.items)) as 
 interface RoleForm { id: string | null; name: string; description: string; permissions: Permission[] }
 
 export default function Roles() {
+  const { confirm, toast } = useFeedback();
   const { refreshUser } = useAuth();
   const { data, reload } = useFetch(() => api.get<Role[]>('/roles'), []);
   const [editing, setEditing] = useState<RoleForm | null>(null);
@@ -35,9 +37,9 @@ export default function Roles() {
   };
 
   const remove = async (role: Role) => {
-    if (!window.confirm(`Supprimer le rôle « ${role.name} » ?`)) return;
+    if (!(await confirm({ title: `Supprimer le rôle « ${role.name} » ?`, confirmLabel: 'Supprimer', danger: true }))) return;
     setError('');
-    try { await api.del(`/roles/${role._id}`); reload(); } catch (err) { setError(errorMessage(err)); }
+    try { await api.del(`/roles/${role._id}`); reload(); toast('Rôle supprimé.'); } catch (err) { setError(errorMessage(err)); }
   };
 
   return (

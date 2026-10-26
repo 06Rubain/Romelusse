@@ -204,7 +204,7 @@ export interface Summary {
   topClients: { name: string; total: number; count: number }[];
   topProducts: { name: string; quantity: number; total: number }[];
   lowStock: Product[];
-  counts: { pendingProformas: number; clients: number; products: number };
+  counts: { pendingProformas: number; clients: number; products: number; users: number; invoices: number };
 }
 
 export const PAYMENT_METHODS = ['Espèces', 'Mobile Money', 'Virement', 'Chèque', 'Carte'];

@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Archive, Download, Edit2, Plus, Search } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Archive, Download, Edit2, Plus, Search, Users } from 'lucide-react';
 import { api, errorMessage } from '../lib/api';
+import { useFeedback } from '../components/feedback';
 import { useFetch } from '../lib/useFetch';
 import { useAuth } from '../auth/AuthContext';
 import { downloadCsv, formatByCurrency, formatDate, formatMoney } from '../lib/format';
 import type { Client, Invoice, Payment, Balance, Currency } from '../lib/types';
-import { Alert, EmptyRow, Field, Modal, PageHeader, StatusBadge } from '../components/ui';
+import { Alert, EmptyRow, EmptyState, Field, Modal, PageHeader, StatusBadge } from '../components/ui';
 
 const EMPTY = { name: '', activity: '', contactPerson: '', phone: '', email: '', address: '', taxNumber: '', notes: '' };
 type ClientForm = typeof EMPTY;
@@ -15,9 +16,13 @@ const dueOf = (balances?: Partial<Record<Currency, Balance>>) =>
   Object.fromEntries(Object.entries(balances || {}).map(([c, b]) => [c, b?.due || 0]));
 
 export default function Clients() {
+  const { confirm, toast } = useFeedback();
   const { can } = useAuth();
   const [search, setSearch] = useState('');
-  const [editing, setEditing] = useState<{ id: string | null; form: ClientForm } | null>(null);
+  const [searchParams] = useSearchParams();
+  const [editing, setEditing] = useState<{ id: string | null; form: ClientForm } | null>(
+    () => (searchParams.get('new') && can('clients.manage') ? { id: null, form: EMPTY } : null),
+  );
   const [detailId, setDetailId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const { data, loading, reload } = useFetch(() => api.get<Client[]>('/clients', { search }), [search]);
@@ -35,10 +40,10 @@ export default function Clients() {
   };
 
   const remove = async (c: Client) => {
-    if (!window.confirm(`Supprimer ou archiver le client ${c.name} ?`)) return;
+    if (!(await confirm({ title: `Supprimer ${c.name} ?`, message: 'S\'il a déjà des factures, le client sera archivé plutôt que supprimé.', confirmLabel: 'Supprimer', danger: true }))) return;
     try {
       const res = await api.del<{ archived?: boolean }>(`/clients/${c._id}`);
-      if (res.archived) window.alert('Ce client a des factures : il a été archivé plutôt que supprimé.');
+      toast(res.archived ? 'Ce client a des factures : il a été archivé plutôt que supprimé.' : 'Client supprimé.', res.archived ? 'info' : 'success');
       reload();
     } catch (err) { setError(errorMessage(err)); }
   };
@@ -76,7 +81,16 @@ export default function Clients() {
                   </td>
                 </tr>
               ))}
-              {!loading && data?.length === 0 && <EmptyRow colSpan={5}>Aucun client. Les clients sont aussi créés automatiquement lors de la facturation.</EmptyRow>}
+              {!loading && data?.length === 0 && (
+                <EmptyRow colSpan={5}>
+                  {search ? 'Aucun client ne correspond à cette recherche.' : (
+                    <EmptyState icon={<Users size={28} />} title="Aucun client pour l'instant"
+                      action={can('clients.manage') && <button className="btn btn-primary" onClick={() => setEditing({ id: null, form: EMPTY })}><Plus size={18} /> Ajouter un client</button>}>
+                      Les clients sont aussi créés automatiquement quand vous facturez un nouveau nom.
+                    </EmptyState>
+                  )}
+                </EmptyRow>
+              )}
             </tbody>
           </table>
         </div>

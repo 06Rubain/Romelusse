@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { Building2, KeyRound, LogIn, Plus, Power, Search, UserPlus } from 'lucide-react';
 import { api, errorMessage } from '../lib/api';
+import { useFeedback } from '../components/feedback';
 import { useFetch } from '../lib/useFetch';
 import { formatDate, formatDateTime } from '../lib/format';
 import type { Company, User } from '../lib/types';
-import { Alert, EmptyRow, Field, Modal, PageHeader, StatCard } from '../components/ui';
+import { Alert, EmptyRow, EmptyState, Field, Modal, PageHeader, StatCard } from '../components/ui';
 import CompanyForm from '../components/CompanyForm';
 import { EMPTY_COMPANY, toDraft, type CompanyDraft } from '../lib/company';
 
@@ -96,7 +97,16 @@ export default function PlatformCompanies() {
                   </td>
                 </tr>
               ))}
-              {!loading && list.length === 0 && <EmptyRow colSpan={7}>Aucune entreprise. Créez le premier compte entreprise.</EmptyRow>}
+              {!loading && list.length === 0 && (
+                <EmptyRow colSpan={7}>
+                  {search ? 'Aucune entreprise ne correspond à cette recherche.' : (
+                    <EmptyState icon={<Building2 size={28} />} title="Aucune entreprise"
+                      action={<button className="btn btn-primary" onClick={() => { setError(''); setCreating({ company: EMPTY_COMPANY, admin: EMPTY_ADMIN }); }}><Plus size={18} /> Créer la première entreprise</button>}>
+                      Créez le compte d'une entreprise avec son logo et son administrateur : il pourra ensuite inviter son équipe.
+                    </EmptyState>
+                  )}
+                </EmptyRow>
+              )}
             </tbody>
           </table>
         </div>
@@ -124,6 +134,7 @@ export default function PlatformCompanies() {
 }
 
 function CompanyDetail({ id, onClose, onChanged }: { id: string; onClose: () => void; onChanged: () => void }) {
+  const { confirm, prompt } = useFeedback();
   const openConsole = useOpenConsole();
   const { data, reload } = useFetch(() => api.get<{ company: Company; users: User[] }>(`/platform/companies/${id}`), [id]);
   const [form, setForm] = useState<CompanyDraft | null>(null);
@@ -151,7 +162,9 @@ function CompanyDetail({ id, onClose, onChanged }: { id: string; onClose: () => 
         <div className="row-gap">
         <button className="btn btn-sm btn-primary" onClick={() => openConsole(id)}><LogIn size={16} /> Ouvrir la console</button>
         <button className={`btn btn-sm ${company.isActive ? 'btn-danger-soft' : 'btn-outline'}`}
-          onClick={() => window.confirm(company.isActive ? `Suspendre ${company.name} ? Ses utilisateurs ne pourront plus se connecter.` : `Réactiver ${company.name} ?`)
+          onClick={async () => (await confirm(company.isActive
+            ? { title: `Suspendre ${company.name} ?`, message: 'Ses utilisateurs ne pourront plus se connecter jusqu\'à la réactivation.', confirmLabel: 'Suspendre', danger: true }
+            : { title: `Réactiver ${company.name} ?`, message: 'Ses utilisateurs pourront de nouveau se connecter.', confirmLabel: 'Réactiver' }))
             && run(() => api.put(`/platform/companies/${id}`, { isActive: !company.isActive }), company.isActive ? 'Entreprise suspendue.' : 'Entreprise réactivée.')}>
           <Power size={16} /> {company.isActive ? 'Suspendre' : 'Réactiver'}
         </button>
@@ -169,8 +182,8 @@ function CompanyDetail({ id, onClose, onChanged }: { id: string; onClose: () => 
                 <td>{u.roleName}</td>
                 <td className="muted small">{formatDateTime(u.lastLoginAt)}</td>
                 <td className="actions">
-                  <button className="icon-btn" title="Réinitialiser le mot de passe" onClick={() => {
-                    const password = window.prompt(`Nouveau mot de passe pour ${u.email} :`);
+                  <button className="icon-btn" title="Réinitialiser le mot de passe" onClick={async () => {
+                    const password = await prompt({ title: 'Nouveau mot de passe', message: u.email, label: 'Mot de passe', type: 'password', minLength: 8, confirmLabel: 'Réinitialiser' });
                     if (password) run(() => api.post(`/platform/companies/${id}/users/${u._id}/reset-password`, { password }), `Mot de passe de ${u.email} réinitialisé.`);
                   }}><KeyRound size={16} /></button>
                 </td>

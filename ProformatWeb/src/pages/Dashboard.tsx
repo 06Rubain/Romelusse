@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertTriangle, FilePlus2, Package } from 'lucide-react';
+import { AlertTriangle, Check, FilePlus2, FileText, Package, UserPlus, Wallet, X } from 'lucide-react';
 import { api } from '../lib/api';
 import { useFetch } from '../lib/useFetch';
 import { useAuth } from '../auth/AuthContext';
@@ -8,23 +9,84 @@ import type { Invoice, Paginated, Summary } from '../lib/types';
 import { Alert, EmptyRow, PageHeader, StatCard, StatusBadge } from '../components/ui';
 import MonthlyChart from '../components/MonthlyChart';
 
+const onboardingKey = (companyId?: string) => `onboarding-hidden:${companyId || ''}`;
+
+const readHidden = (companyId?: string) => {
+  try { return localStorage.getItem(onboardingKey(companyId)) === '1'; } catch { return false; }
+};
+
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { user, can } = useAuth();
+  const { user, company, can } = useAuth();
+  const [onboardingHidden, setOnboardingHidden] = useState(() => readHidden(company?._id));
   const summary = useFetch(() => api.get<Summary>('/reports/summary'), []);
   const recent = useFetch(() => api.get<Paginated<Invoice>>('/invoices', { limit: 8 }), []);
   const overdue = useFetch(() => api.get<Paginated<Invoice>>('/invoices', { overdue: 'true', limit: 5 }), []);
   const s = summary.data;
   const cur = s?.reportingCurrency || 'USD';
 
+  const quickActions = [
+    { to: '/invoice?type=Facture', label: 'Nouvelle facture', hint: 'Facturer un client', icon: FilePlus2, tone: '', show: can('invoices.create') },
+    { to: '/invoice', label: 'Nouvelle proforma', hint: 'Envoyer un devis', icon: FileText, tone: 'purple', show: can('invoices.create') },
+    { to: '/invoices?status=unpaid', label: 'Encaisser', hint: 'Factures à régler', icon: Wallet, tone: 'green', show: can('payments.create') },
+    { to: '/clients?new=1', label: 'Nouveau client', hint: 'Ajouter une fiche', icon: UserPlus, tone: 'orange', show: can('clients.manage') },
+  ].filter((a) => a.show);
+
+  // Premiers pas, affichés aux administrateurs tant que tout n'est pas fait
+  const steps = s ? [
+    { label: 'Ajouter votre logo', hint: 'Il apparaîtra sur vos documents', to: '/settings', done: Boolean(company?.logo) },
+    { label: 'Créer votre catalogue', hint: 'Produits et services avec leurs prix', to: '/products', done: s.counts.products > 0 },
+    { label: 'Inviter votre équipe', hint: 'Un compte par collaborateur', to: '/users', done: s.counts.users > 1 },
+    { label: 'Émettre votre premier document', hint: 'Proforma ou facture', to: '/invoice', done: s.counts.invoices > 0 },
+  ] : [];
+  const doneCount = steps.filter((x) => x.done).length;
+  const showOnboarding = can('settings.manage') && steps.length > 0 && doneCount < steps.length && !onboardingHidden;
+  const hideOnboarding = () => {
+    try { localStorage.setItem(onboardingKey(company?._id), '1'); } catch { /* stockage indisponible */ }
+    setOnboardingHidden(true);
+  };
+
   return (
     <div className="animate-fade-in">
       <PageHeader
         title={`Bonjour ${user?.displayName?.split(' ')[0] || ''}`.trim()}
-        subtitle="Activité du mois en cours"
-        actions={can('invoices.create') && <button className="btn btn-primary" onClick={() => navigate('/invoice')}><FilePlus2 size={18} /> Nouvelle facture</button>}
+        subtitle="Que voulez-vous faire aujourd'hui ?"
       />
       <Alert>{summary.error}</Alert>
+
+      {quickActions.length > 0 && (
+        <div className="quick-actions">
+          {quickActions.map(({ to, label, hint, icon: Icon, tone }) => (
+            <Link key={to} to={to} className="quick-action">
+              <span className={`qa-icon ${tone}`}><Icon size={20} /></span>
+              <span><strong>{label}</strong><small>{hint}</small></span>
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {showOnboarding && (
+        <div className="card onboarding">
+          <div className="card-header">
+            <div>
+              <h3 style={{ margin: 0 }}>Bien démarrer</h3>
+              <span className="muted small">{doneCount} étape{doneCount > 1 ? 's' : ''} sur {steps.length} terminée{doneCount > 1 ? 's' : ''}</span>
+            </div>
+            <button className="icon-btn" onClick={hideOnboarding} title="Masquer" aria-label="Masquer le guide"><X size={18} /></button>
+          </div>
+          <div className="onboarding-progress"><span style={{ width: `${(doneCount / steps.length) * 100}%` }} /></div>
+          <div className="onboarding-steps">
+            {steps.map((step, i) => (
+              <Link key={step.to} to={step.to} className={`onboarding-step ${step.done ? 'done' : ''}`}>
+                <span className="dot">{step.done ? <Check size={14} /> : i + 1}</span>
+                <span><strong>{step.label}</strong><br /><small className="muted">{step.hint}</small></span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <h3 className="section-title">Ce mois-ci</h3>
 
       <div className="stat-grid">
         <StatCard label="Facturé ce mois" value={formatMoney(s?.invoiced.total, cur)} hint={`${s?.invoiced.count ?? 0} facture(s) · ${formatByCurrency(s?.invoiced.byCurrency)}`} />
@@ -92,7 +154,7 @@ export default function Dashboard() {
                   <td><StatusBadge status={inv.status} /></td>
                 </tr>
               ))}
-              {recent.data?.items.length === 0 && <EmptyRow colSpan={7}>Aucune facture pour le moment.</EmptyRow>}
+              {recent.data?.items.length === 0 && <EmptyRow colSpan={7}>Aucune facture pour le moment : utilisez « Nouvelle facture » ci-dessus pour commencer.</EmptyRow>}
             </tbody>
           </table>
         </div>

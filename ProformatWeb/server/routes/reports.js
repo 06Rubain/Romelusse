@@ -4,6 +4,7 @@ const Payment = require('../models/Payment');
 const Expense = require('../models/Expense');
 const Product = require('../models/Product');
 const Client = require('../models/Client');
+const User = require('../models/User');
 const { round2, dateRangeFilter } = require('../lib/helpers');
 const { can } = require('../lib/auth');
 
@@ -95,7 +96,7 @@ router.get('/summary', async (req, res) => {
     });
   }
 
-  const [topClients, topProducts, lowStock, pendingProformas, clientCount, productCount] = await Promise.all([
+  const [topClients, topProducts, lowStock, pendingProformas, clientCount, productCount, userCount, invoiceCount] = await Promise.all([
     Invoice.aggregate([
       { $match: { ...ACTIVE, issueDate: range } },
       { $group: { _id: '$client', total: { $sum: toReporting('$totalAmount', reporting, rate) }, count: { $sum: 1 } } },
@@ -118,6 +119,8 @@ router.get('/summary', async (req, res) => {
     Invoice.countDocuments({ company, type: 'Proforma', status: 'En attente' }),
     Client.countDocuments({ company, isArchived: { $ne: true } }),
     Product.countDocuments({ company, isActive: { $ne: false } }),
+    User.countDocuments({ company }),
+    Invoice.countDocuments({ company }),
   ]);
 
   res.json({
@@ -134,7 +137,7 @@ router.get('/summary', async (req, res) => {
     topClients: topClients.map((c) => ({ name: c._id, total: round2(c.total), count: c.count })),
     topProducts: topProducts.map((p) => ({ name: p._id, quantity: p.quantity, total: round2(p.total) })),
     lowStock,
-    counts: { pendingProformas, clients: clientCount, products: productCount },
+    counts: { pendingProformas, clients: clientCount, products: productCount, users: userCount, invoices: invoiceCount },
   });
 });
 

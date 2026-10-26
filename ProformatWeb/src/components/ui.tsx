@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 import type { InvoiceStatus } from '../lib/types';
 
@@ -15,13 +15,18 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
 }
 
 export function Modal({ title, onClose, children, width = 520 }: { title: string; onClose: () => void; children: ReactNode; width?: number }) {
+  const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    // Échap ne ferme que la fenêtre du dessus (une confirmation peut s'ouvrir par-dessus une fiche)
+    const onKey = (e: KeyboardEvent) => {
+      const backdrops = document.querySelectorAll('.modal-backdrop');
+      if (e.key === 'Escape' && backdrops[backdrops.length - 1] === ref.current) onClose();
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
   return (
-    <div className="modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div ref={ref} className="modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal card" style={{ maxWidth: width }} role="dialog" aria-modal="true" aria-label={title}>
         <div className="modal-header">
           <h3 style={{ margin: 0 }}>{title}</h3>
@@ -68,6 +73,17 @@ export function StatCard({ label, value, hint, tone }: { label: string; value: R
 
 export function EmptyRow({ colSpan, children }: { colSpan: number; children: ReactNode }) {
   return <tr><td colSpan={colSpan} className="empty-cell">{children}</td></tr>;
+}
+
+export function EmptyState({ icon, title, children, action }: { icon: ReactNode; title: string; children?: ReactNode; action?: ReactNode }) {
+  return (
+    <div className="empty-state">
+      <div className="empty-icon">{icon}</div>
+      <h3>{title}</h3>
+      {children && <p>{children}</p>}
+      {action}
+    </div>
+  );
 }
 
 export function Alert({ children, tone = 'danger' }: { children: ReactNode; tone?: 'danger' | 'success' | 'info' }) {

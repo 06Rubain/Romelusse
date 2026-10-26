@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRightLeft, Ban, Plus, Printer, Save, Trash2, Wallet } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
 import { api, errorMessage } from '../lib/api';
+import { useFeedback } from '../components/feedback';
 import { useAuth } from '../auth/AuthContext';
 import { convertAmount, formatDate, formatMoney, PRINT_SCALE, round2, toInputDate } from '../lib/format';
 import { ZONE_LABELS, type Client, type Currency, type Invoice, type InvoiceTemplate, type Product, type ZoneKey } from '../lib/types';
@@ -18,6 +19,7 @@ let lineSeq = 0;
 const newKey = () => `l${++lineSeq}`;
 
 export default function InvoiceGenerator() {
+  const { confirm, prompt } = useFeedback();
   const { id } = useParams();
   const navigate = useNavigate();
   const { company: settings, can } = useAuth();
@@ -30,7 +32,8 @@ export default function InvoiceGenerator() {
   const [paying, setPaying] = useState(false);
 
   // Formulaire
-  const [type, setType] = useState<'Proforma' | 'Facture'>('Proforma');
+  const [searchParams] = useSearchParams();
+  const [type, setType] = useState<'Proforma' | 'Facture'>(() => (searchParams.get('type') === 'Facture' ? 'Facture' : 'Proforma'));
   const [number, setNumber] = useState('');
   const [suggestedNumber, setSuggestedNumber] = useState('');
   const [clientName, setClientName] = useState('');
@@ -182,7 +185,7 @@ export default function InvoiceGenerator() {
   };
 
   const convert = async () => {
-    if (!invoice || !window.confirm('Convertir cette proforma en facture ? Le stock sera mis à jour.')) return;
+    if (!invoice || !(await confirm({ title: 'Convertir en facture ?', message: 'Une facture sera créée à partir de cette proforma et le stock sera mis à jour.', confirmLabel: 'Convertir' }))) return;
     try {
       const created = await api.post<Invoice>(`/invoices/${invoice._id}/convert`);
       navigate(`/invoice/${created._id}`);
@@ -191,13 +194,13 @@ export default function InvoiceGenerator() {
 
   const cancel = async () => {
     if (!invoice) return;
-    const reason = window.prompt('Motif de l\'annulation :');
+    const reason = await prompt({ title: 'Annuler la facture ?', message: 'Elle restera visible avec le cachet ANNULÉE et le stock sera rétabli.', label: 'Motif de l\'annulation', placeholder: 'Ex : erreur de saisie', confirmLabel: 'Annuler la facture', danger: true });
     if (reason === null) return;
     try { await api.post(`/invoices/${invoice._id}/cancel`, { reason }); await loadInvoice(); } catch (err) { setError(errorMessage(err)); }
   };
 
   const deletePayment = async (paymentId: string) => {
-    if (!invoice || !window.confirm('Supprimer cet encaissement ?')) return;
+    if (!invoice || !(await confirm({ title: 'Supprimer cet encaissement ?', message: 'Le reste dû de la facture sera recalculé.', confirmLabel: 'Supprimer', danger: true }))) return;
     try { await api.del(`/invoices/${invoice._id}/payments/${paymentId}`); await loadInvoice(); } catch (err) { setError(errorMessage(err)); }
   };
 
@@ -221,12 +224,17 @@ export default function InvoiceGenerator() {
         {editable ? (
           <>
             <div className="form-grid">
-              <Field label="Type">
-                <select className="input-field" value={type} onChange={(e) => setType(e.target.value as 'Proforma' | 'Facture')} disabled={!!id}>
-                  <option value="Proforma">Proforma (devis)</option>
-                  <option value="Facture">Facture</option>
-                </select>
-              </Field>
+              <div className="input-group">
+                <span className="label">Type</span>
+                <div className="segmented" role="radiogroup" aria-label="Type de document">
+                  {(['Proforma', 'Facture'] as const).map((t) => (
+                    <button key={t} type="button" role="radio" aria-checked={type === t} className={type === t ? 'active' : ''}
+                      onClick={() => setType(t)} disabled={!!id && type !== t}>
+                      {t === 'Proforma' ? 'Proforma (devis)' : 'Facture'}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <Field label="Numéro" hint={id ? undefined : 'Laisser vide pour la numérotation automatique'}>
                 <input className="input-field" value={number} onChange={(e) => setNumber(e.target.value)} placeholder={suggestedNumber} disabled={!!id} />
               </Field>

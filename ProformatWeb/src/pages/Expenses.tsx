@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Download, Edit2, Plus, Search, Trash2 } from 'lucide-react';
 import { api, errorMessage } from '../lib/api';
+import { useFeedback } from '../components/feedback';
 import { useFetch } from '../lib/useFetch';
 import { downloadCsv, formatByCurrency, formatDate, formatMoney, toInputDate } from '../lib/format';
 import { PAYMENT_METHODS, type Currency, type Expense, type Paginated } from '../lib/types';
@@ -11,6 +12,7 @@ interface ExpenseForm { date: string; category: string; description: string; sup
 const emptyForm = (): ExpenseForm => ({ date: toInputDate(), category: 'Matières premières', description: '', supplier: '', amount: '', currency: 'USD', paymentMethod: 'Espèces', reference: '' });
 
 export default function Expenses() {
+  const { confirm, toast } = useFeedback();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
@@ -36,8 +38,8 @@ export default function Expenses() {
   };
 
   const remove = async (exp: Expense) => {
-    if (!window.confirm(`Supprimer la dépense « ${exp.description} » ?`)) return;
-    try { await api.del(`/expenses/${exp._id}`); reload(); } catch (err) { setError(errorMessage(err)); }
+    if (!(await confirm({ title: 'Supprimer la dépense ?', message: `« ${exp.description} » sera définitivement supprimée.`, confirmLabel: 'Supprimer', danger: true }))) return;
+    try { await api.del(`/expenses/${exp._id}`); reload(); toast('Dépense supprimée.'); } catch (err) { setError(errorMessage(err)); }
   };
 
   const exportCsv = async () => {

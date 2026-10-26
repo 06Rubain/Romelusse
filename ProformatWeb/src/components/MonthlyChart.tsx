@@ -4,9 +4,9 @@ import type { Currency } from '../lib/types';
 
 // Palette catégorielle validée (contraste, daltonisme) sur la surface sombre de l'application
 const SERIES = [
-  { key: 'invoiced', label: 'Facturé', color: '#3987e5' },
-  { key: 'collected', label: 'Encaissé', color: '#d95926' },
-  { key: 'expenses', label: 'Dépenses', color: '#199e70' },
+  { key: 'invoiced', label: 'Facturé', color: 'var(--series-1)' },
+  { key: 'collected', label: 'Encaissé', color: 'var(--series-2)' },
+  { key: 'expenses', label: 'Dépenses', color: 'var(--series-3)' },
 ] as const;
 
 type Row = { month: string; invoiced: number; collected: number; expenses: number | null };
@@ -68,7 +68,7 @@ export default function MonthlyChart({ data, currency }: { data: Row[]; currency
               <g key={d.month}>
                 {hover === i && <rect x={pad.left + i * band} y={pad.top} width={band} height={plotH} className="chart-hover" />}
                 {series.map((s, si) => (
-                  <path key={s.key} d={bar(gx + si * (barW + 2), Number(d[s.key]) || 0)} fill={s.color} />
+                  <path key={s.key} d={bar(gx + si * (barW + 2), Number(d[s.key]) || 0)} style={{ fill: s.color }} />
                 ))}
                 <text x={pad.left + i * band + band / 2} y={H - 8} textAnchor="middle" className="chart-axis">{monthLabel(d.month)}</text>
                 {/* Zone de survol plus large que les barres */}

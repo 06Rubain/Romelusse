@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { KeyRound, Plus, ShieldAlert, ShieldCheck, ShieldOff } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api, errorMessage } from '../lib/api';
+import { useFeedback } from '../components/feedback';
 import { useFetch } from '../lib/useFetch';
 import { useAuth } from '../auth/AuthContext';
 import { formatDateTime } from '../lib/format';
@@ -9,6 +10,7 @@ import type { Role, User } from '../lib/types';
 import { Alert, Field, Modal, PageHeader } from '../components/ui';
 
 export default function UsersList() {
+  const { confirm, prompt } = useFeedback();
   const { user: me, can } = useAuth();
   const { data, reload } = useFetch(() => api.get<User[]>('/users'), []);
   const roles = useFetch(() => api.get<Role[]>('/roles'), []);
@@ -35,8 +37,8 @@ export default function UsersList() {
     });
   };
 
-  const resetPassword = (u: User) => {
-    const password = window.prompt(`Nouveau mot de passe pour ${u.email} (8 caractères minimum) :`);
+  const resetPassword = async (u: User) => {
+    const password = await prompt({ title: 'Nouveau mot de passe', message: u.email, label: 'Mot de passe', type: 'password', minLength: 8, confirmLabel: 'Réinitialiser' });
     if (password) run(() => api.post(`/users/${u._id}/reset-password`, { password }));
   };
 
@@ -73,11 +75,13 @@ export default function UsersList() {
                     <td className="actions">
                       <button className="icon-btn" title="Réinitialiser le mot de passe" onClick={() => resetPassword(u)}><KeyRound size={16} /></button>
                       {u.twoFactorEnabled && !self && (
-                        <button className="icon-btn" title="Réinitialiser la 2FA" onClick={() => window.confirm(`Désactiver la 2FA de ${u.email} ?`) && run(() => api.post(`/users/${u._id}/reset-2fa`))}><ShieldOff size={16} /></button>
+                        <button className="icon-btn" title="Réinitialiser la 2FA" onClick={async () => (await confirm({ title: 'Désactiver la double authentification ?', message: u.email, confirmLabel: 'Désactiver', danger: true })) && run(() => api.post(`/users/${u._id}/reset-2fa`))}><ShieldOff size={16} /></button>
                       )}
                       {!self && (
                         <button className={`btn btn-sm ${u.isBlocked ? 'btn-outline' : 'btn-danger-soft'}`}
-                          onClick={() => window.confirm(`${u.isBlocked ? 'Débloquer' : 'Bloquer'} ${u.email} ?`) && run(() => api.patch(`/users/${u._id}`, { isBlocked: !u.isBlocked }))}>
+                          onClick={async () => (await confirm(u.isBlocked
+                            ? { title: `Débloquer ${u.email} ?`, confirmLabel: 'Débloquer' }
+                            : { title: `Bloquer ${u.email} ?`, message: 'Cette personne ne pourra plus se connecter.', confirmLabel: 'Bloquer', danger: true })) && run(() => api.patch(`/users/${u._id}`, { isBlocked: !u.isBlocked }))}>
                           {u.isBlocked ? 'Débloquer' : 'Bloquer'}
                         </button>
                       )}

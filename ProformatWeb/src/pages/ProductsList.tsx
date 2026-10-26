@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
-import { Boxes, Download, Edit2, Plus, Search, Trash2, Upload } from 'lucide-react';
+import { Boxes, Download, Edit2, Package, Plus, Search, Trash2, Upload } from 'lucide-react';
 import { api, errorMessage } from '../lib/api';
+import { useFeedback } from '../components/feedback';
 import { useFetch } from '../lib/useFetch';
 import { useAuth } from '../auth/AuthContext';
 import { downloadCsv, formatDateTime, formatMoney } from '../lib/format';
 import type { Currency, Paginated, Product, StockMovement } from '../lib/types';
-import { Alert, EmptyRow, Field, Modal, PageHeader, Pagination } from '../components/ui';
+import { Alert, EmptyRow, EmptyState, Field, Modal, PageHeader, Pagination } from '../components/ui';
 import { PRICE_GRID_2026 } from '../utils/priceGrid';
 
 interface ProductForm {
@@ -21,6 +22,7 @@ const EMPTY: ProductForm = {
 const MOVEMENT_LABELS = { in: 'Entrée', out: 'Sortie', adjust: 'Inventaire' };
 
 export default function ProductsList() {
+  const { confirm, toast } = useFeedback();
   const { can } = useAuth();
   const canEdit = can('products.manage');
   const canStock = can('stock.manage');
@@ -59,16 +61,16 @@ export default function ProductsList() {
   };
 
   const remove = async (p: Product) => {
-    if (!window.confirm(`Supprimer le produit ${p.name} ? Les factures existantes ne sont pas modifiées.`)) return;
-    try { await api.del(`/products/${p._id}`); reload(); } catch (err) { setError(errorMessage(err)); }
+    if (!(await confirm({ title: `Supprimer ${p.name} ?`, message: 'Les factures existantes ne sont pas modifiées.', confirmLabel: 'Supprimer', danger: true }))) return;
+    try { await api.del(`/products/${p._id}`); reload(); toast('Produit supprimé.'); } catch (err) { setError(errorMessage(err)); }
   };
 
   const importGrid = async () => {
-    if (!window.confirm('Importer la grille tarifaire 2026 ? Les produits déjà présents (même nom) seront ignorés.')) return;
+    if (!(await confirm({ title: 'Importer la grille tarifaire 2026 ?', message: 'Les produits déjà présents (même nom) seront ignorés.', confirmLabel: 'Importer' }))) return;
     setBusy(true);
     try {
       const res = await api.post<{ created: number; skipped: number }>('/products/bulk', { products: PRICE_GRID_2026 });
-      window.alert(`${res.created} produit(s) importé(s), ${res.skipped} déjà présent(s).`);
+      toast(`${res.created} produit(s) importé(s), ${res.skipped} déjà présent(s).`);
       reload();
     } catch (err) { setError(errorMessage(err)); } finally { setBusy(false); }
   };
@@ -129,7 +131,16 @@ export default function ProductsList() {
                       </tr>
                     );
                   })}
-                  {!loading && data?.length === 0 && <EmptyRow colSpan={5}>Aucun produit.</EmptyRow>}
+                  {!loading && data?.length === 0 && (
+                    <EmptyRow colSpan={5}>
+                      {search || category || lowOnly ? 'Aucun produit ne correspond à ces critères.' : (
+                        <EmptyState icon={<Package size={28} />} title="Votre catalogue est vide"
+                          action={canEdit && <button className="btn btn-primary" onClick={() => openEdit()}><Plus size={18} /> Ajouter un produit</button>}>
+                          Enregistrez vos produits et services avec leur prix : il suffira ensuite de les choisir en facturant.
+                        </EmptyState>
+                      )}
+                    </EmptyRow>
+                  )}
                 </tbody>
               </table>
             </div>

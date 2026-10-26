@@ -5,6 +5,7 @@ import {
   History, LogOut, Menu, X, User as UserIcon, FilePlus2, ShieldCheck, Building2, LayoutTemplate,
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
+import ThemeToggle from './ThemeToggle';
 import { APP_NAME, type Permission } from '../lib/types';
 
 interface NavItem { to: string; label: string; icon: typeof BarChart3; permissions?: Permission[] }
@@ -72,7 +73,9 @@ export default function Layout() {
       <aside className={`sidebar nav-sidebar no-print ${open ? 'open' : ''}`}>
         <div className="sidebar-brand">
           <div className="brand">
-            {company?.logo && <img src={company.logo} alt="" className="brand-logo" />}
+            {!inPlatform && company?.logo
+              ? <img src={company.logo} alt="" className="brand-logo" />
+              : <span className="brand-mark">{title.charAt(0).toUpperCase()}</span>}
             <div style={{ minWidth: 0 }}>
               <div className="brand-name">{title}</div>
               <span className="muted small">{inPlatform ? 'Console plateforme' : APP_NAME}</span>
@@ -109,14 +112,17 @@ export default function Layout() {
           <button className="nav-link danger" onClick={handleLogout}>
             <LogOut size={18} /> <span>Déconnexion</span>
           </button>
-          <div className="powered muted small">{APP_NAME}</div>
+          <div className="powered">
+            <span>{APP_NAME}</span>
+            <ThemeToggle />
+          </div>
         </div>
       </aside>
 
       <main className="main-content">
         {acting && (
           <div className="acting-banner no-print">
-            <span><Building2 size={16} /> Mode OmniCom : vous êtes dans la console de <strong>{company?.name || '…'}</strong>. Vos actions sont enregistrées dans son journal.</span>
+            <span><Building2 size={16} /><span>Mode OmniCom : vous êtes dans la console de <strong>{company?.name || '…'}</strong>. Vos actions sont enregistrées dans son journal.</span></span>
             <button className="btn btn-sm btn-outline" onClick={backToPlatform}>Revenir à la plateforme</button>
           </div>
         )}
