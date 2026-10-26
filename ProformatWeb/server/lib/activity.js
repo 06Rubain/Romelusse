@@ -4,8 +4,12 @@ const Activity = require('../models/Activity');
 const logActivity = async (userOrEmail, action, details = '', company = undefined) => {
   try {
     const userEmail = typeof userOrEmail === 'string' ? userOrEmail : userOrEmail?.email || 'système';
-    const companyId = company !== undefined ? company : userOrEmail?.company?._id || userOrEmail?.company || null;
-    await Activity.create({ userEmail, action, details, company: companyId });
+    const acting = typeof userOrEmail === 'object' ? userOrEmail?.$locals?.actingCompany : null;
+    const companyId = company !== undefined ? company
+      : acting?._id || userOrEmail?.company?._id || userOrEmail?.company || null;
+    // Une action d'OmniCom dans une entreprise reste identifiable dans son journal
+    const label = acting ? `${userEmail} (OmniCom)` : userEmail;
+    await Activity.create({ userEmail: label, action, details, company: companyId });
   } catch (err) {
     console.error('Journalisation impossible :', err.message);
   }

@@ -1,6 +1,9 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const User = require('../models/User');
+const Company = require('../models/Company');
+const { PERMISSIONS } = require('../models/Role');
 const { HttpError } = require('./helpers');
 
 // JWT_SECRET si défini ; sinon une clé dérivée de MONGODB_URI (déjà secrète), pour limiter la configuration
@@ -62,6 +65,18 @@ const requireAuth = async (req, res, next) => {
   req.user = user;
   req.company = user.company || null;
   req.permissions = new Set(user.roleId?.permissions || []);
+
+  // Un super-admin OmniCom peut ouvrir la console d'une entreprise (en-tête X-Company-Id), avec tous les droits
+  const actingId = req.headers['x-company-id'];
+  if (user.isSuperAdmin && actingId) {
+    const company = mongoose.isValidObjectId(actingId) ? await Company.findById(actingId) : null;
+    if (!company) return res.status(404).json({ error: 'Entreprise introuvable.' });
+    req.company = company;
+    req.permissions = new Set(PERMISSIONS);
+    req.actingAsSuperAdmin = true;
+    // Les actions sont journalisées dans l'entreprise visitée (jamais enregistré sur le compte)
+    user.$locals.actingCompany = company;
+  }
   next();
 };
 

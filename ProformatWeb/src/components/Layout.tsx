@@ -42,11 +42,17 @@ const PLATFORM_SECTIONS: { title: string; items: NavItem[] }[] = [
 ];
 
 export default function Layout() {
-  const { user, company, logout, can } = useAuth();
+  const { user, company, logout, can, acting, exitCompany } = useAuth();
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
-  const sections = user?.isSuperAdmin ? PLATFORM_SECTIONS : COMPANY_SECTIONS;
-  const title = user?.isSuperAdmin ? 'OmniCom' : company?.name || APP_NAME;
+  const inPlatform = Boolean(user?.isSuperAdmin && !acting);
+  const sections = inPlatform ? PLATFORM_SECTIONS : COMPANY_SECTIONS;
+  const title = inPlatform ? 'OmniCom' : company?.name || APP_NAME;
+
+  const backToPlatform = () => {
+    exitCompany();
+    navigate('/platform');
+  };
 
   const handleLogout = () => {
     logout();
@@ -69,7 +75,7 @@ export default function Layout() {
             {company?.logo && <img src={company.logo} alt="" className="brand-logo" />}
             <div style={{ minWidth: 0 }}>
               <div className="brand-name">{title}</div>
-              <span className="muted small">{user?.isSuperAdmin ? 'Console plateforme' : APP_NAME}</span>
+              <span className="muted small">{inPlatform ? 'Console plateforme' : APP_NAME}</span>
             </div>
           </div>
           <button className="icon-btn mobile-only" onClick={() => setOpen(false)} aria-label="Fermer le menu"><X size={20} /></button>
@@ -108,6 +114,12 @@ export default function Layout() {
       </aside>
 
       <main className="main-content">
+        {acting && (
+          <div className="acting-banner no-print">
+            <span><Building2 size={16} /> Mode OmniCom : vous êtes dans la console de <strong>{company?.name || '…'}</strong>. Vos actions sont enregistrées dans son journal.</span>
+            <button className="btn btn-sm btn-outline" onClick={backToPlatform}>Revenir à la plateforme</button>
+          </div>
+        )}
         <Outlet />
       </main>
     </div>

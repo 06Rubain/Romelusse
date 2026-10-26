@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { Building2, KeyRound, Plus, Power, Search, UserPlus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext';
+import { Building2, KeyRound, LogIn, Plus, Power, Search, UserPlus } from 'lucide-react';
 import { api, errorMessage } from '../lib/api';
 import { useFetch } from '../lib/useFetch';
 import { formatDate, formatDateTime } from '../lib/format';
@@ -23,7 +25,18 @@ function AdminFields({ admin, onChange }: { admin: AdminDraft; onChange: (a: Adm
   );
 }
 
+// Ouvre la console d'une entreprise en tant que super-admin OmniCom
+function useOpenConsole() {
+  const { enterCompany } = useAuth();
+  const navigate = useNavigate();
+  return async (companyId: string) => {
+    await enterCompany(companyId);
+    navigate('/dashboard');
+  };
+}
+
 export default function PlatformCompanies() {
+  const openConsole = useOpenConsole();
   const { data, loading, reload } = useFetch(() => api.get<Company[]>('/platform/companies'), []);
   const [search, setSearch] = useState('');
   const [creating, setCreating] = useState<{ company: CompanyDraft; admin: AdminDraft } | null>(null);
@@ -63,7 +76,7 @@ export default function PlatformCompanies() {
       <div className="card">
         <div className="table-container">
           <table>
-            <thead><tr><th>Entreprise</th><th className="num">Utilisateurs</th><th className="num">Documents</th><th>Dernière facture</th><th>Créée le</th><th>Statut</th></tr></thead>
+            <thead><tr><th>Entreprise</th><th className="num">Utilisateurs</th><th className="num">Documents</th><th>Dernière facture</th><th>Créée le</th><th>Statut</th><th className="actions">Console</th></tr></thead>
             <tbody>
               {list.map((c) => (
                 <tr key={c._id} className="clickable" onClick={() => setDetailId(c._id)}>
@@ -78,9 +91,12 @@ export default function PlatformCompanies() {
                   <td className="muted">{formatDate(c.lastInvoiceAt)}</td>
                   <td className="muted">{formatDate(c.createdAt)}</td>
                   <td>{c.isActive ? <span className="badge badge-success">Active</span> : <span className="badge badge-danger">Suspendue</span>}</td>
+                  <td className="actions" onClick={(e) => e.stopPropagation()}>
+                    <button className="btn btn-sm btn-outline" onClick={() => openConsole(c._id)} title={`Ouvrir la console de ${c.name}`}><LogIn size={15} /> Ouvrir</button>
+                  </td>
                 </tr>
               ))}
-              {!loading && list.length === 0 && <EmptyRow colSpan={6}>Aucune entreprise. Créez le premier compte entreprise.</EmptyRow>}
+              {!loading && list.length === 0 && <EmptyRow colSpan={7}>Aucune entreprise. Créez le premier compte entreprise.</EmptyRow>}
             </tbody>
           </table>
         </div>
@@ -108,6 +124,7 @@ export default function PlatformCompanies() {
 }
 
 function CompanyDetail({ id, onClose, onChanged }: { id: string; onClose: () => void; onChanged: () => void }) {
+  const openConsole = useOpenConsole();
   const { data, reload } = useFetch(() => api.get<{ company: Company; users: User[] }>(`/platform/companies/${id}`), [id]);
   const [form, setForm] = useState<CompanyDraft | null>(null);
   const [admin, setAdmin] = useState<AdminDraft | null>(null);
@@ -131,11 +148,14 @@ function CompanyDetail({ id, onClose, onChanged }: { id: string; onClose: () => 
       <Alert tone="success">{message}</Alert>
       <div className="card-header">
         <span>{company.isActive ? <span className="badge badge-success">Active</span> : <span className="badge badge-danger">Suspendue</span>}</span>
+        <div className="row-gap">
+        <button className="btn btn-sm btn-primary" onClick={() => openConsole(id)}><LogIn size={16} /> Ouvrir la console</button>
         <button className={`btn btn-sm ${company.isActive ? 'btn-danger-soft' : 'btn-outline'}`}
           onClick={() => window.confirm(company.isActive ? `Suspendre ${company.name} ? Ses utilisateurs ne pourront plus se connecter.` : `Réactiver ${company.name} ?`)
             && run(() => api.put(`/platform/companies/${id}`, { isActive: !company.isActive }), company.isActive ? 'Entreprise suspendue.' : 'Entreprise réactivée.')}>
           <Power size={16} /> {company.isActive ? 'Suspendre' : 'Réactiver'}
         </button>
+        </div>
       </div>
 
       <h3 className="section-title">Utilisateurs ({users.length})</h3>

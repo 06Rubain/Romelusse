@@ -17,6 +17,12 @@ ses encaissements, ses clients, son stock et ses dépenses.
 
 Seul OmniCom peut créer un compte entreprise : il n'y a pas d'inscription publique.
 
+Un super-admin peut aussi **ouvrir la console d'une entreprise** (bouton « Ouvrir » dans **Entreprises**)
+pour l'assister : il y dispose de tous les droits, un bandeau « Mode OmniCom » le rappelle, et chacune de
+ses actions apparaît dans le journal de l'entreprise avec la mention « (OmniCom) ». « Revenir à la
+plateforme » le ramène à la console OmniCom. Côté API, c'est l'en-tête `X-Company-Id`, accepté uniquement
+pour les super-admins.
+
 ### Rôles et permissions
 
 Chaque entreprise reçoit trois rôles de départ : **Administrateur** (verrouillé, accès complet),

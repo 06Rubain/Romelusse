@@ -22,8 +22,8 @@ import PlatformTeam from './pages/PlatformTeam';
 import './index.css';
 
 function Home() {
-  const { user } = useAuth();
-  return <Navigate to={user?.isSuperAdmin ? '/platform' : '/dashboard'} replace />;
+  const { user, acting } = useAuth();
+  return <Navigate to={user?.isSuperAdmin && !acting ? '/platform' : '/dashboard'} replace />;
 }
 
 function App() {

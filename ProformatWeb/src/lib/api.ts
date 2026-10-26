@@ -21,6 +21,20 @@ export const setToken = (token: string | null) => {
   } catch { /* stockage indisponible */ }
 };
 
+// Entreprise ouverte par un super-admin OmniCom (envoyée à l'API dans l'en-tête X-Company-Id)
+const ACTING_KEY = 'actingCompany';
+
+export const getActingCompany = () => {
+  try { return sessionStorage.getItem(ACTING_KEY) || ''; } catch { return ''; }
+};
+
+export const setActingCompany = (companyId: string | null) => {
+  try {
+    if (companyId) sessionStorage.setItem(ACTING_KEY, companyId);
+    else sessionStorage.removeItem(ACTING_KEY);
+  } catch { /* stockage indisponible */ }
+};
+
 type Query = Record<string, string | number | boolean | undefined | null>;
 
 export const buildQuery = (query?: Query) => {
@@ -37,6 +51,8 @@ async function request<T>(method: string, path: string, body?: unknown, query?: 
   const headers = new Headers();
   const token = getToken();
   if (token) headers.set('Authorization', `Bearer ${token}`);
+  const acting = getActingCompany();
+  if (acting) headers.set('X-Company-Id', acting);
   if (body !== undefined) headers.set('Content-Type', 'application/json');
 
   let res: Response;
