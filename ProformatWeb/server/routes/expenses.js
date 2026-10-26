@@ -47,7 +47,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   const data = sanitize(req.body);
   if (data.amount !== undefined && !(data.amount > 0)) throw new HttpError(400, 'Montant invalide.');
-  const expense = await Expense.findByIdAndUpdate(req.params.id, data, { new: true, runValidators: true });
+  const expense = await Expense.findByIdAndUpdate(req.params.id, data, { returnDocument: 'after', runValidators: true });
   if (!expense) throw new HttpError(404, 'Dépense introuvable.');
   await logActivity(req.user, 'Dépense', `Modification : ${expense.description}`);
   res.json(expense);

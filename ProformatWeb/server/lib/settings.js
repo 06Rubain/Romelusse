@@ -6,7 +6,7 @@ const getSettings = async () => {
   return Setting.findOneAndUpdate(
     { _id: 'company' },
     { $setOnInsert: { _id: 'company' } },
-    { new: true, upsert: true, setDefaultsOnInsert: true }
+    { returnDocument: 'after', upsert: true, setDefaultsOnInsert: true }
   );
 };
 

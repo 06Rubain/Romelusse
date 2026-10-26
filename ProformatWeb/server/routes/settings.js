@@ -16,7 +16,7 @@ router.put('/', requireRole('admin'), async (req, res) => {
   if (data.exchangeRate !== undefined) data.exchangeRate = Math.max(0, toNumber(data.exchangeRate));
   if (data.paymentTermDays !== undefined) data.paymentTermDays = Math.max(0, Math.round(toNumber(data.paymentTermDays)));
   if (data.reportingCurrency !== undefined && !CURRENCIES.includes(data.reportingCurrency)) delete data.reportingCurrency;
-  const settings = await Setting.findByIdAndUpdate('company', data, { new: true, runValidators: true });
+  const settings = await Setting.findByIdAndUpdate('company', data, { returnDocument: 'after', runValidators: true });
   await logActivity(req.user, 'Paramètres', 'Mise à jour des paramètres de l\'entreprise');
   res.json(settings);
 });

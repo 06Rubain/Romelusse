@@ -7,7 +7,7 @@ const moveStock = async ({ productId, delta, type, reason, reference, user }) =>
   const product = await Product.findOneAndUpdate(
     { _id: productId, trackStock: true },
     { $inc: { stockQuantity: delta } },
-    { new: true }
+    { returnDocument: 'after' }
   );
   if (!product) return null;
   await StockMovement.create({

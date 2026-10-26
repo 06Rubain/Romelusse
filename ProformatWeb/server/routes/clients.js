@@ -65,7 +65,7 @@ router.post('/', async (req, res) => {
 });
 
 router.put('/:id', async (req, res) => {
-  const client = await Client.findByIdAndUpdate(req.params.id, pick(req.body, FIELDS), { new: true, runValidators: true });
+  const client = await Client.findByIdAndUpdate(req.params.id, pick(req.body, FIELDS), { returnDocument: 'after', runValidators: true });
   if (!client) throw new HttpError(404, 'Client introuvable.');
   // Seules les proformas en cours suivent la fiche ; une facture émise reste inchangée
   if (req.body.name) await Invoice.updateMany({ clientId: client._id, type: 'Proforma', status: 'En attente' }, { $set: { client: client.name } });

@@ -13,7 +13,7 @@ const nextInvoiceNumber = async (type, date = new Date()) => {
     const counter = await Counter.findOneAndUpdate(
       { _id: key },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true }
+      { returnDocument: 'after', upsert: true }
     );
     const number = `${key}-${String(counter.seq).padStart(4, '0')}`;
     if (!(await Invoice.exists({ number }))) return number;
