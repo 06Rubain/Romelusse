@@ -1,13 +1,16 @@
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { HttpError } = require('./helpers');
 
+// JWT_SECRET si défini ; sinon une clé dérivée de MONGODB_URI (déjà secrète), pour limiter la configuration
 const getSecret = () => {
   const secret = process.env.JWT_SECRET;
-  if (!secret || secret.length < 16) {
-    throw new HttpError(500, 'JWT_SECRET non configuré (16 caractères minimum).');
+  if (secret && secret.length >= 16) return secret;
+  if (process.env.MONGODB_URI) {
+    return crypto.createHash('sha256').update(`omnicom-jwt:${process.env.MONGODB_URI}`).digest('hex');
   }
-  return secret;
+  throw new HttpError(500, 'JWT_SECRET non configuré (16 caractères minimum).');
 };
 
 const signSession = (user) => jwt.sign(

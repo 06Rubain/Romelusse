@@ -56,7 +56,9 @@ router.get('/status', async (req, res) => {
 router.post('/setup', async (req, res) => {
   if (!(await needsSetup())) throw new HttpError(409, 'La plateforme est déjà configurée.');
   const setupKey = process.env.SETUP_KEY;
-  if (!setupKey) throw new HttpError(503, 'Configuration désactivée : définissez SETUP_KEY sur le serveur.');
+  if (!setupKey) {
+    throw new HttpError(503, 'Aucun compte OmniCom : définissez OMNICOM_ADMIN_PASSWORD (Vercel → Settings → Environment Variables) puis redéployez ; le compte est créé automatiquement.');
+  }
   const given = Buffer.from(String(req.body.setupKey || ''));
   const expected = Buffer.from(setupKey);
   if (given.length !== expected.length || !crypto.timingSafeEqual(given, expected)) {

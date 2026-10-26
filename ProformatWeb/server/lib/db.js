@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const { migrateLegacyData } = require('./migrate');
+const { ensureSuperAdmin } = require('./bootstrap');
 
 let connecting = null;
 let migrated = false;
@@ -20,9 +21,10 @@ const connectDb = async () => {
     migrated = true;
     try {
       await migrateLegacyData();
+      await ensureSuperAdmin();
     } catch (err) {
       migrated = false;
-      console.error('Migration des anciennes données échouée :', err);
+      console.error('Initialisation des données échouée :', err);
     }
   }
 };

@@ -78,15 +78,15 @@ le modèle importé.
 docker compose up -d mongodb          # ou MongoDB Atlas
 
 cd server
-cp .env.example .env                  # MONGODB_URI, JWT_SECRET, SETUP_KEY
+cp .env.example .env                  # MONGODB_URI, OMNICOM_ADMIN_PASSWORD
 npm install && npm run dev            # http://localhost:5000
 
 # autre terminal, dans ProformatWeb/
 npm install && npm run dev            # http://localhost:5173
 ```
 
-1. Ouvrez l'application : l'écran **Installation** demande la clé `SETUP_KEY` et crée le premier
-   super-admin OmniCom (une seule fois).
+1. Définissez `OMNICOM_ADMIN_PASSWORD` : au premier démarrage, le compte administrateur OmniCom est créé
+   automatiquement et vous vous connectez directement (ou utilisez l'écran **Installation** avec `SETUP_KEY`).
 2. Dans **Entreprises**, créez chaque entreprise avec son logo et son administrateur.
 3. L'administrateur se connecte, ajuste ses rôles et crée ses utilisateurs.
 
@@ -101,11 +101,16 @@ aussi disponible via `npm --prefix server run migrate`.
 
 | Variable | Obligatoire | Description |
 |---|:-:|---|
-| `MONGODB_URI` | ✅ | Chaîne de connexion MongoDB |
-| `JWT_SECRET` | ✅ | Secret de signature des sessions (32 caractères aléatoires ou plus) |
-| `SETUP_KEY` | ✅ à l'installation | Clé exigée pour créer le premier super-admin OmniCom ; peut être retirée ensuite |
+| `MONGODB_URI` | ✅ | Chaîne de connexion MongoDB (Atlas : autoriser `0.0.0.0/0` dans Network Access pour Vercel) |
+| `OMNICOM_ADMIN_PASSWORD` | ✅ au premier démarrage | Crée automatiquement le compte administrateur OmniCom (8 caractères minimum). Jamais écrasé ensuite : changez le mot de passe dans l'application |
+| `OMNICOM_ADMIN_EMAIL` | | E-mail de ce compte (défaut `mpunantitarubain@gmail.com`) ; un ancien compte portant cet e-mail devient le compte OmniCom |
+| `JWT_SECRET` | | Secret des sessions ; s'il est absent, il est dérivé de `MONGODB_URI` |
+| `SETUP_KEY` | | Alternative : écran « Installation » pour créer le premier compte OmniCom |
 | `JWT_EXPIRES_IN` | | Durée d'une session (défaut `12h`) |
 | `CORS_ORIGIN` | | Origines autorisées, séparées par des virgules |
+
+`GET /api/health` indique les variables manquantes (noms uniquement) ; l'écran de connexion affiche
+le réglage à compléter.
 
 Sur Vercel : **Project → Settings → Environment Variables** (jamais dans un fichier commité).
 

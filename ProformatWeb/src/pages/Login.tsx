@@ -25,8 +25,16 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    api.get<{ needsSetup: boolean }>('/auth/status')
-      .then((s) => setMode(s.needsSetup ? 'setup' : 'login'))
+    Promise.all([api.get<{ needsSetup: boolean }>('/auth/status'), api.get<{ setupKey: boolean }>('/health')])
+      .then(([s, health]) => {
+        if (!s.needsSetup) setMode('login');
+        else if (health.setupKey) setMode('setup');
+        else {
+          // Ni compte OmniCom ni clé d'installation : la configuration du serveur est à compléter
+          setError('Aucun compte OmniCom n\'existe encore. Définissez OMNICOM_ADMIN_PASSWORD dans Vercel (Settings → Environment Variables) puis redéployez : le compte administrateur sera créé automatiquement.');
+          setMode('unavailable');
+        }
+      })
       // Sans réponse du serveur, impossible de savoir s'il faut installer ou se connecter
       .catch((err) => { setError(errorMessage(err)); setMode('unavailable'); });
   }, []);
@@ -82,7 +90,7 @@ export default function Login() {
             {mode === 'login' && 'Facturation, proformas et gestion de votre entreprise'}
             {mode === '2fa' && 'Saisissez le code de votre application d\'authentification'}
             {mode === 'loading' && 'Chargement…'}
-            {mode === 'unavailable' && 'Le serveur ne répond pas correctement.'}
+            {mode === 'unavailable' && 'Configuration du serveur à compléter.'}
           </p>
         </div>
 

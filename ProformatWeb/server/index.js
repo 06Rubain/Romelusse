@@ -37,10 +37,16 @@ app.use(['/api/auth/login', '/api/auth/setup'], rateLimit({
 // Variables manquantes sur le serveur (noms seulement, jamais les valeurs)
 const missingConfig = () => [
   !process.env.MONGODB_URI && !isLocal && 'MONGODB_URI',
-  !(process.env.JWT_SECRET && process.env.JWT_SECRET.length >= 16) && 'JWT_SECRET',
+  // Sans JWT_SECRET, la clé de session est dérivée de MONGODB_URI
+  !(process.env.JWT_SECRET && process.env.JWT_SECRET.length >= 16) && !process.env.MONGODB_URI && 'JWT_SECRET',
 ].filter(Boolean);
 
-app.get('/api/health', (req, res) => res.json({ ok: missingConfig().length === 0, missing: missingConfig(), setupKey: Boolean(process.env.SETUP_KEY) }));
+app.get('/api/health', (req, res) => res.json({
+  ok: missingConfig().length === 0,
+  missing: missingConfig(),
+  setupKey: Boolean(process.env.SETUP_KEY),
+  adminFromEnv: Boolean(process.env.OMNICOM_ADMIN_PASSWORD),
+}));
 
 // Connexion à la base avant chaque requête (compatible serverless)
 app.use('/api', async (req, res, next) => {
