@@ -16,6 +16,8 @@ app.use(cors({ origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split('
 app.use(express.json({ limit: '6mb' }));
 
 const isTest = process.env.NODE_ENV === 'test';
+// En local, MongoDB par défaut sur 127.0.0.1 ; en production (Vercel) MONGODB_URI est obligatoire
+const isLocal = process.env.NODE_ENV !== 'production';
 
 app.use('/api/', rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -32,16 +34,26 @@ app.use(['/api/auth/login', '/api/auth/setup'], rateLimit({
   message: { error: 'Trop de tentatives de connexion. Réessayez dans 15 minutes.' },
 }));
 
-app.get('/api/health', (req, res) => res.json({ ok: true }));
+// Variables manquantes sur le serveur (noms seulement, jamais les valeurs)
+const missingConfig = () => [
+  !process.env.MONGODB_URI && !isLocal && 'MONGODB_URI',
+  !(process.env.JWT_SECRET && process.env.JWT_SECRET.length >= 16) && 'JWT_SECRET',
+].filter(Boolean);
+
+app.get('/api/health', (req, res) => res.json({ ok: missingConfig().length === 0, missing: missingConfig(), setupKey: Boolean(process.env.SETUP_KEY) }));
 
 // Connexion à la base avant chaque requête (compatible serverless)
 app.use('/api', async (req, res, next) => {
+  const missing = missingConfig();
+  if (missing.length) {
+    return res.status(503).json({ error: `Serveur non configuré : définissez ${missing.join(' et ')} (Vercel → Settings → Environment Variables), puis redéployez.`, missing });
+  }
   try {
     await connectDb();
     next();
   } catch (err) {
     console.error('Erreur de connexion MongoDB :', err.message);
-    res.status(503).json({ error: 'Base de données indisponible.' });
+    res.status(503).json({ error: 'Base de données injoignable : vérifiez MONGODB_URI (mot de passe Atlas) et l\'accès réseau du cluster (Network Access : 0.0.0.0/0 pour Vercel).' });
   }
 });
 

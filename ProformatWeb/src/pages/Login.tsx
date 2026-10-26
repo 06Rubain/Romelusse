@@ -6,7 +6,7 @@ import { useAuth } from '../auth/AuthContext';
 import { APP_NAME, type User } from '../lib/types';
 import { Alert } from '../components/ui';
 
-type Mode = 'loading' | 'setup' | 'login' | '2fa';
+type Mode = 'loading' | 'unavailable' | 'setup' | 'login' | '2fa';
 interface SessionResponse { token: string; user: User }
 interface LoginResponse extends Partial<SessionResponse> { requires2fa?: boolean; challenge?: string }
 
@@ -27,7 +27,8 @@ export default function Login() {
   useEffect(() => {
     api.get<{ needsSetup: boolean }>('/auth/status')
       .then((s) => setMode(s.needsSetup ? 'setup' : 'login'))
-      .catch((err) => { setError(errorMessage(err)); setMode('login'); });
+      // Sans réponse du serveur, impossible de savoir s'il faut installer ou se connecter
+      .catch((err) => { setError(errorMessage(err)); setMode('unavailable'); });
   }, []);
 
   if (user) {
@@ -81,12 +82,17 @@ export default function Login() {
             {mode === 'login' && 'Facturation, proformas et gestion de votre entreprise'}
             {mode === '2fa' && 'Saisissez le code de votre application d\'authentification'}
             {mode === 'loading' && 'Chargement…'}
+            {mode === 'unavailable' && 'Le serveur ne répond pas correctement.'}
           </p>
         </div>
 
         <Alert>{error}</Alert>
 
-        {mode !== 'loading' && (
+        {mode === 'unavailable' && (
+          <button className="btn btn-primary btn-block" onClick={() => window.location.reload()}>Réessayer</button>
+        )}
+
+        {(mode === 'setup' || mode === 'login' || mode === '2fa') && (
           <form onSubmit={submit}>
             {mode === 'setup' && (
               <label className="input-group">
