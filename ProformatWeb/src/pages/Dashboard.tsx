@@ -1,258 +1,100 @@
-import { useEffect, useState } from 'react';
-import { auth } from '../firebase';
-import { useNavigate } from 'react-router-dom';
-import { FileText, Plus, LogOut, BarChart3, Users, Printer, Activity as ActivityIcon } from 'lucide-react';
-import { signOut } from 'firebase/auth';
-import { API_URL } from '../config';
-import { fetchWithAuth } from '../api';
+import { Link, useNavigate } from 'react-router-dom';
+import { AlertTriangle, FilePlus2, Package } from 'lucide-react';
+import { api } from '../lib/api';
+import { useFetch } from '../lib/useFetch';
+import { useAuth } from '../auth/AuthContext';
+import { formatByCurrency, formatDate, formatMoney } from '../lib/format';
+import type { Invoice, Paginated, Summary } from '../lib/types';
+import { Alert, EmptyRow, PageHeader, StatCard, StatusBadge } from '../components/ui';
+import MonthlyChart from '../components/MonthlyChart';
 
 export default function Dashboard() {
-  const [invoices, setInvoices] = useState<any[]>([]);
-  const [activities, setActivities] = useState<any[]>([]);
-  
-  const [invoicePage, setInvoicePage] = useState(1);
-  const [activityPage, setActivityPage] = useState(1);
-  const itemsPerPage = 10;
-  
   const navigate = useNavigate();
+  const { user, hasRole } = useAuth();
+  const summary = useFetch(() => api.get<Summary>('/reports/summary'), []);
+  const recent = useFetch(() => api.get<Paginated<Invoice>>('/invoices', { limit: 8 }), []);
+  const overdue = useFetch(() => api.get<Paginated<Invoice>>('/invoices', { overdue: 'true', limit: 5 }), []);
+  const s = summary.data;
+  const cur = s?.reportingCurrency || 'USD';
 
-  useEffect(() => {
-    const fetchInvoices = async () => {
-      try {
-        const res = await fetchWithAuth(`${API_URL}/api/invoices`);
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setInvoices(data.map((inv: any) => ({ ...inv, id: inv._id })));
-        } else {
-          console.error("API did not return an array for invoices:", data);
-          setInvoices([]);
-        }
-      } catch (err) {
-        console.error("Erreur de chargement des factures :", err);
-      }
-    };
-    
-    const fetchActivities = async () => {
-      try {
-        const res = await fetchWithAuth(`${API_URL}/api/activities`);
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setActivities(data);
-        } else {
-          console.error("API did not return an array for activities:", data);
-          setActivities([]);
-        }
-      } catch (err) {
-        console.error("Erreur de chargement des activités :", err);
-      }
-    };
-
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (user) {
-        fetchInvoices();
-        fetchActivities();
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  const totalRevenueUSD = invoices.reduce((sum, inv) => {
-    const isUSD = (inv.total || '').toString().toUpperCase().includes('USD');
-    const val = parseFloat((inv.total || '').toString().replace(/[^0-9.]/g, '')) || 0;
-    return sum + (isUSD ? val : 0);
-  }, 0);
-
-  const totalRevenueFC = invoices.reduce((sum, inv) => {
-    const isFC = (inv.total || '').toString().toUpperCase().includes('FC');
-    const val = parseFloat((inv.total || '').toString().replace(/[^0-9.]/g, '')) || 0;
-    return sum + (isFC ? val : 0);
-  }, 0);
-
-  const handleLogout = async () => {
-    await signOut(auth);
-    navigate('/login');
-  };
-
-  const toggleInvoiceStatus = async (invoiceId: string, currentStatus: string) => {
-    const newStatus = currentStatus === 'Payée' ? 'En attente' : 'Payée';
-    try {
-      await fetchWithAuth(`${API_URL}/api/invoices/${invoiceId}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
-      });
-      setInvoices(invoices.map(inv => inv.id === invoiceId ? { ...inv, status: newStatus } : inv));
-    } catch (err) {
-      console.error("Erreur mise à jour statut:", err);
-      alert("Impossible de mettre à jour le statut.");
-    }
-  };
-
-  const paginatedInvoices = invoices.slice((invoicePage - 1) * itemsPerPage, invoicePage * itemsPerPage);
-  const totalInvoicePages = Math.ceil(invoices.length / itemsPerPage);
-
-  const paginatedActivities = activities.slice((activityPage - 1) * itemsPerPage, activityPage * itemsPerPage);
-  const totalActivityPages = Math.ceil(activities.length / itemsPerPage);
-  
   return (
-    <div className="app-container">
-      <div className="sidebar">
-        <div style={{ marginBottom: '40px' }}>
-          <h2 className="gradient-text" style={{ margin: 0 }}>Mélanine Print</h2>
-          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Admin Dashboard</span>
-        </div>
-        
-        <nav style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: 'rgba(0,168,181,0.1)', color: 'var(--primary)', borderRadius: '8px', cursor: 'pointer', marginBottom: '10px' }}>
-            <BarChart3 size={20} />
-            <strong>Tableau de bord</strong>
-          </div>
-          <div onClick={() => navigate('/invoice')} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', color: 'var(--text-muted)', cursor: 'pointer', transition: 'color 0.2s' }}>
-            <Plus size={20} />
-            <span>Nouvelle Facture</span>
-          </div>
-          <div onClick={() => navigate('/products')} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', color: 'var(--text-muted)', cursor: 'pointer', transition: 'color 0.2s' }}>
-            <FileText size={20} />
-            <span>Produits & Services</span>
-          </div>
-          <div onClick={() => navigate('/profile')} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', color: 'var(--text-muted)', cursor: 'pointer', transition: 'color 0.2s' }}>
-            <Users size={20} />
-            <span>Mon Profil</span>
-          </div>
-        </nav>
+    <div className="animate-fade-in">
+      <PageHeader
+        title={`Bonjour ${user?.displayName?.split(' ')[0] || ''}`.trim()}
+        subtitle="Activité du mois en cours"
+        actions={<button className="btn btn-primary" onClick={() => navigate('/invoice')}><FilePlus2 size={18} /> Nouvelle facture</button>}
+      />
+      <Alert>{summary.error}</Alert>
 
-        <div onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', color: 'var(--danger)', cursor: 'pointer' }}>
-          <LogOut size={20} />
-          <span>Déconnexion</span>
+      <div className="stat-grid">
+        <StatCard label="Facturé ce mois" value={formatMoney(s?.invoiced.total, cur)} hint={`${s?.invoiced.count ?? 0} facture(s) · ${formatByCurrency(s?.invoiced.byCurrency)}`} />
+        <StatCard label="Encaissé ce mois" value={formatMoney(s?.collected.total, cur)} hint={formatByCurrency(s?.collected.byCurrency)} tone="success" />
+        <StatCard label="Créances clients" value={formatMoney(s?.receivables.total, cur)} hint={`dont ${formatMoney(s?.overdue.total, cur)} en retard`} tone={s && s.overdue.total > 0 ? 'danger' : undefined} />
+        {hasRole('admin', 'manager') ? (
+          <StatCard label="Résultat (encaissé − dépenses)" value={formatMoney(s?.profit, cur)} hint={`Dépenses : ${formatMoney(s?.expenses?.total, cur)}`} tone={s && (s.profit ?? 0) < 0 ? 'danger' : 'success'} />
+        ) : (
+          <StatCard label="Proformas en attente" value={s?.counts.pendingProformas ?? 0} hint="à convertir en facture" />
+        )}
+      </div>
+
+      <div className="grid-2">
+        <div className="card">
+          <h3>Évolution sur 12 mois <span className="muted small">({cur}, taux 1 USD = {s?.exchangeRate ?? '—'} FC)</span></h3>
+          {s ? <MonthlyChart data={s.monthly} currency={cur} /> : <div className="muted">Chargement…</div>}
+        </div>
+        <div className="stack">
+          <div className="card">
+            <h3><AlertTriangle size={18} className="text-danger" /> Factures en retard</h3>
+            <ul className="list">
+              {overdue.data?.items.map((inv) => (
+                <li key={inv._id}>
+                  <Link to={`/invoice/${inv._id}`}>{inv.number} — {inv.client}</Link>
+                  <span className="text-danger">{formatMoney(inv.balance, inv.currency)}</span>
+                </li>
+              ))}
+              {overdue.data?.items.length === 0 && <li className="muted">Aucune facture en retard 🎉</li>}
+            </ul>
+          </div>
+          <div className="card">
+            <h3><Package size={18} /> Alertes de stock</h3>
+            <ul className="list">
+              {s?.lowStock.map((p) => (
+                <li key={p._id}>
+                  <Link to="/products">{p.name}</Link>
+                  <span className={p.stockQuantity <= 0 ? 'text-danger' : 'text-warning'}>{p.stockQuantity} {p.unit} (min. {p.minStock})</span>
+                </li>
+              ))}
+              {s?.lowStock.length === 0 && <li className="muted">Aucun produit sous le seuil.</li>}
+            </ul>
+          </div>
         </div>
       </div>
 
-      <div className="main-content animate-fade-in">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-          <h1>Aperçu des Factures</h1>
-          <button className="btn btn-primary" onClick={() => navigate('/invoice')}>
-            <Plus size={18} /> Créer une facture
-          </button>
+      <div className="card" style={{ marginTop: 24 }}>
+        <div className="card-header">
+          <h3 style={{ margin: 0 }}>Dernières factures</h3>
+          <Link to="/invoices" className="muted">Tout voir →</Link>
         </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '24px', marginBottom: '40px' }}>
-          <div className="card glass">
-            <div style={{ color: 'var(--text-muted)', marginBottom: '8px' }}>Chiffre d'affaires (USD)</div>
-            <h2 style={{ margin: 0, fontSize: '2rem' }}>{totalRevenueUSD.toLocaleString()} $</h2>
-          </div>
-          <div className="card glass">
-            <div style={{ color: 'var(--text-muted)', marginBottom: '8px' }}>Chiffre d'affaires (FC)</div>
-            <h2 style={{ margin: 0, fontSize: '2rem' }}>{totalRevenueFC.toLocaleString()} FC</h2>
-          </div>
-          <div className="card glass">
-            <div style={{ color: 'var(--text-muted)', marginBottom: '8px' }}>Factures générées</div>
-            <h2 style={{ margin: 0, fontSize: '2rem' }}>{invoices.length}</h2>
-          </div>
-          <div className="card glass">
-            <div style={{ color: 'var(--text-muted)', marginBottom: '8px' }}>Clients uniques</div>
-            <h2 style={{ margin: 0, fontSize: '2rem' }}>{new Set(invoices.map(i => i.client)).size}</h2>
-          </div>
-        </div>
-
-        <div className="card glass">
-          <h3 style={{ marginBottom: '20px' }}>Historique Récent</h3>
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Numéro</th>
-                  <th>Date</th>
-                  <th>Client</th>
-                  <th>Type</th>
-                  <th>Total</th>
-                  <th>Statut</th>
-                  <th style={{ textAlign: 'right' }}>Action</th>
+        <div className="table-container">
+          <table>
+            <thead>
+              <tr><th>Numéro</th><th>Date</th><th>Client</th><th>Type</th><th className="num">Total</th><th className="num">Reste dû</th><th>Statut</th></tr>
+            </thead>
+            <tbody>
+              {recent.data?.items.map((inv) => (
+                <tr key={inv._id} className="clickable" onClick={() => navigate(`/invoice/${inv._id}`)}>
+                  <td className="strong">{inv.number}</td>
+                  <td className="muted">{formatDate(inv.issueDate)}</td>
+                  <td>{inv.client}</td>
+                  <td><span className={`badge ${inv.type === 'Proforma' ? 'badge-neutral' : 'badge-info'}`}>{inv.type}</span></td>
+                  <td className="num strong">{formatMoney(inv.totalAmount, inv.currency)}</td>
+                  <td className="num">{inv.type === 'Facture' && inv.status !== 'Annulée' ? formatMoney(inv.balance, inv.currency) : '—'}</td>
+                  <td><StatusBadge status={inv.status} /></td>
                 </tr>
-              </thead>
-              <tbody>
-                {paginatedInvoices.map(inv => (
-                  <tr key={inv.id}>
-                    <td style={{ fontWeight: 500 }}>{inv.number}</td>
-                    <td style={{ color: 'var(--text-muted)' }}>{inv.date}</td>
-                    <td>{inv.client}</td>
-                    <td><span className={`badge ${inv.type === 'Proforma' ? 'badge-info' : 'badge-success'}`}>{inv.type}</span></td>
-                    <td style={{ fontWeight: 600, color: 'var(--primary)' }}>{inv.total}</td>
-                    <td>
-                      <span 
-                        onClick={() => toggleInvoiceStatus(inv.id, inv.status || 'En attente')}
-                        className={`badge ${inv.status === 'Payée' ? 'badge-success' : 'badge-danger'}`}
-                        style={{ cursor: 'pointer', transition: 'all 0.2s' }}
-                        title="Cliquez pour changer le statut"
-                      >
-                        {inv.status || 'En attente'}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <Printer size={18} color="var(--primary)" style={{ cursor: 'pointer' }} onClick={() => navigate(`/invoice/${inv.id}`)} />
-                    </td>
-                  </tr>
-                ))}
-                {invoices.length === 0 && (
-                  <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Aucune facture trouvée.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-          {totalInvoicePages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', marginTop: '15px' }}>
-              <button className="btn btn-outline" disabled={invoicePage === 1} onClick={() => setInvoicePage(p => p - 1)}>Précédent</button>
-              <span>Page {invoicePage} sur {totalInvoicePages}</span>
-              <button className="btn btn-outline" disabled={invoicePage === totalInvoicePages} onClick={() => setInvoicePage(p => p + 1)}>Suivant</button>
-            </div>
-          )}
-        </div>
-
-        <div className="card glass" style={{ marginTop: '40px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-            <ActivityIcon size={24} color="var(--primary)" />
-            <h3 style={{ margin: 0 }}>Historique des Connexions et Activités</h3>
-          </div>
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Date & Heure</th>
-                  <th>Utilisateur</th>
-                  <th>Action</th>
-                  <th>Détails</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedActivities.map(act => (
-                  <tr key={act._id}>
-                    <td style={{ color: 'var(--text-muted)' }}>{new Date(act.date).toLocaleString('fr-FR')}</td>
-                    <td style={{ fontWeight: 500 }}>{act.userEmail}</td>
-                    <td>
-                      <span className={`badge ${act.action === 'Connexion' ? 'badge-success' : 'badge-info'}`}>
-                        {act.action}
-                      </span>
-                    </td>
-                    <td style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{act.details}</td>
-                  </tr>
-                ))}
-                {activities.length === 0 && (
-                  <tr>
-                    <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Aucune activité récente.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-          {totalActivityPages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', marginTop: '15px' }}>
-              <button className="btn btn-outline" disabled={activityPage === 1} onClick={() => setActivityPage(p => p - 1)}>Précédent</button>
-              <span>Page {activityPage} sur {totalActivityPages}</span>
-              <button className="btn btn-outline" disabled={activityPage === totalActivityPages} onClick={() => setActivityPage(p => p + 1)}>Suivant</button>
-            </div>
-          )}
+              ))}
+              {recent.data?.items.length === 0 && <EmptyRow colSpan={7}>Aucune facture pour le moment.</EmptyRow>}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

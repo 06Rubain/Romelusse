@@ -7,12 +7,11 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:server": "npm --prefix server test",
+    "dev:server": "npm --prefix server run dev"
   },
   "dependencies": {
-    "bcryptjs": "^2.4.3",
-    "firebase": "^12.15.0",
-    "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.22.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",

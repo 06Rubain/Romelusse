@@ -1,74 +1,129 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { LogIn } from 'lucide-react';
-import { API_URL } from '../config';
-import '../index.css';
+import { useEffect, useState } from 'react';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { LogIn, ShieldCheck, UserPlus } from 'lucide-react';
+import { api, errorMessage } from '../lib/api';
+import { useAuth } from '../auth/AuthContext';
+import type { User } from '../lib/types';
+import { Alert } from '../components/ui';
+
+type Mode = 'loading' | 'setup' | 'login' | '2fa';
+interface SessionResponse { token: string; user: User }
+interface LoginResponse extends Partial<SessionResponse> { requires2fa?: boolean; challenge?: string }
 
 export default function Login() {
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const { user, setSession } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [mode, setMode] = useState<Mode>('loading');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [code, setCode] = useState('');
+  const [challenge, setChallenge] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  useEffect(() => {
+    api.get<{ needsSetup: boolean }>('/auth/status')
+      .then((s) => setMode(s.needsSetup ? 'setup' : 'login'))
+      .catch((err) => { setError(errorMessage(err)); setMode('login'); });
+  }, []);
+
+  if (user) {
+    const from = (location.state as { from?: string } | null)?.from;
+    return <Navigate to={from && from !== '/login' ? from : '/dashboard'} replace />;
+  }
+
+  const finish = (res: SessionResponse) => {
+    setSession(res.token, res.user);
+    navigate('/dashboard');
+  };
+
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
+    setBusy(true);
     try {
-      const res = await fetch(`${API_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Login failed');
-      localStorage.setItem('jwt', data.token);
-      navigate('/dashboard');
-    } catch (err: any) {
-      setError(err.message);
+      if (mode === 'setup') {
+        finish(await api.post<SessionResponse>('/auth/setup', { email, password, displayName }));
+      } else if (mode === 'login') {
+        const res = await api.post<LoginResponse>('/auth/login', { email, password });
+        if (res.requires2fa && res.challenge) {
+          setChallenge(res.challenge);
+          setMode('2fa');
+        } else if (res.token && res.user) {
+          finish(res as SessionResponse);
+        }
+      } else if (mode === '2fa') {
+        finish(await api.post<SessionResponse>('/auth/login/2fa', { challenge, code }));
+      }
+    } catch (err) {
+      setError(errorMessage(err));
+      if (mode === '2fa' && /expirée/.test(errorMessage(err))) setMode('login');
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   };
 
-  return (
-    <div className="app-container gradient-bg" style={{ justifyContent: 'center', alignItems: 'center', minHeight: '100vh', position: 'relative', overflow: 'hidden' }}>
-      {/* Animated background */}
-      <div style={{ position: 'absolute', top: '-10%', left: '-10%', width: '400px', height: '400px', background: 'radial-gradient(circle, rgba(0,168,181,0.2) 0%, rgba(0,0,0,0) 70%)', borderRadius: '50%', filter: 'blur(40px)', animation: 'float 6s ease-in-out infinite' }} />
-      <div style={{ position: 'absolute', bottom: '-10%', right: '-10%', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(168,85,247,0.2) 0%, rgba(0,0,0,0) 70%)', borderRadius: '50%', filter: 'blur(40px)', animation: 'float 8s ease-in-out infinite reverse' }} />
+  const Icon = mode === 'setup' ? UserPlus : mode === '2fa' ? ShieldCheck : LogIn;
 
-      <div className="glass animate-fade-in" style={{ width: '100%', maxWidth: '420px', padding: '40px', position: 'relative', zIndex: 10, border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }}>
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div style={{ display: 'inline-block', padding: '15px', background: 'rgba(0,168,181,0.1)', borderRadius: '50%', marginBottom: '15px' }}>
-            <LogIn size={32} color="var(--primary)" />
-          </div>
-          <h1 className="gradient-text" style={{ fontSize: '2.2rem', marginBottom: '10px' }}>Mélanine Print</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem' }}>Bienvenue sur votre espace de gestion</p>
+  return (
+    <div className="login-page gradient-bg">
+      <div className="login-blob one" />
+      <div className="login-blob two" />
+      <div className="glass login-card animate-fade-in">
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+          <div className="login-icon"><Icon size={32} color="var(--primary)" /></div>
+          <h1 className="gradient-text" style={{ fontSize: '2.2rem', marginBottom: 10 }}>Mélanine Print</h1>
+          <p className="muted" style={{ margin: 0 }}>
+            {mode === 'setup' && 'Première configuration : créez le compte administrateur'}
+            {mode === 'login' && 'Bienvenue sur votre espace de gestion'}
+            {mode === '2fa' && 'Saisissez le code de votre application d\'authentification'}
+            {mode === 'loading' && 'Chargement…'}
+          </p>
         </div>
 
-        {error && (
-          <div className="animate-fade-in" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', borderLeft: '4px solid var(--danger)', color: 'var(--danger)', padding: '12px 16px', borderRadius: '4px', marginBottom: '20px', fontSize: '0.9rem' }}>
-            {error}
-          </div>
-        )}
+        <Alert>{error}</Alert>
 
-        <form onSubmit={handleLogin}>
-          <div className="input-group" style={{ marginBottom: '16px' }}>
-            <label style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px', color: '#888' }}>Mot de passe</label>
-            <input
-              type="password"
-              className="input-field"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', transition: 'all 0.3s' }}
-              required
-            />
-          </div>
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '14px', fontSize: '1.05rem', fontWeight: 600, borderRadius: '8px', boxShadow: '0 4px 14px 0 rgba(0, 168, 181, 0.39)', transition: 'all 0.3s' }} disabled={loading}>
-            {loading ? <span style={{ opacity: 0.8 }}>Connexion en cours...</span> : 'Se connecter'}
-          </button>
-        </form>
+        {mode !== 'loading' && (
+          <form onSubmit={submit}>
+            {mode === 'setup' && (
+              <label className="input-group">
+                <span className="label">Nom complet</span>
+                <input className="input-field" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Ex : Rubain Mpunanti" />
+              </label>
+            )}
+            {mode !== '2fa' && (
+              <>
+                <label className="input-group">
+                  <span className="label">E-mail</span>
+                  <input type="email" className="input-field" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" required autoFocus />
+                </label>
+                <label className="input-group">
+                  <span className="label">Mot de passe</span>
+                  <input type="password" className="input-field" value={password} onChange={(e) => setPassword(e.target.value)}
+                    autoComplete={mode === 'setup' ? 'new-password' : 'current-password'} minLength={mode === 'setup' ? 8 : undefined} placeholder="••••••••" required />
+                  {mode === 'setup' && <small className="muted">8 caractères minimum</small>}
+                </label>
+              </>
+            )}
+            {mode === '2fa' && (
+              <label className="input-group">
+                <span className="label">Code à 6 chiffres</span>
+                <input className="input-field code-input" inputMode="numeric" autoComplete="one-time-code" value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" autoFocus required />
+              </label>
+            )}
+            <button type="submit" className="btn btn-primary btn-block" disabled={busy || (mode === '2fa' && code.length !== 6)}>
+              {busy ? 'Veuillez patienter…' : mode === 'setup' ? 'Créer le compte administrateur' : mode === '2fa' ? 'Vérifier' : 'Se connecter'}
+            </button>
+            {mode === '2fa' && (
+              <button type="button" className="btn btn-ghost btn-block" style={{ marginTop: 8 }} onClick={() => { setMode('login'); setCode(''); }}>
+                Retour
+              </button>
+            )}
+          </form>
+        )}
       </div>
     </div>
   );
