@@ -592,9 +592,37 @@ details summary { cursor: pointer; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 
 /* ---------- Console OmniCom ---------- */
-.company-cell { display: flex; align-items: center; gap: 12px; }
-.company-cell img, .company-cell .placeholder { width: 40px; height: 40px; border-radius: 10px; background: #fff; border: 1px solid var(--border); object-fit: contain; padding: 3px; flex-shrink: 0; }
-.company-cell .placeholder { display: flex; align-items: center; justify-content: center; color: #fff; background: linear-gradient(135deg, var(--primary), #7c3aed); border: none; font-weight: 700; }
+.ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 0.02em; }
+.company-logo { border-radius: 12px; background: #fff; border: 1px solid var(--border); object-fit: contain; padding: 4px; flex-shrink: 0; }
+.company-logo.placeholder { display: flex; align-items: center; justify-content: center; color: #fff; background: linear-gradient(135deg, var(--primary), #7c3aed); border: none; font-weight: 700; font-size: 1.2rem; padding: 0; }
+.company-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
+.company-card { display: flex; flex-direction: column; gap: 16px; padding: 18px; transition: box-shadow 0.15s, border-color 0.15s; }
+.company-card:hover { box-shadow: var(--shadow-lg); border-color: var(--border-strong); }
+.company-card.inactive { opacity: 0.7; }
+.company-card-head { display: flex; align-items: center; gap: 12px; }
+.company-card-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 12px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.company-card-stats div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.company-card-stats strong { font-size: 0.98rem; font-variant-numeric: tabular-nums; }
+.company-card-stats span { color: var(--text-muted); font-size: 0.74rem; }
+.company-card-actions { display: flex; gap: 8px; }
+.company-card-actions .btn { flex: 1; }
+.company-detail-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
+.people-list { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.people-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; flex-wrap: wrap; }
+.people-row + .people-row { border-top: 1px solid var(--border); }
+.inline-panel { margin-top: 12px; padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); }
+.success-head { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; color: var(--success); }
+.success-head h3 { margin: 0 0 4px; color: var(--text); }
+.success-head p { margin: 0; }
+.access-card { display: flex; flex-direction: column; gap: 8px; padding: 16px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border); }
+.access-card > div:not(.access-actions) { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 0.92rem; }
+.access-card > div > span { color: var(--text-muted); }
+.access-card strong { word-break: break-all; }
+.access-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.access-actions .btn { flex: 1; min-width: 180px; }
+.brand-hint { display: flex; align-items: center; gap: 8px; margin: -6px 0 14px; }
+.brand-hint .swatch { width: 16px; height: 16px; border-radius: 4px; border: 1px solid var(--border); flex-shrink: 0; }
 
 /* ---------- Éditeur de modèle de facture ---------- */
 .tpl-layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 24px; align-items: start; }

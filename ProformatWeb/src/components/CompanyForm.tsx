@@ -11,7 +11,7 @@ const TEXT_FIELDS: [keyof CompanyDraft, string][] = [
   ['bankName', 'Banque'], ['bankAccount', 'Compte bancaire'],
 ];
 
-function ImageInput({ label, value, wide, onChange }: { label: string; value: string; wide?: boolean; onChange: (v: string) => void }) {
+export function ImageInput({ label, value, wide, onChange }: { label: string; value: string; wide?: boolean; onChange: (v: string) => void }) {
   const ref = useRef<HTMLInputElement>(null);
   const [error, setError] = useState('');
   const pick = async (file?: File) => {
