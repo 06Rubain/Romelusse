@@ -8,6 +8,7 @@ import { useAuth } from '../auth/AuthContext';
 import ThemeToggle from './ThemeToggle';
 import QuickSearch from './QuickSearch';
 import Avatar from './Avatar';
+import { logoBackground } from '../lib/brand';
 import { APP_NAME, type Permission } from '../lib/types';
 
 interface NavItem { to: string; label: string; icon: typeof BarChart3; permissions?: Permission[] }
@@ -87,7 +88,7 @@ export default function Layout() {
         <div className="sidebar-brand">
           <div className="brand">
             {!inPlatform && company?.logo
-              ? <img src={company.logo} alt="" className="brand-logo" />
+              ? <img src={company.logo} alt="" className="brand-logo" style={logoBackground(company)} />
               : <span className="brand-mark">{title.charAt(0).toUpperCase()}</span>}
             <div style={{ minWidth: 0 }}>
               <div className="brand-name">{title}</div>

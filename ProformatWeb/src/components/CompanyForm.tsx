@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type CSSProperties } from 'react';
 import { ImagePlus, Trash2 } from 'lucide-react';
 import { readImageFile } from '../lib/image';
 import { errorMessage } from '../lib/api';
 import type { CompanyDraft } from '../lib/company';
 import { Alert, Field } from './ui';
+import { headerBackground, labelBackground, logoBackground } from '../lib/brand';
 
 const TEXT_FIELDS: [keyof CompanyDraft, string][] = [
   ['legalName', 'Raison sociale (compte bancaire)'], ['address', 'Adresse'], ['city', 'Ville'], ['email', 'E-mail'],
@@ -11,7 +12,7 @@ const TEXT_FIELDS: [keyof CompanyDraft, string][] = [
   ['bankName', 'Banque'], ['bankAccount', 'Compte bancaire'],
 ];
 
-export function ImageInput({ label, value, wide, onChange }: { label: string; value: string; wide?: boolean; onChange: (v: string) => void }) {
+export function ImageInput({ label, value, wide, onChange, previewStyle }: { label: string; value: string; wide?: boolean; onChange: (v: string) => void; previewStyle?: CSSProperties }) {
   const ref = useRef<HTMLInputElement>(null);
   const [error, setError] = useState('');
   const pick = async (file?: File) => {
@@ -23,7 +24,7 @@ export function ImageInput({ label, value, wide, onChange }: { label: string; va
     <div className="input-group">
       <span className="label">{label}</span>
       <div className="logo-drop">
-        <div className={`logo-preview ${wide ? 'wide' : ''}`}>{value ? <img src={value} alt="" /> : 'Aucune image'}</div>
+        <div className={`logo-preview ${wide ? 'wide' : ''}`} style={value ? previewStyle : undefined}>{value ? <img src={value} alt="" /> : 'Aucune image'}</div>
         <button type="button" className="btn btn-outline btn-sm" onClick={() => ref.current?.click()}><ImagePlus size={16} /> Choisir</button>
         {value && <button type="button" className="btn btn-ghost btn-sm text-danger" onClick={() => onChange('')}><Trash2 size={16} /> Retirer</button>}
         <input ref={ref} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ''; }} />
@@ -37,11 +38,11 @@ export function ImageInput({ label, value, wide, onChange }: { label: string; va
 function BrandPreview({ form }: { form: CompanyDraft }) {
   return (
     <div className="brand-preview">
-      <div style={{ background: `linear-gradient(to right, ${form.primaryColor} 40%, ${form.secondaryColor} 100%)`, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 16, borderBottomLeftRadius: 14, borderBottomRightRadius: 14 }}>
+      <div style={{ ...headerBackground(form), padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 16, borderBottomLeftRadius: 14, borderBottomRightRadius: 14 }}>
         {form.logo ? <img src={form.logo} alt="" style={{ height: 50, maxWidth: 120, objectFit: 'contain' }} /> : <strong style={{ color: '#fff' }}>{form.name || 'Votre logo'}</strong>}
         <div style={{ width: 2, height: 44, background: '#fff' }} />
         <div style={{ display: 'flex', fontSize: 12, fontWeight: 700 }}>
-          <span style={{ background: form.accentColor, color: '#fff', padding: '4px 10px' }}>FACTURE N°</span>
+          <span style={{ background: labelBackground(form), color: '#fff', padding: '4px 10px' }}>FACTURE N°</span>
           <span style={{ background: '#fff', color: '#000', padding: '4px 10px' }}>: FAC-2026-0001</span>
         </div>
       </div>
@@ -57,8 +58,8 @@ export default function CompanyForm({ form, onChange, showRules = true }: { form
       <div>
         <h3>Identité visuelle</h3>
         <Field label="Nom de l'entreprise *"><input className="input-field" value={form.name} onChange={(e) => set('name', e.target.value)} required /></Field>
-        <ImageInput label="Logo (imprimé sur les factures)" value={form.logo} onChange={(v) => set('logo', v)} />
-        <ImageInput label="Bandeau de bas de page (optionnel)" value={form.footerImage} wide onChange={(v) => set('footerImage', v)} />
+        <ImageInput label="Logo (imprimé sur les factures)" value={form.logo} onChange={(v) => set('logo', v)} previewStyle={logoBackground(form)} />
+        <ImageInput label="Bandeau dégradé (en-tête et bas de page, optionnel)" value={form.footerImage} wide onChange={(v) => set('footerImage', v)} />
         <div className="color-row">
           {([['primaryColor', 'Principale'], ['secondaryColor', 'Secondaire'], ['accentColor', 'Accent']] as const).map(([key, label]) => (
             <label key={key} className="color-field">{label}

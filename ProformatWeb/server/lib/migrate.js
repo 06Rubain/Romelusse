@@ -51,6 +51,10 @@ const assignLegacyCompany = async () => {
       paymentTermDays: oldSettings?.paymentTermDays ?? 30,
       logo: dataUrl('melanine-logo.png'),
       footerImage: dataUrl('melanine-footer.png'),
+      // Charte officielle : bandeau turquoise → violet → saumon, étiquettes rouges
+      primaryColor: '#00a4aa',
+      secondaryColor: '#e78a7d',
+      accentColor: '#b6100d',
       createdBy: 'migration',
     });
   }

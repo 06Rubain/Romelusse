@@ -13,6 +13,7 @@ import AccessCard from '../components/AccessCard';
 import CompanyForm, { ImageInput } from '../components/CompanyForm';
 import { EMPTY_COMPANY, toDraft, type CompanyDraft } from '../lib/company';
 import { dominantColor, generatePassword, type Access } from '../lib/access';
+import { logoBackground } from '../lib/brand';
 
 interface AdminDraft { email: string; displayName: string; password: string }
 const newAdmin = (): AdminDraft => ({ email: '', displayName: '', password: generatePassword() });
@@ -44,9 +45,9 @@ function useOpenConsole() {
   };
 }
 
-function CompanyLogo({ company, size = 48 }: { company: Pick<Company, 'logo' | 'name'>; size?: number }) {
+function CompanyLogo({ company, size = 48 }: { company: Company; size?: number }) {
   return company.logo
-    ? <img className="company-logo" src={company.logo} alt="" style={{ width: size, height: size }} />
+    ? <img className="company-logo" src={company.logo} alt="" style={{ width: size, height: size, ...logoBackground(company) }} />
     : <span className="company-logo placeholder" style={{ width: size, height: size }}>{company.name.charAt(0).toUpperCase()}</span>;
 }
 
@@ -166,7 +167,7 @@ function NewCompany({ onClose, onCreated, onOpen }: { onClose: () => void; onCre
         <Alert>{error}</Alert>
         <div className="step-title"><span>1</span>L'entreprise</div>
         <Field label="Nom de l'entreprise *"><input className="input-field" value={company.name} onChange={(e) => setCompany({ ...company, name: e.target.value })} placeholder="Ex : Mélanine Print" required autoFocus /></Field>
-        <ImageInput label="Logo (imprimé sur ses factures)" value={company.logo} onChange={setLogo} />
+        <ImageInput label="Logo (imprimé sur ses factures)" value={company.logo} onChange={setLogo} previewStyle={logoBackground(company)} />
         {company.logo && (
           <p className="muted small brand-hint">
             <span className="swatch" style={{ background: company.primaryColor }} /> Couleur des factures choisie d'après le logo (modifiable ensuite).

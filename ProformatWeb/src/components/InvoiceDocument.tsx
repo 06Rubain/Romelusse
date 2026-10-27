@@ -2,6 +2,7 @@ import { forwardRef } from 'react';
 import { numberToFrenchWords } from '../utils/numberToWords';
 import { formatDate, PRINT_SCALE } from '../lib/format';
 import type { Company, Currency } from '../lib/types';
+import { brandColors, headerBackground, labelBackground } from '../lib/brand';
 
 export interface DocumentLine { name: string; quantity: number; unitPrice: number }
 
@@ -28,10 +29,7 @@ const amount = (n: number) => n.toLocaleString('fr-FR', { minimumFractionDigits:
 // Modèle imprimable de la facture, aux couleurs et au logo de l'entreprise
 const InvoiceDocument = forwardRef<HTMLDivElement, Props>(function InvoiceDocument(props, ref) {
   const { type, number, client, clientActivity, issueDate, dueDate, currency, lines, discount, paid, cancelled, notes, company: settings, printFormat } = props;
-  const primary = settings?.primaryColor || '#009eb5';
-  const secondary = settings?.secondaryColor || '#e28882';
-  const accent = settings?.accentColor || '#c92a2a';
-  const HEADER = `linear-gradient(to right, ${primary} 40%, ${secondary} 100%)`;
+  const { primary, secondary, accent } = brandColors(settings);
   const GRADIENT = `linear-gradient(to right, ${accent} 0%, ${primary} 80%, ${secondary} 100%)`;
   const subtotal = lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0);
   const total = Math.max(0, subtotal - discount);
@@ -49,7 +47,7 @@ const InvoiceDocument = forwardRef<HTMLDivElement, Props>(function InvoiceDocume
       marginBottom: printFormat === 'A6' ? '-148.5mm' : printFormat === 'A5' ? '-88mm' : 0,
     }}>
       <div style={{
-        background: HEADER, height: 130,
+        ...headerBackground(settings), height: 130,
         borderBottomLeftRadius: 25, borderBottomRightRadius: 25, display: 'flex', alignItems: 'center',
         padding: '0 30px', margin: '0 10mm 30px 10mm', boxSizing: 'border-box',
       }}>
@@ -59,7 +57,7 @@ const InvoiceDocument = forwardRef<HTMLDivElement, Props>(function InvoiceDocume
         <div style={{ width: 2, height: 90, background: 'white', margin: '0 30px' }} />
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', marginBottom: 8, alignItems: 'center' }}>
-            <div style={{ background: accent, color: 'white', padding: '6px 15px', fontWeight: 'bold', fontSize: 14, minWidth: 130, textAlign: 'center' }}>
+            <div style={{ background: labelBackground(settings), color: 'white', padding: '6px 15px', fontWeight: 'bold', fontSize: 14, minWidth: 130, textAlign: 'center' }}>
               {type === 'Proforma' ? 'PROFORMA N°' : 'FACTURE N°'}
             </div>
             <div style={{ background: 'white', color: 'black', padding: '6px 15px', fontWeight: 'bold', fontSize: 14, width: 220 }}>: {number}</div>
