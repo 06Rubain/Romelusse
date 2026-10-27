@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   BarChart3, FileText, Users, Package, Wallet, Receipt, PieChart, UserCog, Settings as SettingsIcon,
-  History, LogOut, Menu, X, FilePlus2, ShieldCheck, Building2, LayoutTemplate, Search, Home, Plus,
+  History, LogOut, Menu, X, FilePlus2, ShieldCheck, Building2, LayoutTemplate, Search, Home, Plus, PiggyBank,
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import ThemeToggle from './ThemeToggle';
@@ -21,11 +21,14 @@ const COMPANY_SECTIONS: { title: string; items: NavItem[] }[] = [
   { title: 'Ventes', items: [
     { to: '/invoice', label: 'Nouveau document', icon: FilePlus2, permissions: ['invoices.create'] },
     { to: '/invoices', label: 'Factures & proformas', icon: FileText },
-    { to: '/payments', label: 'Encaissements', icon: Wallet },
     { to: '/clients', label: 'Clients', icon: Users },
   ] },
   { title: 'Opérations', items: [
     { to: '/products', label: 'Produits & stock', icon: Package },
+  ] },
+  { title: 'Argent', items: [
+    { to: '/treasury', label: 'Trésorerie', icon: PiggyBank, permissions: ['payments.create', 'expenses.manage', 'reports.view'] },
+    { to: '/payments', label: 'Encaissements', icon: Wallet },
     { to: '/expenses', label: 'Dépenses', icon: Receipt, permissions: ['expenses.manage'] },
   ] },
   { title: 'Administration', items: [

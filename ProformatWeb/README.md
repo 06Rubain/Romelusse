@@ -56,6 +56,7 @@ qu'une entreprise ne peut ni lire ni modifier les données d'une autre.
 | **Encaissements** | Paiements partiels ou totaux, statut automatique, journal exportable |
 | **Clients** | Fiches, solde dû par devise, historique |
 | **Produits & stock** | Catalogue USD/FC, prix sur devis, stock décrémenté à la facturation, mouvements, seuils d'alerte |
+| **Trésorerie** | Solde de chaque compte (Caisse, Mobile Money, Banque) en USD et en FC et total disponible ; journal unique des entrées (encaissements, autres entrées) et des sorties (dépenses) ; virements entre comptes et solde de départ |
 | **Dépenses & rapports** | Dépenses par catégorie, rapports consolidés au taux de change de l'entreprise |
 | **Entreprise & logo** | Logo, bandeau de bas de page, trois couleurs, coordonnées légales et bancaires, taux de change |
 | **Modèle de facture** | Modèle standard, ou **import du modèle de l'entreprise** (PDF, PNG, JPEG ; A4 ou A5) adapté dans un éditeur visuel |
@@ -138,5 +139,5 @@ npm run lint && npm run build                                                   
 ```
 
 Couverture : installation protégée, création d'entreprise réservée à OmniCom, rôles sur mesure et
-permissions, blocage et suspension, personnalisation (logo, couleurs), modèle importé (validation, droits, isolation), 2FA, photos de profil, cycle de facturation
+permissions, blocage et suspension, personnalisation (logo, couleurs), modèle importé (validation, droits, isolation), 2FA, photos de profil, trésorerie (soldes, virements, droits), cycle de facturation
 complet, isolation entre entreprises et migration des anciennes données.

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Download, Edit2, Plus, Search, Trash2 } from 'lucide-react';
 import { api, errorMessage } from '../lib/api';
 import { useFeedback } from '../components/feedback';
@@ -18,7 +19,9 @@ export default function Expenses() {
   const [category, setCategory] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
-  const [editing, setEditing] = useState<{ id: string | null; form: ExpenseForm } | null>(null);
+  const [searchParams] = useSearchParams();
+  // ?new=1 (depuis la trésorerie ou le tableau de bord) ouvre directement le formulaire
+  const [editing, setEditing] = useState<{ id: string | null; form: ExpenseForm } | null>(() => (searchParams.get('new') ? { id: null, form: emptyForm() } : null));
   const [error, setError] = useState('');
   const filters = { search, category, from, to };
   const { data, loading, reload } = useFetch(() => api.get<Paginated<Expense> & { totals: Record<Currency, number> }>('/expenses', { ...filters, page }), [search, category, from, to, page]);
@@ -33,6 +36,7 @@ export default function Expenses() {
       if (editing.id) await api.put(`/expenses/${editing.id}`, body);
       else await api.post('/expenses', body);
       setEditing(null);
+      toast('Dépense enregistrée.');
       reload();
     } catch (err) { setError(errorMessage(err)); }
   };

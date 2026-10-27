@@ -688,3 +688,31 @@ input[type=range] { width: 100%; accent-color: var(--primary); }
   .toasts { bottom: 84px; }
   .save-bar { bottom: 70px; }
 }
+
+/* ---------- Trésorerie ---------- */
+.money-grid { display: grid; grid-template-columns: 1.2fr repeat(3, 1fr); gap: 14px; margin-bottom: 18px; }
+.money-total { display: flex; flex-direction: column; justify-content: center; gap: 6px; background: linear-gradient(135deg, var(--primary), #7c3aed); color: #fff; border: none; }
+.money-total .muted { color: rgba(255, 255, 255, 0.8); }
+.money-total strong { font-size: 1.9rem; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.money-account { display: flex; gap: 12px; align-items: flex-start; text-align: left; font: inherit; color: var(--text); cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; }
+.money-account:hover { border-color: var(--border-strong); box-shadow: var(--shadow-lg); }
+.money-account.selected { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.money-account .qa-icon { width: 40px; height: 40px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: var(--primary-soft); color: var(--primary); }
+.money-account .qa-icon.purple { background: var(--purple-soft); color: #7c3aed; }
+.money-account .qa-icon.green { background: var(--success-soft); color: var(--success); }
+.money-account .qa-icon.orange { background: var(--warning-soft); color: var(--warning); }
+.money-account-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.money-line { font-size: 1.05rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.money-actions { margin-bottom: 18px; }
+.money-filters { flex-wrap: wrap; gap: 10px; }
+.money-period { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 14px; }
+.money-period > div { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); }
+.money-period strong { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+@media (max-width: 1100px) { .money-grid { grid-template-columns: 1fr 1fr; } }
+.money-table .narrow-only { display: none; }
+@media (max-width: 860px) {
+  .money-table .wide-only { display: none; }
+  .money-table .narrow-only { display: block; margin-top: 2px; }
+  .money-grid { grid-template-columns: 1fr; }
+  .money-period { grid-template-columns: 1fr; }
+}
