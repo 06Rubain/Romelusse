@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 // Zones positionnées en pourcentage de la page (x, y, largeur, hauteur), validées par la route
-const ZONES = ['meta', 'client', 'items', 'totals', 'words', 'notes', 'stamp'];
+const ZONES = ['meta', 'client', 'items', 'totals', 'words', 'notes', 'stamp', 'signature', 'payment'];
 
 // Disposition par défaut : laisse de la place à l'en-tête et au pied de page du modèle importé
 const DEFAULT_ZONES = {
@@ -12,6 +12,8 @@ const DEFAULT_ZONES = {
   words: { x: 6, y: 77, w: 60, h: 6, visible: true, align: 'left' },
   notes: { x: 6, y: 84, w: 55, h: 6, visible: true, align: 'left' },
   stamp: { x: 64, y: 78, w: 30, h: 10, visible: true, align: 'center' },
+  signature: { x: 66, y: 84, w: 28, h: 9, visible: true, align: 'center' },
+  payment: { x: 6, y: 90, w: 56, h: 7, visible: true, align: 'left' },
 };
 
 const DEFAULT_LABELS = {

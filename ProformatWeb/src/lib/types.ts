@@ -158,6 +158,10 @@ export interface Company {
   rccm: string;
   bankName: string;
   bankAccount: string;
+  signature: string;
+  paymentLink: string;
+  paymentQr: string;
+  paymentMethods: string[];
   exchangeRate: number;
   reportingCurrency: Currency;
   paymentTermDays: number;
@@ -235,7 +239,7 @@ export const PERMISSION_GROUPS: { title: string; items: [Permission, string][] }
 
 export const APP_NAME = 'OmniCom Facturation';
 
-export type ZoneKey = 'meta' | 'client' | 'items' | 'totals' | 'words' | 'notes' | 'stamp';
+export type ZoneKey = 'meta' | 'client' | 'items' | 'totals' | 'words' | 'notes' | 'stamp' | 'signature' | 'payment';
 export interface Zone { x: number; y: number; w: number; h: number; visible: boolean; align: 'left' | 'center' | 'right' }
 
 export interface InvoiceTemplate {
@@ -266,7 +270,12 @@ export const ZONE_LABELS: Record<ZoneKey, string> = {
   words: 'Montant en lettres',
   notes: 'Notes / conditions',
   stamp: 'Cachet PAYÉ / ANNULÉ',
+  signature: 'Signature de la direction',
+  payment: 'Paiement en ligne (QR code)',
 };
+
+// Moyens de paiement proposés pour le lien de paiement en ligne (ex. FlexPaie)
+export const ONLINE_PAYMENT_METHODS = ['M-Pesa', 'Orange Money', 'Airtel Money', 'Africell Money', 'Visa', 'Mastercard', 'RakkaCash', 'Masolo'];
 
 export const TEMPLATE_LABELS: Record<TemplateLabel, string> = {
   facture: 'Titre facture', proforma: 'Titre proforma', client: 'Client', date: 'Date', dueDate: 'Échéance',

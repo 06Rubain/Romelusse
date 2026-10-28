@@ -3,6 +3,7 @@ import { numberToFrenchWords } from '../utils/numberToWords';
 import { formatDate, PRINT_SCALE } from '../lib/format';
 import type { Company, Currency } from '../lib/types';
 import { brandColors, headerBackground, labelBackground } from '../lib/brand';
+import PaymentBlock from './PaymentBlock';
 
 export interface DocumentLine { name: string; quantity: number; unitPrice: number }
 
@@ -134,7 +135,13 @@ const InvoiceDocument = forwardRef<HTMLDivElement, Props>(function InvoiceDocume
             </div>
           )}
           <div style={{ fontSize: 13, position: 'relative', zIndex: 2 }}>Fait à {settings?.city || 'Kinshasa'} le {formatDate(issueDate)}</div>
-          <div style={{ marginTop: 50, fontWeight: 'bold', fontSize: 14 }}>La direction</div>
+          {settings?.signature
+            ? <img src={settings.signature} alt="Signature" style={{ display: 'block', margin: '6px auto 0', height: 64, maxWidth: 190, objectFit: 'contain' }} />
+            : <div style={{ height: 50 }} />}
+          <div style={{ fontWeight: 'bold', fontSize: 14 }}>La direction</div>
+          {settings && !paid && !cancelled && (
+            <div style={{ marginTop: 14, width: 275 }}><PaymentBlock company={settings} /></div>
+          )}
         </div>
 
         <div style={{ padding: '30px 40px 0 30px', fontSize: 11, lineHeight: 1.3, color: '#000', marginBottom: 20 }}>

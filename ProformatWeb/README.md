@@ -60,6 +60,7 @@ qu'une entreprise ne peut ni lire ni modifier les données d'une autre.
 | **Trésorerie** | Solde de chaque compte (Caisse, Mobile Money, Banque) en USD et en FC et total disponible ; journal unique des entrées (encaissements, autres entrées) et des sorties (dépenses) ; virements entre comptes et solde de départ |
 | **Dépenses & rapports** | Dépenses par catégorie, rapports consolidés au taux de change de l'entreprise |
 | **Entreprise & logo** | Logo, bandeau de bas de page, trois couleurs, coordonnées légales et bancaires, taux de change |
+| **Signature et paiement en ligne** | Signature (et cachet) importée et imprimée au-dessus de « La direction » ; lien de paiement (ex. FlexPaie `vpos.flexpaie.com/pay/FPG_DRC`) imprimé avec son QR code et les moyens acceptés (M-Pesa, Orange Money, Airtel Money, Africell Money, Visa, Mastercard, RakkaCash, Masolo) sur les factures non réglées et ajouté au message WhatsApp |
 | **Modèle de facture** | Modèle standard, ou **import du modèle de l'entreprise** (PDF, PNG, JPEG ; A4 ou A5) adapté dans un éditeur visuel |
 
 ## Pensé pour être simple
@@ -147,5 +148,5 @@ npm run lint && npm run build                                                   
 ```
 
 Couverture : installation protégée, création d'entreprise réservée à OmniCom, rôles sur mesure et
-permissions, blocage et suspension, personnalisation (logo, couleurs), modèle importé (validation, droits, isolation), 2FA, photos de profil, trésorerie (soldes, virements, droits), rapport journalier, effacement des données de test, cycle de facturation
+permissions, blocage et suspension, personnalisation (logo, couleurs), modèle importé (validation, droits, isolation), 2FA, photos de profil, trésorerie (soldes, virements, droits), rapport journalier, effacement des données de test, signature et lien de paiement, cycle de facturation
 complet, isolation entre entreprises et migration des anciennes données.

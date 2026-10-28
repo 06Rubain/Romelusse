@@ -33,7 +33,14 @@ const sanitizeLabels = (labels = {}) => Object.fromEntries(Object.keys(DEFAULT_L
 const getTemplate = async (companyId) => (await InvoiceTemplate.findOne({ company: companyId }))
   || new InvoiceTemplate({ company: companyId });
 
-router.get('/', async (req, res) => res.json(await getTemplate(req.company._id)));
+// Les modèles enregistrés avant l'ajout d'une zone reçoivent sa position par défaut
+const serialize = (template) => {
+  const json = template.toJSON();
+  json.zones = sanitizeZones(json.zones);
+  return json;
+};
+
+router.get('/', async (req, res) => res.json(serialize(await getTemplate(req.company._id))));
 
 router.put('/', requirePermission('settings.manage'), async (req, res) => {
   const template = await getTemplate(req.company._id);
@@ -63,7 +70,7 @@ router.put('/', requirePermission('settings.manage'), async (req, res) => {
   template.markModified('labels');
   await template.save();
   await logActivity(req.user, 'Paramètres', `Modèle de facture : ${template.mode === 'custom' ? 'modèle importé' : 'modèle standard'}`);
-  res.json(template);
+  res.json(serialize(template));
 });
 
 module.exports = router;

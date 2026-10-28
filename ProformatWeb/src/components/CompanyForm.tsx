@@ -3,6 +3,7 @@ import { ImagePlus, Trash2 } from 'lucide-react';
 import { readImageFile } from '../lib/image';
 import { errorMessage } from '../lib/api';
 import type { CompanyDraft } from '../lib/company';
+import { ONLINE_PAYMENT_METHODS } from '../lib/types';
 import { Alert, Field } from './ui';
 import { headerBackground, labelBackground, logoBackground } from '../lib/brand';
 
@@ -67,6 +68,8 @@ export default function CompanyForm({ form, onChange, showRules = true }: { form
             </label>
           ))}
         </div>
+        <ImageInput label="Signature (et cachet) de la direction" value={form.signature} onChange={(v) => set('signature', v)} />
+        <p className="muted small" style={{ marginTop: -8 }}>Photographiez la signature sur une feuille blanche ; un PNG à fond transparent donne le meilleur rendu. Elle est imprimée au-dessus de « La direction ».</p>
         <span className="label muted small">Aperçu de l'en-tête des factures</span>
         <BrandPreview form={form} />
       </div>
@@ -78,6 +81,22 @@ export default function CompanyForm({ form, onChange, showRules = true }: { form
               <input className="input-field" value={String(form[key] ?? '')} onChange={(e) => set(key, e.target.value as never)} />
             </Field>
           ))}
+        </div>
+        <h3>Paiement en ligne</h3>
+        <Field label="Lien de paiement" hint="Imprimé sur les factures avec un QR code et ajouté au message WhatsApp. Ex. : vpos.flexpaie.com/pay/FPG_DRC">
+          <input className="input-field" value={form.paymentLink} onChange={(e) => set('paymentLink', e.target.value)} placeholder="vpos.flexpaie.com/pay/…" />
+        </Field>
+        <div className="input-group">
+          <span className="label">Moyens acceptés par ce lien</span>
+          <div className="choice-chips">
+            {ONLINE_PAYMENT_METHODS.map((m) => {
+              const on = form.paymentMethods.includes(m);
+              return (
+                <button key={m} type="button" className={on ? 'active' : ''} aria-pressed={on}
+                  onClick={() => set('paymentMethods', on ? form.paymentMethods.filter((x) => x !== m) : [...form.paymentMethods, m])}>{m}</button>
+              );
+            })}
+          </div>
         </div>
         {showRules && (
           <>

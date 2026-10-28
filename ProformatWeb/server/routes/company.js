@@ -12,7 +12,7 @@ const router = express.Router();
 router.get('/', (req, res) => res.json(req.company));
 
 router.put('/', requirePermission('settings.manage'), async (req, res) => {
-  const data = sanitizeCompany(req.body);
+  const data = await sanitizeCompany(req.body);
   if (data.name === '') throw new HttpError(400, 'Le nom de l\'entreprise est obligatoire.');
   const company = await Company.findByIdAndUpdate(req.company._id, data, { returnDocument: 'after', runValidators: true });
   await logActivity(req.user, 'Paramètres', 'Mise à jour des paramètres de l\'entreprise');

@@ -1,7 +1,8 @@
 import { forwardRef, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { numberToFrenchWords } from '../utils/numberToWords';
 import { formatDate, PAGE_MM } from '../lib/format';
-import { ZONE_LABELS, type Currency, type InvoiceTemplate, type Zone, type ZoneKey } from '../lib/types';
+import { ZONE_LABELS, type Company, type Currency, type InvoiceTemplate, type Zone, type ZoneKey } from '../lib/types';
+import PaymentBlock from './PaymentBlock';
 import type { DocumentLine } from './InvoiceDocument';
 
 const PT_TO_MM = 0.3528;
@@ -31,6 +32,8 @@ interface Props {
   onZoneChange?: (key: ZoneKey, zone: Zone) => void;
   // Signale les zones dont le contenu ne tient pas, même à la plus petite taille
   onOverflowChange?: (zones: ZoneKey[]) => void;
+  // Signature et paiement en ligne de l'entreprise
+  company?: Company | null;
 }
 
 // Réduit la taille du texte jusqu'à ce que le contenu tienne dans sa zone
@@ -54,7 +57,7 @@ const money = (n: number) => n.toLocaleString('fr-FR', { minimumFractionDigits: 
 
 // Facture rendue sur le modèle importé par l'entreprise
 const TemplateDocument = forwardRef<HTMLDivElement, Props>(function TemplateDocument(
-  { template, data, editable, selected, onSelect, onZoneChange, onOverflowChange }, ref,
+  { template, data, editable, selected, onSelect, onZoneChange, onOverflowChange, company }, ref,
 ) {
   const pageRef = useRef<HTMLDivElement | null>(null);
   const overflowRef = useRef<Set<ZoneKey>>(new Set());
@@ -119,7 +122,7 @@ const TemplateDocument = forwardRef<HTMLDivElement, Props>(function TemplateDocu
     const z = zones[key];
     if (!z.visible) return null;
     const base = key === 'items' ? itemsFont : style.fontSize;
-    const content = key === 'stamp' ? children : (
+    const content = key === 'stamp' || key === 'signature' || key === 'payment' ? children : (
       <FitBox base={base} deps={`${contentKey}|${z.w}|${z.h}`} onOverflow={reportOverflow(key)}>{children}</FitBox>
     );
     return (
@@ -222,6 +225,14 @@ const TemplateDocument = forwardRef<HTMLDivElement, Props>(function TemplateDocu
             {data.cancelled ? labels.cancelled : labels.paid}
           </div>
         ) : null)}
+
+        {zone('signature', company?.signature
+          ? <img src={company.signature} alt="Signature" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+          : editable ? <div style={{ opacity: 0.5, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Signature (Entreprise &amp; logo)</div> : null)}
+
+        {zone('payment', company?.paymentLink && !data.paid && !data.cancelled
+          ? <PaymentBlock company={company} qrSize={(zones.payment.h / 100) * page.h * 3.4} fontSize={style.fontSize} />
+          : editable ? <div style={{ opacity: 0.5 }}>Paiement en ligne (lien dans Entreprise &amp; logo)</div> : null)}
       </div>
     </div>
   );

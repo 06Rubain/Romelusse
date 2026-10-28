@@ -59,7 +59,7 @@ router.get('/companies/:id', async (req, res) => {
 
 // Création d'une entreprise avec ses rôles par défaut et son premier administrateur
 router.post('/companies', async (req, res) => {
-  const data = sanitizeCompany(req.body);
+  const data = await sanitizeCompany(req.body);
   if (!data.name) throw new HttpError(400, 'Le nom de l\'entreprise est obligatoire.');
   if (await Company.exists({ name: data.name })) throw new HttpError(409, 'Une entreprise porte déjà ce nom.');
   const admin = req.body.admin || {};
@@ -78,7 +78,7 @@ router.post('/companies', async (req, res) => {
 
 router.put('/companies/:id', async (req, res) => {
   const company = await findCompany(req.params.id);
-  const data = sanitizeCompany(req.body);
+  const data = await sanitizeCompany(req.body);
   if (data.name === '') throw new HttpError(400, 'Le nom de l\'entreprise est obligatoire.');
   if (req.body.isActive !== undefined) data.isActive = Boolean(req.body.isActive);
   company.set(data);

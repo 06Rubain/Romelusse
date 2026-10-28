@@ -21,6 +21,12 @@ const companySchema = new mongoose.Schema({
   rccm: { type: String, default: '' },
   bankName: { type: String, default: '' },
   bankAccount: { type: String, default: '' },
+  // Signature (et cachet) de la direction, imprimée sur les factures
+  signature: { type: String, default: '' },
+  // Paiement en ligne (ex. lien FlexPaie) : lien, QR code calculé par le serveur et moyens acceptés
+  paymentLink: { type: String, default: '' },
+  paymentQr: { type: String, default: '' },
+  paymentMethods: { type: [String], default: [] },
   // Règles de gestion
   exchangeRate: { type: Number, default: 2250, min: 0 },
   reportingCurrency: { type: String, enum: ['USD', 'FC'], default: 'USD' },

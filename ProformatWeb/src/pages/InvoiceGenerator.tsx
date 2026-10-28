@@ -6,7 +6,7 @@ import { api, errorMessage } from '../lib/api';
 import { useFeedback } from '../components/feedback';
 import { useAuth } from '../auth/AuthContext';
 import { convertAmount, formatDate, formatMoney, PRINT_SCALE, round2, toInputDate } from '../lib/format';
-import { ZONE_LABELS, type Client, type Currency, type Invoice, type InvoiceTemplate, type Product, type ZoneKey } from '../lib/types';
+import { type Company, ZONE_LABELS, type Client, type Currency, type Invoice, type InvoiceTemplate, type Product, type ZoneKey } from '../lib/types';
 import { Alert, Field, StatusBadge } from '../components/ui';
 import InvoiceDocument from '../components/InvoiceDocument';
 import TemplateDocument from '../components/TemplateDocument';
@@ -19,11 +19,14 @@ let lineSeq = 0;
 const newKey = () => `l${++lineSeq}`;
 
 // Message prêt à envoyer au client sur WhatsApp (numéro de sa fiche si renseigné)
-const whatsappLink = (invoice: Invoice, companyName: string, phone?: string) => {
+const whatsappLink = (invoice: Invoice, company: Company | null, phone?: string) => {
+  const companyName = company?.name || '';
   const due = invoice.type === 'Facture' && invoice.balance > 0 && invoice.status !== 'Annulée'
     ? `\nReste à payer : ${formatMoney(invoice.balance, invoice.currency)}` : '';
   const text = `Bonjour ${invoice.client},\nVoici votre ${invoice.type === 'Proforma' ? 'proforma' : 'facture'} ${invoice.number}`
-    + `${companyName ? ` de ${companyName}` : ''}.\nMontant : ${formatMoney(invoice.totalAmount, invoice.currency)}${due}\nMerci pour votre confiance.`;
+    + `${companyName ? ` de ${companyName}` : ''}.\nMontant : ${formatMoney(invoice.totalAmount, invoice.currency)}${due}`
+    + `${company?.paymentLink && invoice.status !== 'Payée' && invoice.status !== 'Annulée' ? `\nPayer en ligne : ${company.paymentLink}${company.paymentMethods?.length ? ` (${company.paymentMethods.join(', ')})` : ''}` : ''}`
+    + '\nMerci pour votre confiance.';
   const digits = (phone || '').replace(/\D/g, '').replace(/^0+/, '');
   const number = digits && digits.length <= 9 ? `243${digits}` : digits;
   return `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
@@ -154,7 +157,7 @@ export default function InvoiceGenerator() {
   const duplicate = () => invoice && navigate('/invoice', { state: { copy: invoice } });
   const shareButtons = invoice && (
     <>
-      <a className="btn btn-whatsapp btn-block" href={whatsappLink(invoice, settings?.name || '', clientPhone)} target="_blank" rel="noreferrer">
+      <a className="btn btn-whatsapp btn-block" href={whatsappLink(invoice, settings, clientPhone)} target="_blank" rel="noreferrer">
         <MessageCircle size={18} /> Envoyer par WhatsApp
       </a>
       {can('invoices.create') && <button className="btn btn-ghost btn-block" onClick={duplicate}><Copy size={18} /> Refaire un document identique</button>}
@@ -460,6 +463,7 @@ export default function InvoiceGenerator() {
           <TemplateDocument
             ref={contentRef}
             template={customTemplate}
+            company={settings}
             onOverflowChange={setOverflow}
             data={{
               type, number: number || suggestedNumber, client: clientName, clientActivity, issueDate, dueDate, currency, lines,

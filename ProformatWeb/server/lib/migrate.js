@@ -1,4 +1,5 @@
 const fs = require('fs');
+const qrcode = require('qrcode');
 const path = require('path');
 const mongoose = require('mongoose');
 const Product = require('../models/Product');
@@ -10,6 +11,8 @@ const Role = require('../models/Role');
 const User = require('../models/User');
 const { createDefaultRoles } = require('../models/Role');
 const { parseLegacyPrice, parseFrenchDate, convert, round2 } = require('./helpers');
+
+const MELANINE_PAYMENT_LINK = 'https://vpos.flexpaie.com/pay/FPG_DRC';
 
 const LEGACY_RATE = 2250;
 const SCOPED_COLLECTIONS = ['products', 'invoices', 'clients', 'payments', 'expenses', 'stockmovements', 'activities'];
@@ -55,6 +58,10 @@ const assignLegacyCompany = async () => {
       primaryColor: '#00a4aa',
       secondaryColor: '#e78a7d',
       accentColor: '#b6100d',
+      // Paiement en ligne FlexPaie de Mélanine Print
+      paymentLink: MELANINE_PAYMENT_LINK,
+      paymentQr: await qrcode.toDataURL(MELANINE_PAYMENT_LINK, { margin: 1, width: 240 }),
+      paymentMethods: ['M-Pesa', 'Orange Money', 'Airtel Money', 'Africell Money', 'Visa', 'Mastercard', 'RakkaCash', 'Masolo'],
       createdBy: 'migration',
     });
   }

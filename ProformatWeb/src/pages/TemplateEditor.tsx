@@ -25,6 +25,8 @@ const DEFAULT_ZONES: Record<ZoneKey, Zone> = {
   words: { x: 6, y: 77, w: 60, h: 6, visible: true, align: 'left' },
   notes: { x: 6, y: 84, w: 55, h: 6, visible: true, align: 'left' },
   stamp: { x: 64, y: 78, w: 30, h: 10, visible: true, align: 'center' },
+  signature: { x: 66, y: 84, w: 28, h: 9, visible: true, align: 'center' },
+  payment: { x: 6, y: 90, w: 56, h: 7, visible: true, align: 'left' },
 };
 
 export default function TemplateEditor() {
@@ -220,7 +222,7 @@ export default function TemplateEditor() {
           <div className="editor-preview tpl-preview">
             <div className="preview-fit">
               {custom ? (
-                <TemplateDocument template={template} data={sample} editable selected={selected} onSelect={setSelected} onZoneChange={(key, z) => updateZone(key, z)} onOverflowChange={setOverflow} />
+                <TemplateDocument template={template} data={sample} company={company} editable selected={selected} onSelect={setSelected} onZoneChange={(key, z) => updateZone(key, z)} onOverflowChange={setOverflow} />
               ) : (
                 <InvoiceDocument {...sample} company={company} printFormat="A4" />
               )}
