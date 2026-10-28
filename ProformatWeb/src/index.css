@@ -716,3 +716,41 @@ input[type=range] { width: 100%; accent-color: var(--primary); }
   .money-grid { grid-template-columns: 1fr; }
   .money-period { grid-template-columns: 1fr; }
 }
+
+/* ---------- Rapport du jour ---------- */
+.day-picker { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+.day-picker .input-field { width: auto; }
+.daily-report .stat-value div { line-height: 1.2; }
+.daily-grid { margin-top: 24px; }
+.print-only { display: none; }
+@media print {
+  /* Les règles d'impression globales ne montrent que les factures : le rapport s'imprime lui aussi, toujours en clair */
+  .daily-report, .daily-report * { visibility: visible; }
+  .daily-report {
+    position: absolute; left: 0; top: 0; width: 100%; padding: 10mm; box-sizing: border-box; background: #fff;
+    --surface: #fff; --surface-2: #f4f6f8; --text: #111; --text-muted: #555; --border: #d9dde3; --border-strong: #c3c8cf;
+    color: #111;
+  }
+  .daily-report .card { box-shadow: none !important; break-inside: avoid; }
+  .daily-report .stat-grid { grid-template-columns: repeat(4, 1fr); }
+  .daily-report .daily-grid { grid-template-columns: 1fr; gap: 16px; }
+  .daily-report .table-container { overflow: visible; }
+  .daily-report .card { padding: 14px 16px; }
+  .daily-report .stat-grid, .daily-report .page-header { margin-bottom: 14px; }
+  .daily-report h3 { margin-bottom: 8px; }
+  .daily-report td, .daily-report th { padding-top: 7px; padding-bottom: 7px; }
+  .daily-report .print-only { display: block; }
+  .daily-report a { color: inherit; text-decoration: none; }
+}
+
+/* ---------- Effacement des données ---------- */
+.danger-zone { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 24px; border-color: color-mix(in srgb, var(--danger) 35%, var(--border)); }
+.danger-zone h3 { margin-bottom: 4px; }
+.danger-zone p { margin: 0; max-width: 620px; }
+.danger-zone.inline { margin-top: 20px; padding: 14px; border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--border)); border-radius: 12px; }
+.danger-note { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 12px; background: var(--danger-soft); color: var(--danger); margin-bottom: 14px; font-size: 0.9rem; }
+.danger-note svg { flex-shrink: 0; margin-top: 1px; }
+.check-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.check-item { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; cursor: pointer; font-size: 0.92rem; }
+.check-item:hover { border-color: var(--border-strong); }
+.check-item input { width: 18px; height: 18px; accent-color: var(--danger); }

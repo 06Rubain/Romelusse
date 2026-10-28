@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertTriangle, Check, FilePlus2, FileText, Package, PiggyBank, Receipt, UserPlus, Wallet, X } from 'lucide-react';
+import { AlertTriangle, CalendarDays, Check, FilePlus2, FileText, Package, PiggyBank, Receipt, UserPlus, Wallet, X } from 'lucide-react';
 import { api } from '../lib/api';
 import { useFetch } from '../lib/useFetch';
 import { useAuth } from '../auth/AuthContext';
@@ -30,6 +30,7 @@ export default function Dashboard() {
     { to: '/invoice', label: 'Nouvelle proforma', hint: 'Envoyer un devis', icon: FileText, tone: 'purple', show: can('invoices.create') },
     { to: '/invoices?status=unpaid', label: 'Encaisser', hint: 'Factures à régler', icon: Wallet, tone: 'green', show: can('payments.create') },
     { to: '/expenses?new=1', label: 'Dépense', hint: 'L\'argent qui sort', icon: Receipt, tone: 'orange', show: can('expenses.manage') },
+    { to: '/daily', label: 'Rapport du jour', hint: 'La journée en un coup d\'œil', icon: CalendarDays, tone: 'green', show: can('payments.create', 'expenses.manage', 'reports.view') },
     { to: '/treasury', label: 'Trésorerie', hint: 'Caisse, Mobile Money, banque', icon: PiggyBank, tone: 'purple', show: can('payments.create', 'expenses.manage', 'reports.view') },
     { to: '/clients?new=1', label: 'Nouveau client', hint: 'Ajouter une fiche', icon: UserPlus, tone: '', show: can('clients.manage') },
   ].filter((a) => a.show);

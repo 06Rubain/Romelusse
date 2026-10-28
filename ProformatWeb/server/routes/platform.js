@@ -11,6 +11,7 @@ const { HttpError, paginate } = require('../lib/helpers');
 const { requireSuperAdmin, sessionUser } = require('../lib/auth');
 const { sanitizeCompany } = require('../lib/company');
 const { logActivity } = require('../lib/activity');
+const { resetCompanyData } = require('../lib/reset');
 const { validatePassword, normalizeEmail } = require('./auth');
 
 // Console OmniCom : seule l'équipe OmniCom crée les entreprises et leurs administrateurs
@@ -85,6 +86,16 @@ router.put('/companies/:id', async (req, res) => {
   const what = req.body.isActive === undefined ? 'Modification' : company.isActive ? 'Réactivation' : 'Suspension';
   await logActivity(req.user, 'Plateforme', `${what} de l'entreprise ${company.name}`, null);
   res.json(company);
+});
+
+// Effacement des données de test d'une entreprise par OmniCom
+router.post('/companies/:id/reset', async (req, res) => {
+  const company = await findCompany(req.params.id);
+  const result = await resetCompanyData(company, req.body);
+  const summary = Object.entries(result.deleted).map(([k, n]) => `${n} ${k}`).join(', ') || 'rien';
+  await logActivity(req.user, 'Plateforme', `Effacement des données de test de ${company.name} : ${summary}`, null);
+  await logActivity(req.user, 'Paramètres', `Effacement des données de test par OmniCom : ${summary}`, company._id);
+  res.json(result);
 });
 
 router.post('/companies/:id/admins', async (req, res) => {

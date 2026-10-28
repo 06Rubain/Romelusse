@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const Payment = require('../models/Payment');
 const Expense = require('../models/Expense');
+const Invoice = require('../models/Invoice');
 const CashMovement = require('../models/CashMovement');
 const { ACCOUNTS, accountForMethod } = require('../models/CashMovement');
 const {
@@ -117,6 +118,73 @@ router.get('/', async (req, res) => {
     exchangeRate: req.company.exchangeRate,
     reportingCurrency: req.company.reportingCurrency || 'USD',
   });
+});
+
+// Rapport journalier : documents émis, argent entré et sorti, soldes d'ouverture et de clôture
+router.get('/daily', async (req, res) => {
+  const company = req.company._id;
+  const day = parseDate(req.query.date) || new Date();
+  const dayKey = day.toISOString().slice(0, 10);
+  const range = dateRangeFilter(dayKey, dayKey);
+  const before = new Date(range.$gte.getTime() - 1);
+
+  const [opening, closing, entries, invoices] = await Promise.all([
+    balancesAt(company, before),
+    balancesAt(company, range.$lte),
+    journal(company, range, null),
+    Invoice.find({ company, issueDate: range }).sort({ createdAt: 1 }).lean(),
+  ]);
+
+  const zero = () => ({ USD: 0, FC: 0 });
+  const totals = { in: zero(), out: zero(), invoiced: zero(), proforma: zero() };
+  const byAccount = Object.fromEntries(ACCOUNTS.map((a) => [a, { in: zero(), out: zero() }]));
+  for (const e of entries) {
+    if (e.kind === 'transfer') {
+      byAccount[e.account].out[e.currency] += e.amount;
+      byAccount[e.toAccount].in[e.currency] += e.amount;
+      continue;
+    }
+    const side = e.amount >= 0 ? 'in' : 'out';
+    totals[side][e.currency] += Math.abs(e.amount);
+    byAccount[e.account][side][e.currency] += Math.abs(e.amount);
+  }
+
+  const products = new Map();
+  for (const inv of invoices) {
+    if (inv.status === 'Annulée') continue;
+    if (inv.type === 'Facture') totals.invoiced[inv.currency] += inv.totalAmount;
+    else totals.proforma[inv.currency] += inv.totalAmount;
+    if (inv.type !== 'Facture') continue;
+    for (const line of inv.products) {
+      const key = `${line.name}|${inv.currency}`;
+      const p = products.get(key) || { name: line.name, currency: inv.currency, quantity: 0, total: 0 };
+      p.quantity += line.quantity;
+      p.total += line.lineTotal;
+      products.set(key, p);
+    }
+  }
+
+  const roundAll = (obj) => {
+    for (const [k, v] of Object.entries(obj)) {
+      if (typeof v === 'number') obj[k] = round2(v);
+      else if (v && typeof v === 'object') roundAll(v);
+    }
+    return obj;
+  };
+
+  res.json(roundAll({
+    date: dayKey,
+    company: { name: req.company.name, exchangeRate: req.company.exchangeRate, reportingCurrency: req.company.reportingCurrency || 'USD' },
+    totals,
+    byAccount,
+    opening,
+    closing,
+    invoices: invoices.map((i) => ({
+      _id: i._id, number: i.number, type: i.type, client: i.client, totalAmount: i.totalAmount, currency: i.currency, status: i.status, createdBy: i.createdBy,
+    })),
+    entries: [...entries].reverse(),
+    topProducts: [...products.values()].sort((a, b) => b.quantity - a.quantity).slice(0, 10),
+  }));
 });
 
 router.post('/movements', async (req, res) => {

@@ -12,6 +12,7 @@ import Clients from './pages/Clients';
 import ProductsList from './pages/ProductsList';
 import Expenses from './pages/Expenses';
 import Treasury from './pages/Treasury';
+import DailyReport from './pages/DailyReport';
 import Reports from './pages/Reports';
 import UsersList from './pages/UsersList';
 import Roles from './pages/Roles';
@@ -59,6 +60,7 @@ function App() {
                   </Route>
                   <Route element={<ProtectedRoute permissions={['payments.create', 'expenses.manage', 'reports.view']} />}>
                     <Route path="/treasury" element={<Treasury />} />
+                    <Route path="/daily" element={<DailyReport />} />
                   </Route>
                   <Route element={<ProtectedRoute permissions={['expenses.manage']} />}>
                     <Route path="/expenses" element={<Expenses />} />

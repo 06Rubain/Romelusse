@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
-import { Building2, CheckCircle2, KeyRound, LogIn, Plus, Power, RefreshCw, Search, Settings2, UserPlus } from 'lucide-react';
+import { Building2, CheckCircle2, KeyRound, LogIn, Plus, Power, RefreshCw, Search, Settings2, Trash2, UserPlus } from 'lucide-react';
 import { api, errorMessage } from '../lib/api';
 import { useFeedback } from '../components/feedback';
 import { useFetch } from '../lib/useFetch';
@@ -10,6 +10,7 @@ import type { Company, User } from '../lib/types';
 import { Alert, EmptyState, Field, Modal, PageHeader, StatCard } from '../components/ui';
 import Avatar from '../components/Avatar';
 import AccessCard from '../components/AccessCard';
+import ResetDataModal from '../components/ResetDataModal';
 import CompanyForm, { ImageInput } from '../components/CompanyForm';
 import { EMPTY_COMPANY, toDraft, type CompanyDraft } from '../lib/company';
 import { dominantColor, generatePassword, type Access } from '../lib/access';
@@ -198,6 +199,7 @@ function CompanyDetail({ id, onClose, onChanged }: { id: string; onClose: () => 
   const [form, setForm] = useState<CompanyDraft | null>(null);
   const [admin, setAdmin] = useState<AdminDraft | null>(null);
   const [access, setAccess] = useState<Access | null>(null);
+  const [resetting, setResetting] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
@@ -280,6 +282,18 @@ function CompanyDetail({ id, onClose, onChanged }: { id: string; onClose: () => 
         </form>
       ) : (
         <button className="btn btn-outline btn-sm" style={{ marginTop: 12 }} onClick={() => { setAccess(null); setAdmin(newAdmin()); }}><UserPlus size={16} /> Ajouter un administrateur</button>
+      )}
+
+      <div className="danger-zone inline">
+        <div>
+          <strong>Données de test</strong>
+          <div className="muted small">Effacer factures, encaissements, dépenses, clients ou produits saisis pour essayer.</div>
+        </div>
+        <button type="button" className="btn btn-sm btn-danger-soft" onClick={() => setResetting(true)}><Trash2 size={15} /> Effacer…</button>
+      </div>
+      {resetting && (
+        <ResetDataModal companyName={company.name} endpoint={`/platform/companies/${id}/reset`} onClose={() => setResetting(false)}
+          onDone={(summary) => { setResetting(false); setMessage(summary); reload(); onChanged(); }} />
       )}
 
       <details className="more-options" style={{ marginTop: 20 }}>

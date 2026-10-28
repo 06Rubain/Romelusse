@@ -56,6 +56,7 @@ qu'une entreprise ne peut ni lire ni modifier les données d'une autre.
 | **Encaissements** | Paiements partiels ou totaux, statut automatique, journal exportable |
 | **Clients** | Fiches, solde dû par devise, historique |
 | **Produits & stock** | Catalogue USD/FC, prix sur devis, stock décrémenté à la facturation, mouvements, seuils d'alerte |
+| **Rapport du jour** | Pour une date : documents émis, facturé, encaissé, dépensé, résultat, caisse et comptes (début et fin de journée), produits vendus, mouvements d'argent ; impression sur une page A4 et résumé envoyé par WhatsApp |
 | **Trésorerie** | Solde de chaque compte (Caisse, Mobile Money, Banque) en USD et en FC et total disponible ; journal unique des entrées (encaissements, autres entrées) et des sorties (dépenses) ; virements entre comptes et solde de départ |
 | **Dépenses & rapports** | Dépenses par catégorie, rapports consolidés au taux de change de l'entreprise |
 | **Entreprise & logo** | Logo, bandeau de bas de page, trois couleurs, coordonnées légales et bancaires, taux de change |
@@ -87,6 +88,13 @@ tienne (un tableau de 25 lignes reste lisible en A5). Si une zone ne peut vraime
 un avertissement s'affiche dans l'éditeur et sur la facture. Le modèle s'applique à toutes les factures
 et proformas, réimpressions comprises ; on peut revenir au modèle standard à tout moment sans perdre
 le modèle importé.
+
+## Effacer les données de test
+
+Dans **Entreprise & logo** (administrateur) ou dans **Gérer** (console OmniCom), « Effacer les données de test » supprime au choix :
+factures, proformas et encaissements (la numérotation repart à 0001), dépenses et trésorerie, clients, produits et stock,
+journal d'activité. L'entreprise, ses utilisateurs, ses rôles, son logo et son modèle de facture sont conservés. L'effacement
+est définitif et n'est possible qu'en tapant le nom exact de l'entreprise ; il est inscrit au journal.
 
 ## Installation
 
@@ -139,5 +147,5 @@ npm run lint && npm run build                                                   
 ```
 
 Couverture : installation protégée, création d'entreprise réservée à OmniCom, rôles sur mesure et
-permissions, blocage et suspension, personnalisation (logo, couleurs), modèle importé (validation, droits, isolation), 2FA, photos de profil, trésorerie (soldes, virements, droits), cycle de facturation
+permissions, blocage et suspension, personnalisation (logo, couleurs), modèle importé (validation, droits, isolation), 2FA, photos de profil, trésorerie (soldes, virements, droits), rapport journalier, effacement des données de test, cycle de facturation
 complet, isolation entre entreprises et migration des anciennes données.

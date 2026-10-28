@@ -188,7 +188,7 @@ export default function Treasury() {
               ))}
               {!loading && data?.entries.length === 0 && (
                 <EmptyRow colSpan={6}>
-                  {hasMoney || period !== 'all' || account ? 'Aucun mouvement d\'argent sur cette période.' : (
+                  {hasMoney || account ?'Aucun mouvement d\'argent sur cette période.' : (
                     <EmptyState icon={<PiggyBank size={28} />} title="Commencez par votre solde de départ"
                       action={canMove && <button className="btn btn-primary" onClick={() => open('opening')}><PiggyBank size={18} /> Indiquer l'argent disponible</button>}>
                       Indiquez l'argent déjà présent dans la caisse, sur Mobile Money et en banque. Ensuite, chaque encaissement et chaque dépense mettra les soldes à jour tout seul.

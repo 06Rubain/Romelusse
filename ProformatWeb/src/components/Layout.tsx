@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   BarChart3, FileText, Users, Package, Wallet, Receipt, PieChart, UserCog, Settings as SettingsIcon,
-  History, LogOut, Menu, X, FilePlus2, ShieldCheck, Building2, LayoutTemplate, Search, Home, Plus, PiggyBank,
+  History, LogOut, Menu, X, FilePlus2, ShieldCheck, Building2, LayoutTemplate, Search, Home, Plus, PiggyBank, CalendarDays,
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import ThemeToggle from './ThemeToggle';
@@ -16,6 +16,7 @@ interface NavItem { to: string; label: string; icon: typeof BarChart3; permissio
 const COMPANY_SECTIONS: { title: string; items: NavItem[] }[] = [
   { title: 'Pilotage', items: [
     { to: '/dashboard', label: 'Tableau de bord', icon: BarChart3 },
+    { to: '/daily', label: 'Rapport du jour', icon: CalendarDays, permissions: ['payments.create', 'expenses.manage', 'reports.view'] },
     { to: '/reports', label: 'Rapports', icon: PieChart, permissions: ['reports.view'] },
   ] },
   { title: 'Ventes', items: [
