@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRightLeft, Ban, Copy, MessageCircle, Minus, Plus, Printer, Save, Trash2, Wallet } from 'lucide-react';
+import { ArrowLeft, ArrowRightLeft, Ban, Copy, ExternalLink, Link2, MessageCircle, Minus, Plus, Printer, Save, Trash2, Wallet } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
 import { api, errorMessage } from '../lib/api';
 import { useFeedback } from '../components/feedback';
@@ -19,13 +19,20 @@ let lineSeq = 0;
 const newKey = () => `l${++lineSeq}`;
 
 // Message prêt à envoyer au client sur WhatsApp (numéro de sa fiche si renseigné)
+// Page client de la facture : la voir et la payer sans compte
+const clientPageUrl = (invoice: Invoice) => (invoice.publicToken ? `${window.location.origin}/p/${invoice.publicToken}` : '');
+
+// Message prêt à envoyer au client sur WhatsApp (numéro de sa fiche si renseigné), avec le lien de sa page
 const whatsappLink = (invoice: Invoice, company: Company | null, phone?: string) => {
   const companyName = company?.name || '';
-  const due = invoice.type === 'Facture' && invoice.balance > 0 && invoice.status !== 'Annulée'
-    ? `\nReste à payer : ${formatMoney(invoice.balance, invoice.currency)}` : '';
+  const open = invoice.status !== 'Payée' && invoice.status !== 'Annulée' && invoice.status !== 'Convertie';
+  const due = invoice.type === 'Facture' && invoice.balance > 0 && open ? `\nReste à payer : ${formatMoney(invoice.balance, invoice.currency)}` : '';
+  const page = clientPageUrl(invoice);
+  const action = page
+    ? `\n${open && company?.paymentLink ? 'Voir et payer en ligne (Mobile Money, carte)' : `Voir ${invoice.type === 'Proforma' ? 'la proforma' : 'la facture'}`} : ${page}`
+    : '';
   const text = `Bonjour ${invoice.client},\nVoici votre ${invoice.type === 'Proforma' ? 'proforma' : 'facture'} ${invoice.number}`
-    + `${companyName ? ` de ${companyName}` : ''}.\nMontant : ${formatMoney(invoice.totalAmount, invoice.currency)}${due}`
-    + `${company?.paymentLink && invoice.status !== 'Payée' && invoice.status !== 'Annulée' ? `\nPayer en ligne : ${company.paymentLink}${company.paymentMethods?.length ? ` (${company.paymentMethods.join(', ')})` : ''}` : ''}`
+    + `${companyName ? ` de ${companyName}` : ''}.\nMontant : ${formatMoney(invoice.totalAmount, invoice.currency)}${due}${action}`
     + '\nMerci pour votre confiance.';
   const digits = (phone || '').replace(/\D/g, '').replace(/^0+/, '');
   const number = digits && digits.length <= 9 ? `243${digits}` : digits;
@@ -160,6 +167,14 @@ export default function InvoiceGenerator() {
       <a className="btn btn-whatsapp btn-block" href={whatsappLink(invoice, settings, clientPhone)} target="_blank" rel="noreferrer">
         <MessageCircle size={18} /> Envoyer par WhatsApp
       </a>
+      {clientPageUrl(invoice) && (
+        <div className="row-gap share-row">
+          <button className="btn btn-outline btn-sm" onClick={async () => {
+            try { await navigator.clipboard.writeText(clientPageUrl(invoice)); toast('Lien de la page client copié : collez-le dans un SMS ou un e-mail.'); } catch { toast(clientPageUrl(invoice), 'info'); }
+          }}><Link2 size={15} /> Copier le lien client</button>
+          <a className="btn btn-ghost btn-sm" href={clientPageUrl(invoice)} target="_blank" rel="noreferrer"><ExternalLink size={15} /> Voir la page client</a>
+        </div>
+      )}
       {can('invoices.create') && <button className="btn btn-ghost btn-block" onClick={duplicate}><Copy size={18} /> Refaire un document identique</button>}
     </>
   );

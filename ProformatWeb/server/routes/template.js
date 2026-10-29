@@ -75,3 +75,4 @@ router.put('/', requirePermission('settings.manage'), async (req, res) => {
 
 module.exports = router;
 module.exports.FONTS = FONTS;
+module.exports.serialize = serialize;

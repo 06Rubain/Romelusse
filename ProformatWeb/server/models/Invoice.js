@@ -1,4 +1,8 @@
+const crypto = require('crypto');
 const mongoose = require('mongoose');
+
+// 24 caractères aléatoires : impossible à deviner
+const newPublicToken = () => crypto.randomBytes(18).toString('base64url');
 
 const TYPES = ['Proforma', 'Facture'];
 const STATUSES = ['En attente', 'Partiellement payée', 'Payée', 'Convertie', 'Annulée'];
@@ -34,6 +38,8 @@ const invoiceSchema = new mongoose.Schema({
   sourceProforma: { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice', default: null },
   convertedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice', default: null },
   createdBy: { type: String, default: '' },
+  // Lien secret de la page client (voir et payer la facture sans compte)
+  publicToken: { type: String },
   // Champs historiques (date texte "jj/mm/aaaa" et total texte "12.00 USD")
   date: { type: String },
   total: { type: String },
@@ -42,6 +48,12 @@ const invoiceSchema = new mongoose.Schema({
 invoiceSchema.index({ company: 1, number: 1 });
 invoiceSchema.index({ company: 1, issueDate: -1 });
 invoiceSchema.index({ clientId: 1 });
+invoiceSchema.index({ publicToken: 1 }, { unique: true, sparse: true });
+
+// Pas de valeur par défaut : Mongoose l'appliquerait aussi aux anciennes factures à chaque lecture, sans l'enregistrer
+invoiceSchema.pre('validate', function ensurePublicToken() {
+  if (!this.publicToken) this.publicToken = newPublicToken();
+});
 
 invoiceSchema.virtual('balance').get(function balance() {
   return Math.max(0, Math.round((this.totalAmount - this.amountPaid) * 100) / 100);
@@ -50,4 +62,5 @@ invoiceSchema.set('toJSON', { virtuals: true });
 
 module.exports = mongoose.model('Invoice', invoiceSchema);
 module.exports.TYPES = TYPES;
+module.exports.newPublicToken = newPublicToken;
 module.exports.STATUSES = STATUSES;

@@ -64,6 +64,8 @@ app.use('/api', async (req, res, next) => {
 });
 
 app.use('/api/auth', require('./routes/auth'));
+// Pages client sans compte (lien secret d'une facture)
+app.use('/api/public', require('./routes/public'));
 
 app.use('/api', requireAuth);
 app.use('/api/platform', require('./routes/platform'));

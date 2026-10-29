@@ -4,6 +4,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import { FeedbackProvider } from './components/feedback';
 import Login from './pages/Login';
+import PublicInvoice from './pages/PublicInvoice';
 import Dashboard from './pages/Dashboard';
 import Invoices from './pages/Invoices';
 import InvoiceGenerator from './pages/InvoiceGenerator';
@@ -36,6 +37,7 @@ function App() {
         <Router>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/p/:token" element={<PublicInvoice />} />
             <Route element={<ProtectedRoute />}>
               <Route element={<Layout />}>
                 <Route path="/profile" element={<Profile />} />

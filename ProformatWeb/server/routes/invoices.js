@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const Invoice = require('../models/Invoice');
+const { newPublicToken } = require('../models/Invoice');
 const Client = require('../models/Client');
 const Payment = require('../models/Payment');
 const { METHODS } = require('../models/Payment');
@@ -129,6 +130,11 @@ router.get('/next-number', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   const invoice = await findInvoice(req);
+  // Les factures créées avant la page client reçoivent leur lien à la première ouverture
+  if (!invoice.publicToken) {
+    invoice.publicToken = newPublicToken();
+    await invoice.save();
+  }
   const payments = await Payment.find({ invoice: invoice._id }).sort({ date: 1 });
   res.json({ ...invoice.toJSON(), payments });
 });

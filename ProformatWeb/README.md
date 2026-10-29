@@ -90,6 +90,21 @@ un avertissement s'affiche dans l'éditeur et sur la facture. Le modèle s'appli
 et proformas, réimpressions comprises ; on peut revenir au modèle standard à tout moment sans perdre
 le modèle importé.
 
+## Page client : voir et payer une facture
+
+Chaque facture et proforma a un **lien secret** (`/p/…`, impossible à deviner) envoyé au client par
+**« Envoyer par WhatsApp »** ou **« Copier le lien client »** (SMS, e-mail). Le client l'ouvre sans compte, sur son
+téléphone :
+
+- montant à payer (reste dû), échéance, déjà payé ;
+- bouton **« Payer maintenant »** vers le lien de paiement de l'entreprise (ex. FlexPaie : M-Pesa, Orange Money,
+  Airtel Money, Africell Money, Visa, Mastercard, RakkaCash, Masolo), avec la référence et le montant à copier ;
+- sinon, les coordonnées bancaires ;
+- la facture elle-même (modèle standard ou importé), à télécharger en PDF.
+
+Une facture réglée affiche « Facture réglée », une facture annulée « Facture annulée ». Si l'entreprise est
+suspendue, ses liens ne s'ouvrent plus. La page ne montre que cette facture et les coordonnées imprimées dessus.
+
 ## Effacer les données de test
 
 Dans **Entreprise & logo** (administrateur) ou dans **Gérer** (console OmniCom), « Effacer les données de test » supprime au choix :
@@ -148,5 +163,5 @@ npm run lint && npm run build                                                   
 ```
 
 Couverture : installation protégée, création d'entreprise réservée à OmniCom, rôles sur mesure et
-permissions, blocage et suspension, personnalisation (logo, couleurs), modèle importé (validation, droits, isolation), 2FA, photos de profil, trésorerie (soldes, virements, droits), rapport journalier, effacement des données de test, signature et lien de paiement, cycle de facturation
+permissions, blocage et suspension, personnalisation (logo, couleurs), modèle importé (validation, droits, isolation), 2FA, photos de profil, trésorerie (soldes, virements, droits), rapport journalier, effacement des données de test, signature et lien de paiement, page client publique, cycle de facturation
 complet, isolation entre entreprises et migration des anciennes données.

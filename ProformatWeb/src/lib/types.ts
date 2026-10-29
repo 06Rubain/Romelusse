@@ -94,6 +94,7 @@ export interface Payment {
 
 export interface Invoice {
   _id: string;
+  publicToken?: string;
   number: string;
   type: 'Proforma' | 'Facture';
   clientId: string | null;
