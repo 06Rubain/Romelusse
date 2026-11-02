@@ -7,7 +7,7 @@ import { useAuth } from '../auth/AuthContext';
 import { downloadCsv, formatDateTime, formatMoney } from '../lib/format';
 import type { Currency, Paginated, Product, StockMovement } from '../lib/types';
 import { Alert, EmptyRow, EmptyState, Field, Modal, PageHeader, Pagination } from '../components/ui';
-import { PRICE_GRID_2026 } from '../utils/priceGrid';
+import CatalogImport from '../components/CatalogImport';
 
 interface ProductForm {
   name: string; description: string; category: string; sku: string; unit: string; unitPrice: string;
@@ -33,7 +33,7 @@ export default function ProductsList() {
   const [editing, setEditing] = useState<{ id: string | null; form: ProductForm } | null>(null);
   const [stockFor, setStockFor] = useState<Product | null>(null);
   const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   const { data, loading, reload } = useFetch(() => api.get<Product[]>('/products', { search, category, lowStock: lowOnly ? 'true' : '' }), [search, category, lowOnly]);
   const categories = useFetch(() => api.get<string[]>('/products/categories'), [data]);
@@ -65,16 +65,6 @@ export default function ProductsList() {
     try { await api.del(`/products/${p._id}`); reload(); toast('Produit supprimé.'); } catch (err) { setError(errorMessage(err)); }
   };
 
-  const importGrid = async () => {
-    if (!(await confirm({ title: 'Importer la grille tarifaire 2026 ?', message: 'Les produits déjà présents (même nom) seront ignorés.', confirmLabel: 'Importer' }))) return;
-    setBusy(true);
-    try {
-      const res = await api.post<{ created: number; skipped: number }>('/products/bulk', { products: PRICE_GRID_2026 });
-      toast(`${res.created} produit(s) importé(s), ${res.skipped} déjà présent(s).`);
-      reload();
-    } catch (err) { setError(errorMessage(err)); } finally { setBusy(false); }
-  };
-
   const exportCsv = () => downloadCsv('produits.csv', ['Nom', 'Catégorie', 'Référence', 'Prix', 'Devise', 'Unité', 'Stock', 'Seuil', 'Actif'],
     (data || []).map((p) => [p.name, p.category, p.sku, p.priceOnQuote ? 'Sur devis' : p.unitPrice, p.currency, p.unit, p.trackStock ? p.stockQuantity : '', p.trackStock ? p.minStock : '', p.isActive ? 'oui' : 'non']));
 
@@ -86,7 +76,7 @@ export default function ProductsList() {
       <PageHeader title="Produits & stock" subtitle={data ? `${data.length} article(s) · valeur du stock : ${Object.entries(stockValue).map(([c, v]) => formatMoney(v, c)).join(' · ') || '—'}` : undefined}
         actions={<>
           <button className="btn btn-outline" onClick={exportCsv}><Download size={18} /> Exporter</button>
-          {canEdit && <button className="btn btn-outline" onClick={importGrid} disabled={busy}><Upload size={18} /> {busy ? 'Import…' : 'Grille 2026'}</button>}
+          {canEdit && <button className="btn btn-outline" onClick={() => setImporting(true)}><Upload size={18} /> Importer</button>}
           {canEdit && <button className="btn btn-primary" onClick={() => openEdit()}><Plus size={18} /> Nouveau produit</button>}
         </>} />
       <Alert>{error}</Alert>
@@ -147,6 +137,8 @@ export default function ProductsList() {
           </div>
         </>
       ) : <Movements />}
+
+      {importing && <CatalogImport onClose={() => setImporting(false)} onDone={(msg) => { setImporting(false); toast(msg); reload(); }} />}
 
       {editing && (
         <Modal title={editing.id ? 'Modifier le produit' : 'Nouveau produit'} onClose={() => setEditing(null)} width={640}>

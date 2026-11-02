@@ -90,6 +90,24 @@ un avertissement s'affiche dans l'éditeur et sur la facture. Le modèle s'appli
 et proformas, réimpressions comprises ; on peut revenir au modèle standard à tout moment sans perdre
 le modèle importé.
 
+## Installer l'application
+
+OmniCom Facturation s'installe comme une application (PWA) depuis le site : page **`/installer`**, bouton
+« Installer l'application » sur l'écran de connexion et dans le menu.
+
+- **Android** (Chrome, Samsung Internet) et **ordinateur** (Chrome, Edge) : installation en un clic ;
+- **iPhone / iPad** (Safari) : Partager → « Sur l'écran d'accueil ».
+
+L'application a son icône OmniCom, s'ouvre en plein écran et se met à jour toute seule. Chaque entreprise s'y connecte
+à **son propre espace** ; les données (`/api`) ne sont jamais conservées sur l'appareil.
+
+## Catalogue de l'entreprise
+
+Chaque entreprise démarre avec un catalogue vide et le construit elle-même : produit par produit, ou en important un
+fichier **CSV** (Excel, Google Sheets) avec les colonnes Nom, Catégorie, Prix (ou « Sur devis »), Devise (USD ou FC),
+Unité, Référence. Un modèle est téléchargeable depuis la fenêtre d'import ; un export du catalogue se réimporte tel quel.
+Les produits déjà présents (même nom) sont ignorés.
+
 ## Page client : voir et payer une facture
 
 Chaque facture et proforma a un **lien secret** (`/p/…`, impossible à deviner) envoyé au client par

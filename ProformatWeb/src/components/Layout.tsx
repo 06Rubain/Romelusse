@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import ThemeToggle from './ThemeToggle';
+import InstallButton from './InstallButton';
 import QuickSearch from './QuickSearch';
 import Avatar from './Avatar';
 import { logoBackground } from '../lib/brand';
@@ -91,9 +92,11 @@ export default function Layout() {
       <aside className={`sidebar nav-sidebar no-print ${open ? 'open' : ''}`}>
         <div className="sidebar-brand">
           <div className="brand">
-            {!inPlatform && company?.logo
-              ? <img src={company.logo} alt="" className="brand-logo" style={logoBackground(company)} />
-              : <span className="brand-mark">{title.charAt(0).toUpperCase()}</span>}
+            {inPlatform
+              ? <img src="/omnicom-mark.png" alt="OmniCom" className="brand-logo omnicom" />
+              : company?.logo
+                ? <img src={company.logo} alt="" className="brand-logo" style={logoBackground(company)} />
+                : <span className="brand-mark">{title.charAt(0).toUpperCase()}</span>}
             <div style={{ minWidth: 0 }}>
               <div className="brand-name">{title}</div>
               <span className="muted small">{inPlatform ? 'Console plateforme' : APP_NAME}</span>
@@ -134,8 +137,9 @@ export default function Layout() {
           <button className="nav-link danger" onClick={handleLogout}>
             <LogOut size={18} /> <span>Déconnexion</span>
           </button>
+          <InstallButton className="nav-link install-link" onDone={() => setOpen(false)} />
           <div className="powered">
-            <span>{APP_NAME}</span>
+            <span className="powered-brand"><img src="/omnicom-mark.png" alt="" />{APP_NAME}</span>
             <ThemeToggle />
           </div>
         </div>

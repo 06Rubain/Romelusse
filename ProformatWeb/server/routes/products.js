@@ -65,6 +65,7 @@ router.post('/', requirePermission('products.manage'), async (req, res) => {
 // Import en masse (grille tarifaire) ; ignore les produits déjà présents
 router.post('/bulk', requirePermission('products.manage'), async (req, res) => {
   const items = Array.isArray(req.body.products) ? req.body.products : [];
+  if (items.length > 2000) throw new HttpError(400, 'Fichier trop long : 2 000 produits maximum par import.');
   let created = 0;
   for (const item of items) {
     const data = sanitize(item);

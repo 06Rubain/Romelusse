@@ -3,9 +3,10 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { FileText, Users, Wallet } from 'lucide-react';
 import { api, errorMessage } from '../lib/api';
 import { useAuth } from '../auth/AuthContext';
-import { APP_NAME, type User } from '../lib/types';
+import type { User } from '../lib/types';
 import { Alert } from '../components/ui';
 import ThemeToggle from '../components/ThemeToggle';
+import InstallButton from '../components/InstallButton';
 
 type Mode = 'loading' | 'unavailable' | 'setup' | 'login' | '2fa';
 interface SessionResponse { token: string; user: User }
@@ -81,7 +82,7 @@ export default function Login() {
   return (
     <div className="login-page">
       <section className="login-hero">
-        <div className="logo-mark"><span>O</span>{APP_NAME}</div>
+        <img src="/omnicom-logo.png" alt="OmniCom" className="login-logo" />
         <div>
           <h2>Vos factures et proformas, simplement.</h2>
           <p>Créez des documents professionnels à votre logo en quelques clics, suivez vos encaissements et pilotez votre activité.</p>
@@ -91,7 +92,10 @@ export default function Login() {
             <li><span><Users size={16} /></span>Chaque collaborateur avec ses propres droits</li>
           </ul>
         </div>
-        <small style={{ color: '#8ea0b8' }}>Plateforme éditée par OmniCom</small>
+        <div className="login-hero-foot">
+          <InstallButton className="btn btn-sm login-install" label="Installer l'application" />
+          <small style={{ color: '#8ea0b8' }}>Plateforme éditée par OmniCom</small>
+        </div>
       </section>
 
       <section className="login-panel">

@@ -1,0 +1,22 @@
+{
+  "name": "OmniCom Facturation",
+  "short_name": "OmniCom",
+  "description": "Factures, proformas, encaissements et trésorerie de votre entreprise.",
+  "lang": "fr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f1b2d",
+  "theme_color": "#0f1b2d",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Nouveau document", "short_name": "Nouveau", "url": "/invoice", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Rapport du jour", "short_name": "Rapport", "url": "/daily", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Trésorerie", "short_name": "Trésorerie", "url": "/treasury", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] }
+  ]
+}
