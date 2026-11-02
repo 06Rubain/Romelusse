@@ -22,7 +22,8 @@ const isLocal = process.env.NODE_ENV !== 'production';
 
 app.use('/api/', rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 600,
+  // Par adresse IP : tout un bureau partage souvent la même ; la connexion garde sa propre limite stricte
+  limit: 3000,
   skip: () => isTest,
   message: { error: 'Trop de requêtes depuis cette adresse IP, veuillez réessayer plus tard.' },
 }));

@@ -106,10 +106,24 @@ export const currentScope = () => {
   return token ? scopeOf(token, getActingCompany()) : '';
 };
 
+// Lecture « copie de l'appareil seulement » : affichage immédiat avant la réponse du serveur
+let cacheOnly = false;
+export const fromCache = <T>(fn: () => Promise<T>): Promise<T> => {
+  cacheOnly = true;
+  try { return fn(); } finally { cacheOnly = false; }
+};
+
 async function request<T>(method: string, path: string, body?: unknown, query?: Query): Promise<T> {
+  const onlyCache = cacheOnly;
   const url = `${path}${buildQuery(query)}`;
   const scope = currentScope();
   const cacheable = method === 'GET' && scope && !path.startsWith('/public');
+
+  if (onlyCache) {
+    const cached = method === 'GET' && cacheable ? await cachedResponse(scope, url) : undefined;
+    if (cached) return cached.data as T;
+    throw new ApiError(-1, 'Pas de copie sur cet appareil.');
+  }
 
   if (method === 'GET') {
     try {

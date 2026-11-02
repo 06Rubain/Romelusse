@@ -9,7 +9,8 @@ const { resetCompanyData } = require('../lib/reset');
 const router = express.Router();
 
 // Profil, personnalisation et règles de l'entreprise connectée
-router.get('/', (req, res) => res.json(req.company));
+// Seule route qui renvoie les images de l'entreprise (le reste de l'API les ignore)
+router.get('/', async (req, res) => res.json(await Company.findById(req.company._id)));
 
 router.put('/', requirePermission('settings.manage'), async (req, res) => {
   const data = await sanitizeCompany(req.body);

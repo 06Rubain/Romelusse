@@ -100,3 +100,8 @@ export function Field({ label, children, hint }: { label: string; children: Reac
     </label>
   );
 }
+
+// Pendant le chargement d'une page (téléchargée à la demande)
+export function PageLoader() {
+  return <div className="page-loader" role="status" aria-label="Chargement"><span /></div>;
+}

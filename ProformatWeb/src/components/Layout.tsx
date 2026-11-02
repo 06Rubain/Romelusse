@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   BarChart3, FileText, Users, Package, Wallet, Receipt, PieChart, UserCog, Settings as SettingsIcon,
@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import ThemeToggle from './ThemeToggle';
+import { PageLoader } from './ui';
 import InstallButton from './InstallButton';
 import OfflineBanner from './OfflineBanner';
 import QuickSearch from './QuickSearch';
@@ -154,7 +155,9 @@ export default function Layout() {
             <button className="btn btn-sm btn-outline" onClick={backToPlatform}>Revenir à la plateforme</button>
           </div>
         )}
-        <Outlet />
+        <Suspense fallback={<PageLoader />}>
+          <Outlet />
+        </Suspense>
       </main>
 
       {!inPlatform && (

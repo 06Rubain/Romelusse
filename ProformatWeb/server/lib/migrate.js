@@ -176,12 +176,23 @@ const normalizeLegacyDocuments = async () => {
 };
 
 // Idempotente : peut s'exécuter à chaque démarrage
+// Une fois la reprise faite, les démarrages suivants (fréquents sur Vercel) ne parcourent plus les collections
+const MIGRATION_VERSION = 1;
+
 const migrateLegacyData = async () => {
   const company = await assignLegacyCompany();
   const counts = await normalizeLegacyDocuments();
+  await mongoose.connection.db.collection('meta')
+    .updateOne({ _id: 'migration' }, { $set: { version: MIGRATION_VERSION, at: new Date() } }, { upsert: true });
   if (company || counts.products || counts.invoices) {
     console.log(`Migration : entreprise ${company?.name || '—'}, ${counts.products} produit(s), ${counts.invoices} facture(s).`);
   }
 };
 
-module.exports = { migrateLegacyData };
+// Au démarrage du serveur : reprise seulement si elle n'a pas encore été faite pour cette version
+const migrateIfNeeded = async () => {
+  const done = await mongoose.connection.db.collection('meta').findOne({ _id: 'migration' });
+  if (!done || done.version < MIGRATION_VERSION) await migrateLegacyData();
+};
+
+module.exports = { migrateLegacyData, migrateIfNeeded };

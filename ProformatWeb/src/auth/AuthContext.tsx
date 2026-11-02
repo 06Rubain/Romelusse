@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
-import { api, ApiError, getActingCompany, getToken, setActingCompany, setToken } from '../lib/api';
+import { api, ApiError, fromCache, getActingCompany, getToken, setActingCompany, setToken } from '../lib/api';
 import { clearCachedResponses, startSync } from '../lib/offline';
 import { warmOfflineCache } from '../lib/warmup';
 
@@ -31,7 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [acting, setActing] = useState(() => Boolean(getActingCompany()));
 
   const refreshCompany = useCallback(async () => {
-    try { setCompany(await api.get<Company>('/company')); } catch { setCompany(null); }
+    try { setCompany(await api.get<Company>('/company')); } catch (err) { if (isRefused(err)) setCompany(null); }
   }, []);
 
   const loadSession = useCallback(async (nextUser: User | null) => {
@@ -61,6 +61,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     (async () => {
+      // Ouverture immédiate avec la session gardée sur l'appareil ; le serveur la confirme juste après
+      if (getToken()) {
+        try {
+          const cachedMe = await fromCache(() => api.get<User>('/auth/me'));
+          const needsCompany = !cachedMe.isSuperAdmin || Boolean(getActingCompany());
+          const cachedCompany = needsCompany ? await fromCache(() => api.get<Company>('/company')).catch(() => null) : null;
+          if (!needsCompany || cachedCompany) {
+            setUser(cachedMe);
+            setCompany(cachedCompany);
+            setLoading(false);
+          }
+        } catch { /* première ouverture sur cet appareil : on attend le serveur */ }
+      }
       let me: User | null = null;
       if (getToken()) {
         try { me = await api.get<User>('/auth/me'); } catch (err) { if (isRefused(err)) setToken(null); }
@@ -102,11 +115,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Session ouverte : envoi des saisies en attente et préparation du mode hors ligne
+  const sessionKey = user ? `${user._id}|${company?._id || ''}` : '';
   useEffect(() => {
-    if (!user) return;
+    if (!sessionKey) return;
     startSync();
-    warmOfflineCache(Boolean(company));
-  }, [user, company]);
+    warmOfflineCache(sessionKey, sessionKey.split('|')[1] !== '');
+  }, [sessionKey]);
 
   const can = useCallback((...permissions: Permission[]) => {
     if (!user) return false;

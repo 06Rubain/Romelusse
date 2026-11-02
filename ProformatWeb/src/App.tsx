@@ -1,30 +1,49 @@
+import { lazy, Suspense, type ComponentType } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import { FeedbackProvider } from './components/feedback';
 import UpdateBar from './components/UpdateBar';
+import { PageLoader } from './components/ui';
 import Login from './pages/Login';
-import PublicInvoice from './pages/PublicInvoice';
-import Installer from './pages/Installer';
+// Page chargée à la demande. Après un déploiement, une ancienne page peut avoir disparu du serveur :
+// on recharge alors une fois l'application (nouvelle version) au lieu d'afficher une erreur.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const page = <P extends Record<string, any>>(load: () => Promise<{ default: ComponentType<P> }>) => lazy(() => load()
+  .then((mod) => { try { sessionStorage.removeItem('page-reload'); } catch { /* ignoré */ } return mod; })
+  .catch((err) => {
+    try {
+      if (!sessionStorage.getItem('page-reload')) {
+        sessionStorage.setItem('page-reload', '1');
+        window.location.reload();
+        return new Promise<never>(() => {});
+      }
+    } catch { /* stockage indisponible */ }
+    throw err;
+  }));
+
+// Pages chargées à la demande : l'ouverture de l'application ne télécharge que la connexion et le tableau de bord
+const PublicInvoice = page(() => import('./pages/PublicInvoice'));
+const Installer = page(() => import('./pages/Installer'));
 import Dashboard from './pages/Dashboard';
-import Invoices from './pages/Invoices';
-import InvoiceGenerator from './pages/InvoiceGenerator';
-import Payments from './pages/Payments';
-import Clients from './pages/Clients';
-import ProductsList from './pages/ProductsList';
-import Expenses from './pages/Expenses';
-import Treasury from './pages/Treasury';
-import DailyReport from './pages/DailyReport';
-import Reports from './pages/Reports';
-import UsersList from './pages/UsersList';
-import Roles from './pages/Roles';
-import Activities from './pages/Activities';
-import SettingsPage from './pages/Settings';
-import TemplateEditor from './pages/TemplateEditor';
-import Profile from './pages/Profile';
-import PlatformCompanies from './pages/PlatformCompanies';
-import PlatformTeam from './pages/PlatformTeam';
+const Invoices = page(() => import('./pages/Invoices'));
+const InvoiceGenerator = page(() => import('./pages/InvoiceGenerator'));
+const Payments = page(() => import('./pages/Payments'));
+const Clients = page(() => import('./pages/Clients'));
+const ProductsList = page(() => import('./pages/ProductsList'));
+const Expenses = page(() => import('./pages/Expenses'));
+const Treasury = page(() => import('./pages/Treasury'));
+const DailyReport = page(() => import('./pages/DailyReport'));
+const Reports = page(() => import('./pages/Reports'));
+const UsersList = page(() => import('./pages/UsersList'));
+const Roles = page(() => import('./pages/Roles'));
+const Activities = page(() => import('./pages/Activities'));
+const SettingsPage = page(() => import('./pages/Settings'));
+const TemplateEditor = page(() => import('./pages/TemplateEditor'));
+const Profile = page(() => import('./pages/Profile'));
+const PlatformCompanies = page(() => import('./pages/PlatformCompanies'));
+const PlatformTeam = page(() => import('./pages/PlatformTeam'));
 import './index.css';
 
 function Home() {
@@ -38,6 +57,7 @@ function App() {
       <FeedbackProvider>
         <UpdateBar />
         <Router>
+          <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/p/:token" element={<PublicInvoice />} />
@@ -92,6 +112,7 @@ function App() {
               <Route path="*" element={<Home />} />
             </Route>
           </Routes>
+          </Suspense>
         </Router>
       </FeedbackProvider>
     </AuthProvider>

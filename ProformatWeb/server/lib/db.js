@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { migrateLegacyData } = require('./migrate');
+const { migrateIfNeeded } = require('./migrate');
 const { ensureSuperAdmin } = require('./bootstrap');
 
 let connecting = null;
@@ -20,7 +20,7 @@ const connectDb = async () => {
   if (!migrated) {
     migrated = true;
     try {
-      await migrateLegacyData();
+      await migrateIfNeeded();
       await ensureSuperAdmin();
     } catch (err) {
       migrated = false;

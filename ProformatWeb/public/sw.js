@@ -1,17 +1,22 @@
 // Service worker d'OmniCom Facturation : application installable et utilisable hors ligne.
 // Les données de l'API ne passent pas par ici : l'application les garde elle-même, par utilisateur (IndexedDB).
-const VERSION = 'v3';
+// Remplacé à chaque déploiement par la construction (vite.config.ts) : chaque version est détectée
+const VERSION = 'v4-__BUILD__';
 const CACHE = `omnicom-${VERSION}`;
 const STATIC = ['/', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png', '/favicon.png', '/apple-touch-icon.png',
   '/omnicom-logo.png', '/omnicom-logo-dark.png', '/omnicom-mark.png'];
 
-// Fichiers de l'application (JS, CSS) cités par la page : tout est gardé dès l'installation
+// Tous les fichiers de l'application (pages chargées à la demande comprises) : gardés dès l'installation
 const appFiles = async () => {
   try {
-    const html = await (await fetch('/', { cache: 'no-store' })).text();
-    return [...new Set([...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((m) => m[1]))];
+    return await (await fetch('/precache.json', { cache: 'no-store' })).json();
   } catch {
-    return [];
+    try {
+      const html = await (await fetch('/', { cache: 'no-store' })).text();
+      return [...new Set([...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((m) => m[1]))];
+    } catch {
+      return [];
+    }
   }
 };
 
@@ -53,7 +58,7 @@ self.addEventListener('fetch', (event) => {
         if (res.ok) (await caches.open(CACHE)).put('/', res.clone());
         return res;
       } catch {
-        return (await caches.match('/')) || Response.error();
+        return (await caches.match('/', { ignoreVary: true })) || Response.error();
       }
     })());
     return;
@@ -62,7 +67,8 @@ self.addEventListener('fetch', (event) => {
   // Fichiers versionnés (/assets/…-hash.js) et images : la copie gardée d'abord, sinon le réseau
   if (url.pathname.startsWith('/assets/') || STATIC.includes(url.pathname)) {
     event.respondWith((async () => {
-      const cached = await caches.match(request);
+      // ignoreVary : un fichier gardé à l'installation doit servir aussi aux scripts de module (en-tête Origin)
+      const cached = await caches.match(request, { ignoreVary: true });
       if (cached) return cached;
       const res = await fetch(request);
       if (res.ok) (await caches.open(CACHE)).put(request, res.clone());

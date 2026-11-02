@@ -3,9 +3,17 @@ import { api } from './api';
 // Après la connexion, garde sur l'appareil ce qu'il faut pour travailler hors ligne :
 // tableau de bord, catalogue, clients, modèle de facture et prochains numéros.
 // Les paramètres doivent être exactement ceux utilisés par les pages pour être retrouvés hors ligne.
-export const warmOfflineCache = (company: boolean) => {
-  if (!company || !navigator.onLine) return;
+// Une seule préparation par session (utilisateur + entreprise), pas à chaque rafraîchissement
+let warmed = '';
+
+export const warmOfflineCache = (sessionKey: string, company: boolean) => {
+  if (!navigator.onLine || warmed === sessionKey) return;
+  warmed = sessionKey;
+  // La session elle-même : l'application doit pouvoir se rouvrir hors ligne juste après la connexion
+  const session = api.get('/auth/me');
+  if (!company) { Promise.allSettled([session]); return; }
   const calls = [
+    session,
     api.get('/products', { active: 'true' }),
     api.get('/clients'),
     api.get('/company/template'),

@@ -39,6 +39,10 @@ const verifyTwoFactorChallenge = (token) => {
   }
 };
 
+// Les images de l'entreprise (logo, bandeau, signature, QR code : plus de 200 Ko) ne servent qu'à l'affichage :
+// elles ne sont pas relues à chaque requête, seulement par GET /api/company
+const LIGHT_COMPANY = '-logo -footerImage -signature -paymentQr';
+
 const requireAuth = async (req, res, next) => {
   const header = req.headers.authorization || '';
   if (!header.startsWith('Bearer ')) {
@@ -55,7 +59,7 @@ const requireAuth = async (req, res, next) => {
     return res.status(401).json({ error: 'Jeton invalide.' });
   }
   // Rôle, permissions et blocage sont relus en base : un changement prend effet immédiatement
-  const user = await User.findById(payload.sub).populate('roleId').populate('company');
+  const user = await User.findById(payload.sub).populate('roleId').populate({ path: 'company', select: LIGHT_COMPANY });
   if (!user) return res.status(401).json({ error: 'Utilisateur introuvable.' });
   if (user.isBlocked) return res.status(403).json({ error: 'Compte bloqué.', isBlocked: true });
   if (!user.isSuperAdmin) {
@@ -69,7 +73,7 @@ const requireAuth = async (req, res, next) => {
   // Un super-admin OmniCom peut ouvrir la console d'une entreprise (en-tête X-Company-Id), avec tous les droits
   const actingId = req.headers['x-company-id'];
   if (user.isSuperAdmin && actingId) {
-    const company = mongoose.isValidObjectId(actingId) ? await Company.findById(actingId) : null;
+    const company = mongoose.isValidObjectId(actingId) ? await Company.findById(actingId).select(LIGHT_COMPANY) : null;
     if (!company) return res.status(404).json({ error: 'Entreprise introuvable.' });
     req.company = company;
     req.permissions = new Set(PERMISSIONS);
