@@ -686,7 +686,7 @@ input[type=range] { width: 100%; accent-color: var(--primary); }
   .bottom-nav .bottom-nav-main.active { color: #fff; }
   .main-content { padding-bottom: 90px; }
   .toasts { bottom: 84px; }
-  .save-bar { bottom: 70px; }
+  .save-bar { bottom: 0; padding-bottom: calc(80px + env(safe-area-inset-bottom)); box-shadow: 0 -10px 16px -12px rgba(15, 23, 42, 0.25); }
 }
 
 /* ---------- Trésorerie ---------- */
@@ -812,7 +812,7 @@ input[type=range] { width: 100%; accent-color: var(--primary); }
 .installer-login:hover { color: var(--primary); }
 .installer-ok { display: inline-flex; align-items: center; gap: 8px; padding: 12px 18px; border-radius: 12px; background: var(--success-soft); color: var(--success); font-weight: 600; margin-top: 10px; }
 .installer-body { max-width: 860px; margin: 0 auto; padding: 28px 16px 48px; display: flex; flex-direction: column; gap: 20px; }
-.installer-points { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.installer-points { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
 .installer-points > div { display: flex; flex-direction: column; gap: 4px; padding: 16px; border-radius: 14px; background: var(--surface); border: 1px solid var(--border); }
 .installer-points svg { color: var(--primary); margin-bottom: 4px; }
 .installer-points span { color: var(--text-muted); font-size: 0.9rem; }
@@ -836,3 +836,28 @@ input[type=range] { width: 100%; accent-color: var(--primary); }
 .crash-page h1 { margin: 0; }
 .crash-page p { max-width: 420px; color: var(--text-muted); margin: 0 0 8px; }
 :root[data-theme="dark"] .crash-page img { filter: invert(1); }
+
+/* ---------- Hors ligne ---------- */
+.offline-stack { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.offline-banner { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-radius: 12px; font-size: 0.9rem; border: 1px solid transparent; }
+.offline-banner > svg { flex-shrink: 0; margin-top: 2px; }
+.offline-banner > span { flex: 1; }
+.offline-banner ul { margin: 6px 0 0; padding-left: 18px; }
+.offline-banner.offline { background: var(--warning-soft); color: var(--text); border-color: color-mix(in srgb, var(--warning) 35%, transparent); }
+.offline-banner.offline > svg { color: var(--warning); }
+.offline-banner.syncing { background: var(--primary-soft); align-items: center; }
+.offline-banner.syncing > svg { color: var(--primary); }
+.offline-banner.failed { background: var(--danger-soft); }
+.offline-banner.failed > svg { color: var(--danger); }
+.link-button { border: none; background: none; padding: 0; color: var(--primary); font: inherit; font-weight: 600; cursor: pointer; text-decoration: underline; }
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.update-bar { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 210; display: flex; align-items: center; gap: 10px; padding: 10px 12px 10px 16px; border-radius: 14px; background: var(--sidebar-bg); color: #fff; box-shadow: var(--shadow-lg); font-size: 0.92rem; max-width: calc(100vw - 32px); }
+@media (max-width: 860px) { .update-bar { bottom: 84px; } }
+.installer-shots { display: grid; grid-template-columns: 2.4fr 1fr 1fr; gap: 12px; align-items: end; }
+.installer-shots img { width: 100%; border-radius: 14px; border: 1px solid var(--border); box-shadow: var(--shadow-lg); background: var(--surface); }
+.installer-qr { display: flex; align-items: center; gap: 14px; padding: 12px; margin-bottom: 14px; border-radius: 12px; background: var(--surface-2); }
+.installer-qr img { width: 110px; height: 110px; border-radius: 8px; background: #fff; }
+.installer-qr div { display: flex; flex-direction: column; gap: 4px; }
+.installer-qr strong { display: inline-flex; align-items: center; gap: 6px; }
+@media (max-width: 760px) { .installer-shots { grid-template-columns: 1fr 1fr; } .installer-shots .wide { grid-column: 1 / -1; } }

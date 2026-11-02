@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeftRight, Banknote, Landmark, Minus, PiggyBank, Plus, Smartphone, Trash2, Wallet, type LucideIcon } from 'lucide-react';
-import { api, errorMessage } from '../lib/api';
+import { api, errorMessage, isQueued, QUEUED_MESSAGE } from '../lib/api';
 import { useAuth } from '../auth/AuthContext';
 import { useFeedback } from '../components/feedback';
 import { useFetch } from '../lib/useFetch';
@@ -80,8 +80,9 @@ export default function Treasury() {
     if (!form) return;
     setError('');
     try {
-      await api.post('/treasury/movements', { ...form, amount: parseFloat(form.amount.replace(',', '.')) });
-      toast(`${MOVEMENT_TITLES[form.type]} enregistré${form.type === 'in' ? 'e' : ''}.`);
+      const res = await api.post('/treasury/movements', { ...form, amount: parseFloat(form.amount.replace(',', '.')) });
+      if (isQueued(res)) toast(QUEUED_MESSAGE, 'info');
+      else toast(`${MOVEMENT_TITLES[form.type]} enregistré${form.type === 'in' ? 'e' : ''}.`);
       setForm(null);
       reload();
     } catch (err) { setError(errorMessage(err)); }

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRightLeft, Ban, Copy, ExternalLink, Link2, MessageCircle, Minus, Plus, Printer, Save, Trash2, Wallet } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
-import { api, errorMessage } from '../lib/api';
+import { api, errorMessage, isQueued, type Queued } from '../lib/api';
 import { useFeedback } from '../components/feedback';
 import { useAuth } from '../auth/AuthContext';
 import { convertAmount, formatDate, formatMoney, PRINT_SCALE, round2, toInputDate } from '../lib/format';
@@ -225,9 +225,15 @@ export default function InvoiceGenerator() {
         await loadInvoice();
         toast('Modifications enregistrées.');
       } else {
-        const created = await api.post<Invoice>('/invoices', body);
-        toast(`${created.type} ${created.number} enregistrée. Vous pouvez l'imprimer ou l'envoyer.`);
-        navigate(`/invoice/${created._id}`, { replace: true });
+        const created = await api.post<Invoice | Queued>('/invoices', body);
+        if (isQueued(created)) {
+          // Hors ligne : le numéro définitif sera attribué par le serveur à l'envoi
+          toast(`${type} pour ${clientName.trim()} enregistrée sur cet appareil : elle sera envoyée et numérotée au retour de la connexion.`, 'info');
+          resetForm();
+        } else {
+          toast(`${created.type} ${created.number} enregistrée. Vous pouvez l'imprimer ou l'envoyer.`);
+          navigate(`/invoice/${created._id}`, { replace: true });
+        }
       }
     } catch (err) {
       setError(errorMessage(err));

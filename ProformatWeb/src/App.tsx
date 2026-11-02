@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './auth/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import { FeedbackProvider } from './components/feedback';
+import UpdateBar from './components/UpdateBar';
 import Login from './pages/Login';
 import PublicInvoice from './pages/PublicInvoice';
 import Installer from './pages/Installer';
@@ -35,6 +36,7 @@ function App() {
   return (
     <AuthProvider>
       <FeedbackProvider>
+        <UpdateBar />
         <Router>
           <Routes>
             <Route path="/login" element={<Login />} />

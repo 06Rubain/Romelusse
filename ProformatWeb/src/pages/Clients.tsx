@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Archive, Download, Edit2, Plus, Search, Users } from 'lucide-react';
-import { api, errorMessage } from '../lib/api';
+import { api, errorMessage, isQueued, QUEUED_MESSAGE } from '../lib/api';
 import { useFeedback } from '../components/feedback';
 import { useFetch } from '../lib/useFetch';
 import { useAuth } from '../auth/AuthContext';
@@ -35,7 +35,7 @@ export default function Clients() {
     setError('');
     try {
       if (editing.id) await api.put(`/clients/${editing.id}`, editing.form);
-      else await api.post('/clients', editing.form);
+      else if (isQueued(await api.post('/clients', editing.form))) toast(QUEUED_MESSAGE, 'info');
       setEditing(null);
       reload();
     } catch (err) { setError(errorMessage(err)); }

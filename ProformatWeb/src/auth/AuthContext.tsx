@@ -1,5 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
-import { api, getActingCompany, getToken, setActingCompany, setToken } from '../lib/api';
+import { api, ApiError, getActingCompany, getToken, setActingCompany, setToken } from '../lib/api';
+import { clearCachedResponses, startSync } from '../lib/offline';
+import { warmOfflineCache } from '../lib/warmup';
+
+// Seul un refus du serveur met fin à la session ; une coupure de réseau la conserve (mode hors ligne)
+const isRefused = (err: unknown) => err instanceof ApiError && (err.status === 401 || err.status === 403);
 import type { Company, Permission, User } from '../lib/types';
 
 interface AuthState {
@@ -47,7 +52,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     try {
       setUser(await api.get<User>('/auth/me'));
-    } catch {
+    } catch (err) {
+      if (!isRefused(err)) return;
       setToken(null);
       setUser(null);
     }
@@ -57,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     (async () => {
       let me: User | null = null;
       if (getToken()) {
-        try { me = await api.get<User>('/auth/me'); } catch { setToken(null); }
+        try { me = await api.get<User>('/auth/me'); } catch (err) { if (isRefused(err)) setToken(null); }
       }
       await loadSession(me);
       setLoading(false);
@@ -87,12 +93,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
+    clearCachedResponses();
     setToken(null);
     setActingCompany(null);
     setActing(false);
     setUser(null);
     setCompany(null);
   }, []);
+
+  // Session ouverte : envoi des saisies en attente et préparation du mode hors ligne
+  useEffect(() => {
+    if (!user) return;
+    startSync();
+    warmOfflineCache(Boolean(company));
+  }, [user, company]);
 
   const can = useCallback((...permissions: Permission[]) => {
     if (!user) return false;

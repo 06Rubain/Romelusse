@@ -1,4 +1,5 @@
 {
+  "id": "/",
   "name": "OmniCom Facturation",
   "short_name": "OmniCom",
   "description": "Factures, proformas, encaissements et trésorerie de votre entreprise.",
@@ -10,13 +11,86 @@
   "background_color": "#ffffff",
   "theme_color": "#0f1b2d",
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ],
   "shortcuts": [
-    { "name": "Nouveau document", "short_name": "Nouveau", "url": "/invoice", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
-    { "name": "Rapport du jour", "short_name": "Rapport", "url": "/daily", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
-    { "name": "Trésorerie", "short_name": "Trésorerie", "url": "/treasury", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] }
+    {
+      "name": "Nouveau document",
+      "short_name": "Nouveau",
+      "url": "/invoice",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Rapport du jour",
+      "short_name": "Rapport",
+      "url": "/daily",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Trésorerie",
+      "short_name": "Trésorerie",
+      "url": "/treasury",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "categories": [
+    "business",
+    "finance",
+    "productivity"
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/ordinateur-1.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Tableau de bord : actions rapides et chiffres du mois"
+    },
+    {
+      "src": "/screenshots/telephone-1.png",
+      "sizes": "585x1266",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Tableau de bord sur téléphone"
+    },
+    {
+      "src": "/screenshots/telephone-2.png",
+      "sizes": "585x1266",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Une facture en 3 étapes"
+    }
   ]
 }

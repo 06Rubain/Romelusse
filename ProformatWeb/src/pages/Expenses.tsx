@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Download, Edit2, Plus, Search, Trash2 } from 'lucide-react';
-import { api, errorMessage } from '../lib/api';
+import { api, errorMessage, isQueued, QUEUED_MESSAGE } from '../lib/api';
 import { useFeedback } from '../components/feedback';
 import { useFetch } from '../lib/useFetch';
 import { downloadCsv, formatByCurrency, formatDate, formatMoney, toInputDate } from '../lib/format';
@@ -34,9 +34,9 @@ export default function Expenses() {
     setError('');
     try {
       if (editing.id) await api.put(`/expenses/${editing.id}`, body);
-      else await api.post('/expenses', body);
+      const res = editing.id ? null : await api.post('/expenses', body);
       setEditing(null);
-      toast('Dépense enregistrée.');
+      toast(isQueued(res) ? QUEUED_MESSAGE : 'Dépense enregistrée.', isQueued(res) ? 'info' : 'success');
       reload();
     } catch (err) { setError(errorMessage(err)); }
   };

@@ -7,6 +7,7 @@ import {
 import { useAuth } from '../auth/AuthContext';
 import ThemeToggle from './ThemeToggle';
 import InstallButton from './InstallButton';
+import OfflineBanner from './OfflineBanner';
 import QuickSearch from './QuickSearch';
 import Avatar from './Avatar';
 import { logoBackground } from '../lib/brand';
@@ -146,6 +147,7 @@ export default function Layout() {
       </aside>
 
       <main className="main-content">
+        <OfflineBanner />
         {acting && (
           <div className="acting-banner no-print">
             <span><Building2 size={16} /><span>Mode OmniCom : vous êtes dans la console de <strong>{company?.name || '…'}</strong>. Vos actions sont enregistrées dans son journal.</span></span>

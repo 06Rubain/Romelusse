@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { api, errorMessage } from '../lib/api';
+import { api, errorMessage, isQueued, QUEUED_MESSAGE } from '../lib/api';
 import { formatMoney, toInputDate } from '../lib/format';
 import { PAYMENT_METHODS, type Invoice } from '../lib/types';
 import { Alert, Field, Modal } from './ui';
@@ -20,9 +20,9 @@ export default function PaymentModal({ invoice, onClose, onSaved }: { invoice: I
     setBusy(true);
     setError('');
     try {
-      await api.post(`/invoices/${invoice._id}/payments`, { amount: parseFloat(amount.replace(',', '.')), method, date, reference, note });
+      const res = await api.post(`/invoices/${invoice._id}/payments`, { amount: parseFloat(amount.replace(',', '.')), method, date, reference, note });
       onSaved();
-      toast('Paiement enregistré.');
+      toast(isQueued(res) ? QUEUED_MESSAGE : 'Paiement enregistré.', isQueued(res) ? 'info' : 'success');
       onClose();
     } catch (err) {
       setError(errorMessage(err));

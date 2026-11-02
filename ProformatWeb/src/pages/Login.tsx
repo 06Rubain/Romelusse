@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { FileText, Users, Wallet } from 'lucide-react';
-import { api, errorMessage } from '../lib/api';
+import { api, ApiError, errorMessage } from '../lib/api';
 import { useAuth } from '../auth/AuthContext';
 import type { User } from '../lib/types';
 import { Alert } from '../components/ui';
@@ -38,7 +38,12 @@ export default function Login() {
         }
       })
       // Sans réponse du serveur, impossible de savoir s'il faut installer ou se connecter
-      .catch((err) => { setError(errorMessage(err)); setMode('unavailable'); });
+      .catch((err) => {
+        setError(err instanceof ApiError && err.status === 0
+          ? 'Pas de connexion internet. La première connexion se fait en ligne ; ensuite, l\'application fonctionne aussi hors ligne sur cet appareil.'
+          : errorMessage(err));
+        setMode('unavailable');
+      });
   }, []);
 
   if (user) {

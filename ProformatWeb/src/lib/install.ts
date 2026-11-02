@@ -19,10 +19,35 @@ if (typeof window !== 'undefined') {
   window.addEventListener('appinstalled', () => { deferred = null; notify(); });
 }
 
+// Nouvelle version prête : l'application propose de la lancer (au lieu de changer en pleine saisie)
+let waitingWorker: ServiceWorker | null = null;
+const markWaiting = (worker: ServiceWorker | null) => { waitingWorker = worker; notify(); };
+
 export const registerServiceWorker = () => {
   if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
-  window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => { /* l'application marche aussi sans */ }); });
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('/sw.js');
+      if (reg.waiting && navigator.serviceWorker.controller) markWaiting(reg.waiting);
+      reg.addEventListener('updatefound', () => {
+        const worker = reg.installing;
+        worker?.addEventListener('statechange', () => {
+          if (worker.state === 'installed' && navigator.serviceWorker.controller) markWaiting(worker);
+        });
+      });
+      // Vérifie les mises à jour quand l'application revient au premier plan
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => {}); });
+    } catch { /* l'application marche aussi sans */ }
+  });
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (reloading || !waitingWorker) return;
+    reloading = true;
+    window.location.reload();
+  });
 };
+
+export const applyUpdate = () => waitingWorker?.postMessage('SKIP_WAITING');
 
 export const isStandalone = () => window.matchMedia?.('(display-mode: standalone)').matches
   || (navigator as Navigator & { standalone?: boolean }).standalone === true;
@@ -40,6 +65,7 @@ export function useInstall() {
   }, []);
   return {
     installed: isStandalone(),
+    updateReady: Boolean(waitingWorker),
     canPrompt: Boolean(deferred),
     ios: isIos(),
     install: async () => {

@@ -27,5 +27,11 @@ export function useFetch<T>(loader: () => Promise<T>, deps: unknown[]) {
 
   useEffect(() => { reload(); }, [reload]);
 
+  // Saisies faites hors ligne envoyées au serveur : les données affichées sont rechargées
+  useEffect(() => {
+    window.addEventListener('omnicom:synced', reload);
+    return () => window.removeEventListener('omnicom:synced', reload);
+  }, [reload]);
+
   return { data, loading, error, reload, setData };
 }

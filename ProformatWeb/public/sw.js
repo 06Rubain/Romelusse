@@ -1,18 +1,40 @@
-// Service worker d'OmniCom Facturation : rend l'application installable et l'ouvre même avec une connexion instable.
-// Les données (/api) ne sont jamais mises en cache : elles viennent toujours du serveur.
-const CACHE = 'omnicom-v2';
-const SHELL = ['/', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png', '/favicon.png', '/omnicom-logo.png', '/omnicom-logo-dark.png', '/omnicom-mark.png'];
+// Service worker d'OmniCom Facturation : application installable et utilisable hors ligne.
+// Les données de l'API ne passent pas par ici : l'application les garde elle-même, par utilisateur (IndexedDB).
+const VERSION = 'v3';
+const CACHE = `omnicom-${VERSION}`;
+const STATIC = ['/', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png', '/favicon.png', '/apple-touch-icon.png',
+  '/omnicom-logo.png', '/omnicom-logo-dark.png', '/omnicom-mark.png'];
+
+// Fichiers de l'application (JS, CSS) cités par la page : tout est gardé dès l'installation
+const appFiles = async () => {
+  try {
+    const html = await (await fetch('/', { cache: 'no-store' })).text();
+    return [...new Set([...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((m) => m[1]))];
+  } catch {
+    return [];
+  }
+};
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting()));
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE);
+    await cache.addAll(STATIC);
+    await cache.addAll(await appFiles());
+    // Première installation : actif tout de suite. Mise à jour : attend que l'utilisateur la lance
+    if (!self.registration.active) await self.skipWaiting();
+  })());
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
-      .then(() => self.clients.claim()),
-  );
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter((k) => k.startsWith('omnicom-') && k !== CACHE).map((k) => caches.delete(k)));
+    await self.clients.claim();
+  })());
 });
 
 self.addEventListener('fetch', (event) => {
@@ -20,30 +42,31 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
   if (request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
 
-  // Pages : le réseau d'abord (toujours la dernière version), la copie locale si la connexion manque
+  // Pages : le réseau d'abord (dernière version), la copie gardée si la connexion manque ou traîne
   if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((cache) => cache.put('/', copy));
-          return res;
-        })
-        .catch(() => caches.match('/')),
-    );
+    event.respondWith((async () => {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 6000);
+        const res = await fetch(request, { signal: controller.signal });
+        clearTimeout(timer);
+        if (res.ok) (await caches.open(CACHE)).put('/', res.clone());
+        return res;
+      } catch {
+        return (await caches.match('/')) || Response.error();
+      }
+    })());
     return;
   }
 
-  // Fichiers versionnés (/assets/…-hash.js) et images : la copie locale d'abord
-  if (url.pathname.startsWith('/assets/') || SHELL.includes(url.pathname)) {
-    event.respondWith(
-      caches.match(request).then((cached) => cached || fetch(request).then((res) => {
-        if (res.ok) {
-          const copy = res.clone();
-          caches.open(CACHE).then((cache) => cache.put(request, copy));
-        }
-        return res;
-      })),
-    );
+  // Fichiers versionnés (/assets/…-hash.js) et images : la copie gardée d'abord, sinon le réseau
+  if (url.pathname.startsWith('/assets/') || STATIC.includes(url.pathname)) {
+    event.respondWith((async () => {
+      const cached = await caches.match(request);
+      if (cached) return cached;
+      const res = await fetch(request);
+      if (res.ok) (await caches.open(CACHE)).put(request, res.clone());
+      return res;
+    })());
   }
 });

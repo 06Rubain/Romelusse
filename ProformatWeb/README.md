@@ -98,8 +98,25 @@ OmniCom Facturation s'installe comme une application (PWA) depuis le site : page
 - **Android** (Chrome, Samsung Internet) et **ordinateur** (Chrome, Edge) : installation en un clic ;
 - **iPhone / iPad** (Safari) : Partager → « Sur l'écran d'accueil ».
 
-L'application a son icône OmniCom, s'ouvre en plein écran et se met à jour toute seule. Chaque entreprise s'y connecte
+L'application a son icône OmniCom, s'ouvre en plein écran et fonctionne hors ligne. La fenêtre d'installation montre des captures de l'application ; la page `/installer` propose un QR code pour l'installer sur un téléphone depuis un ordinateur. Une nouvelle version s'annonce par « Mettre à jour » plutôt que de changer en pleine saisie. Chaque entreprise s'y connecte
 à **son propre espace** ; les données (`/api`) ne sont jamais conservées sur l'appareil.
+
+## Travailler hors ligne
+
+L'application continue de fonctionner quand la connexion est coupée ou instable :
+
+- **Consultation** : les dernières données consultées (tableau de bord, factures, clients, produits, trésorerie…)
+  sont gardées sur l'appareil, pour l'utilisateur connecté uniquement ; elles sont effacées à la déconnexion.
+  Le catalogue, les clients et le modèle de facture sont préparés dès la connexion.
+- **Saisie** : factures et proformas, encaissements, dépenses, clients et mouvements de trésorerie saisis hors ligne
+  sont mis en attente, puis **envoyés automatiquement** au retour du réseau (et toutes les 30 secondes). La facture reçoit
+  son numéro définitif à l'envoi.
+- **Sans doublon** : chaque saisie porte une clé d'idempotence (`Idempotency-Key`) ; si elle est renvoyée après une
+  coupure, le serveur rejoue la première réponse au lieu d'enregistrer une deuxième fois.
+- Un bandeau indique l'état (hors ligne, saisies en attente, envoi en cours) ; une saisie refusée par le serveur est
+  montrée avec la raison. Une coupure de réseau ne déconnecte plus l'utilisateur.
+
+La première connexion sur un appareil se fait en ligne.
 
 ## Catalogue de l'entreprise
 

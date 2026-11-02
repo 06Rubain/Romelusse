@@ -7,6 +7,7 @@ require('dotenv').config();
 
 const { connectDb } = require('./lib/db');
 const { requireAuth, requireCompany, requirePermission } = require('./lib/auth');
+const { idempotency } = require('./lib/idempotency');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -68,6 +69,8 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/public', require('./routes/public'));
 
 app.use('/api', requireAuth);
+// Saisies hors ligne renvoyées après une coupure : jamais enregistrées deux fois
+app.use('/api', idempotency);
 app.use('/api/platform', require('./routes/platform'));
 
 // Espace entreprise : toutes les données sont filtrées par l'entreprise de l'utilisateur
