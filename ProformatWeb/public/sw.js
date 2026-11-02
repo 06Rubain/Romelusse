@@ -1,7 +1,7 @@
 // Service worker d'OmniCom Facturation : rend l'application installable et l'ouvre même avec une connexion instable.
 // Les données (/api) ne sont jamais mises en cache : elles viennent toujours du serveur.
-const CACHE = 'omnicom-v1';
-const SHELL = ['/', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png', '/favicon.png', '/omnicom-logo.png', '/omnicom-mark.png'];
+const CACHE = 'omnicom-v2';
+const SHELL = ['/', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png', '/favicon.png', '/omnicom-logo.png', '/omnicom-logo-dark.png', '/omnicom-mark.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting()));

@@ -47,7 +47,7 @@ export default function Installer() {
   return (
     <div className="installer">
       <section className="installer-hero">
-        <img src="/omnicom-logo.png" alt="OmniCom" className="installer-logo" />
+        <img src="/omnicom-logo-dark.png" alt="OmniCom" className="installer-logo" />
         <h1>OmniCom Facturation</h1>
         <p>Factures, proformas, encaissements et trésorerie de votre entreprise, sur votre téléphone et votre ordinateur.</p>
         {installed || done ? (
