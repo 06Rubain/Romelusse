@@ -23,7 +23,8 @@ const EXPIRY_MS = { mobile: 10 * 60 * 1000, card: 60 * 60 * 1000 };
 const DEMO_DELAY_MS = Number(process.env.CHECKOUT_DEMO_DELAY_MS || 5000);
 
 // Paiement en ligne disponible pour cette entreprise ? Mode, prestataire, identifiants et moyens proposés
-const checkoutConfig = async (companyId) => {
+// currency : devise de la facture, pour ne proposer que les opérateurs qui l'acceptent (portefeuilles pawaPay)
+const checkoutConfig = async (companyId, { currency } = {}) => {
   const company = await Company.findById(companyId)
     .select('+flexpayToken +pawapayToken checkoutMode flexpayMerchant paymentProvider pawapayEnv').lean();
   if (!company || company.checkoutMode === 'off' || !company.checkoutMode) return null;
@@ -33,7 +34,12 @@ const checkoutConfig = async (companyId) => {
     if (!token) return null;
     const env = company.pawapayEnv === 'live' ? 'live' : 'sandbox';
     // Environnement de test pawaPay : vrais appels, mais pas d'argent réel
-    return { mode: env === 'live' ? 'live' : 'sandbox', provider: 'pawapay', env, token, methods: pawapay.METHODS };
+    const base = { mode: env === 'live' ? 'live' : 'sandbox', provider: 'pawapay', env, token, methods: pawapay.METHODS, providerCodes: {} };
+    if (!currency) return base;
+    const wanted = currency === 'FC' ? 'CDF' : currency;
+    const providers = (await pawapay.activeProviders({ env, token })).filter((p) => p.currencies.includes(wanted));
+    const providerCodes = Object.fromEntries(providers.map((p) => [p.method, p.code]));
+    return { ...base, methods: Object.keys(providerCodes), providerCodes };
   }
   const token = decryptSecret(company.flexpayToken);
   if (!(company.flexpayMerchant && token)) return null;
@@ -92,7 +98,7 @@ const fail = async (online, message) => (await OnlinePayment.findOneAndUpdate(
 
 // Démarre un paiement depuis la page du client
 const startCheckout = async ({ invoice, company, method, phone, origin, apiOrigin, token }) => {
-  const config = await checkoutConfig(company._id);
+  const config = await checkoutConfig(company._id, { currency: invoice.currency });
   if (!config) throw new HttpError(400, 'Le paiement en ligne n\'est pas activé pour cette entreprise.');
   if (invoice.type !== 'Facture') throw new HttpError(400, 'Seule une facture se paie en ligne.');
   if (['Annulée', 'Convertie', 'Payée'].includes(invoice.status)) throw new HttpError(400, 'Cette facture n\'attend plus de paiement.');
@@ -130,7 +136,7 @@ const startCheckout = async ({ invoice, company, method, phone, origin, apiOrigi
   const fpCurrency = invoice.currency === 'FC' ? 'CDF' : 'USD';
   const callbackUrl = `${apiOrigin}/api/public/flexpay/callback/${online._id}/${online.callbackKey}`;
   const result = config.provider === 'pawapay'
-    ? await pawapay.startDeposit({ env: config.env, token: config.token, method, phone: msisdn, amount, currency: fpCurrency, reference: online.reference })
+    ? await pawapay.startDeposit({ env: config.env, token: config.token, method, providerCode: config.providerCodes[method], phone: msisdn, amount, currency: fpCurrency, reference: online.reference })
     : channel === 'card'
     ? await flexpay.startCard({ merchant: config.merchant, token: config.token, reference: online.reference, amount, currency: fpCurrency, callbackUrl, returnUrl })
     : await flexpay.startMobile({ merchant: config.merchant, token: config.token, phone: msisdn, reference: online.reference, amount, currency: fpCurrency, callbackUrl });

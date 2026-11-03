@@ -46,7 +46,7 @@ const noticesOf = async (invoice) => (await PaymentNotice.find({ invoice: invoic
 router.get('/invoices/:token', async (req, res) => {
   const { invoice, company } = await loadByToken(req.params.token);
   const template = await InvoiceTemplate.findOne({ company: company._id });
-  const checkout = invoice.type === 'Facture' ? await checkoutConfig(company._id) : null;
+  const checkout = invoice.type === 'Facture' ? await checkoutConfig(company._id, { currency: invoice.currency }) : null;
   const custom = template?.mode === 'custom' && template.background;
 
   res.set('Cache-Control', 'no-store');
@@ -54,7 +54,7 @@ router.get('/invoices/:token', async (req, res) => {
     invoice: pickFields(invoice.toJSON(), INVOICE_FIELDS),
     company: pickFields(company.toJSON(), COMPANY_FIELDS),
     notices: invoice.type === 'Facture' ? await noticesOf(invoice) : [],
-    checkout: checkout ? { mode: checkout.mode, provider: checkout.provider, methods: checkout.methods } : null,
+    checkout: checkout?.methods.length ? { mode: checkout.mode, provider: checkout.provider, methods: checkout.methods } : null,
     template: custom ? pickFields(serializeTemplate(template), ['mode', 'background', 'pageSize', 'zones', 'style', 'labels']) : null,
   });
 });

@@ -150,6 +150,16 @@ test('pawaPay : demande envoyée sur le téléphone, test gratuit sans encaissem
       deposits.set(body.depositId, body);
       return reply(200, { depositId: body.depositId, status: 'ACCEPTED' });
     }
+    if (String(url).includes('/v2/active-conf')) {
+      // Portefeuilles du compte : M-Pesa (CDF, USD), Orange (CDF), Airtel (USD), Africell (USD, en maintenance pour CDF)
+      const cur = (currency, status = 'OPERATIONAL') => ({ currency, operationTypes: { DEPOSIT: { status } } });
+      return reply(200, { countries: [{ country: 'COD', providers: [
+        { provider: 'VODACOM_MPESA_COD', currencies: [cur('CDF'), cur('USD')] },
+        { provider: 'ORANGE_COD', currencies: [cur('CDF')] },
+        { provider: 'AIRTEL_COD', currencies: [cur('USD')] },
+        { provider: 'AFRICELL_COD', currencies: [cur('USD'), cur('CDF', 'CLOSED')] },
+      ] }] });
+    }
     const id = String(url).split('/').pop();
     const d = deposits.get(id);
     return reply(200, { status: 'FOUND', data: { depositId: id, status: 'COMPLETED', amount: d.amount, currency: d.currency } });
@@ -157,12 +167,14 @@ test('pawaPay : demande envoyée sur le téléphone, test gratuit sans encaissem
   try {
     const inv = await newInvoice(12);
     const page = (await request(app).get(`/api/public/invoices/${inv.publicToken}`).expect(200)).body;
-    assert.deepStrictEqual(page.checkout.methods, ['M-Pesa', 'Orange Money', 'Airtel Money']);
+    // Opérateurs lus sur le compte pawaPay, selon la devise de la facture (USD)
+    assert.deepStrictEqual(page.checkout.methods, ['M-Pesa', 'Airtel Money', 'Africell Money']);
+    await request(app).post(`/api/public/invoices/${inv.publicToken}/checkout`).send({ method: 'Orange Money', phone: '0898765432' }).expect(400);
     assert.strictEqual(page.checkout.mode, 'sandbox');
     await request(app).post(`/api/public/invoices/${inv.publicToken}/checkout`).send({ method: 'Carte bancaire' }).expect(400);
 
     const started = (await request(app).post(`/api/public/invoices/${inv.publicToken}/checkout`).send({ method: 'M-Pesa', phone: '0973456789' }).expect(201)).body;
-    const sent = calls[0];
+    const sent = calls.find((c) => c.options.body);
     assert.strictEqual(sent.url, 'https://api.sandbox.pawapay.io/v2/deposits');
     assert.strictEqual(sent.options.headers.Authorization, 'Bearer pawa-key-456');
     const body = JSON.parse(sent.options.body);
@@ -180,14 +192,45 @@ test('pawaPay : demande envoyée sur le téléphone, test gratuit sans encaissem
     // Environnement réel : encaissé automatiquement
     await admin.put('/api/company', { pawapayEnv: 'live' }).expect(200);
     const inv2 = await newInvoice(7);
-    const live = (await request(app).post(`/api/public/invoices/${inv2.publicToken}/checkout`).send({ method: 'Orange Money', phone: '0898765432' }).expect(201)).body;
-    assert.ok(calls.at(-1).url.startsWith('https://api.pawapay.io/v2/deposits'));
+    const live = (await request(app).post(`/api/public/invoices/${inv2.publicToken}/checkout`).send({ method: 'Africell Money', phone: '0901234567' }).expect(201)).body;
+    const africell = JSON.parse(calls.filter((c) => c.options.body).at(-1).options.body);
+    assert.deepStrictEqual(africell.payer.accountDetails, { phoneNumber: '243901234567', provider: 'AFRICELL_COD' });
+    assert.ok(calls.filter((c) => c.options.body).at(-1).url.startsWith('https://api.pawapay.io/v2/deposits'));
     const done = (await request(app).get(`/api/public/invoices/${inv2.publicToken}/checkout/${live.id}`).expect(200)).body;
     assert.strictEqual(done.status, 'Réussi');
     assert.strictEqual(done.invoice.status, 'Payée');
     const after = (await admin.get(`/api/invoices/${inv2._id}`).expect(200)).body;
     assert.strictEqual(after.payments.length, 1);
     assert.strictEqual(after.payments[0].method, 'Mobile Money');
+  } finally {
+    global.fetch = realFetch;
+  }
+});
+
+test('pawaPay : configuration du compte illisible, opérateurs connus proposés', () => {
+  const pawapay = require('../lib/pawapay');
+  assert.deepStrictEqual(pawapay.parseConf({}), []);
+  assert.strictEqual(pawapay.methodName('AFRICELL_COD'), 'Africell Money');
+  assert.strictEqual(pawapay.methodName('VODACOM_MPESA_COD'), 'M-Pesa');
+  // Ancien format (v1 : correspondents)
+  const v1 = pawapay.parseConf({ countries: [{ country: 'COD', correspondents: [{ correspondent: 'ORANGE_COD', currencies: [{ currency: 'CDF', operationTypes: [{ operationType: 'DEPOSIT' }] }] }] }] });
+  assert.deepStrictEqual(v1, [{ method: 'Orange Money', code: 'ORANGE_COD', currencies: ['CDF'] }]);
+});
+
+test('pawaPay : vérification de la clé depuis les réglages', async () => {
+  const realFetch = global.fetch;
+  global.fetch = async (url, options) => ({
+    status: options.headers.Authorization === 'Bearer bonne-cle' ? 200 : 401,
+    text: async () => JSON.stringify({ countries: [{ country: 'COD', providers: [{ provider: 'AFRICELL_COD', currencies: [{ currency: 'USD', operationTypes: { DEPOSIT: { status: 'OPERATIONAL' } } }] }] }] }),
+  });
+  try {
+    await admin.put('/api/company', { checkoutMode: 'live', paymentProvider: 'pawapay', pawapayEnv: 'sandbox', pawapayToken: 'mauvaise-cle' }).expect(200);
+    const bad = (await admin.post('/api/company/pawapay/verify').expect(200)).body;
+    assert.strictEqual(bad.ok, false);
+    await admin.put('/api/company', { pawapayToken: 'bonne-cle' }).expect(200);
+    const good = (await admin.post('/api/company/pawapay/verify').expect(200)).body;
+    assert.strictEqual(good.ok, true);
+    assert.deepStrictEqual(good.providers, [{ method: 'Africell Money', code: 'AFRICELL_COD', currencies: ['USD'] }]);
   } finally {
     global.fetch = realFetch;
   }

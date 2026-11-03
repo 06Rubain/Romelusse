@@ -43,6 +43,16 @@ router.put('/', requirePermission('settings.manage'), async (req, res) => {
   res.json(await withSecrets(company));
 });
 
+// Vérifie la clé pawaPay enregistrée : opérateurs et devises ouverts sur le compte (portefeuilles)
+router.post('/pawapay/verify', requirePermission('settings.manage'), async (req, res) => {
+  const secret = await Company.findById(req.company._id).select('+pawapayToken pawapayEnv').lean();
+  const token = decryptSecret(secret?.pawapayToken);
+  if (!token) throw new HttpError(400, 'Enregistrez d\'abord votre clé API pawaPay.');
+  const env = secret.pawapayEnv === 'live' ? 'live' : 'sandbox';
+  const result = await require('../lib/pawapay').verify({ env, token });
+  res.json({ env, ...result });
+});
+
 // Effacement des données de test (l'entreprise, ses comptes et sa personnalisation sont conservés)
 router.post('/reset', requirePermission('settings.manage'), async (req, res) => {
   const result = await resetCompanyData(req.company, req.body);

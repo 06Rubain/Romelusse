@@ -1,7 +1,7 @@
 import { useRef, useState, type CSSProperties } from 'react';
-import { ImagePlus, Plus, Trash2 } from 'lucide-react';
+import { CheckCircle2, ImagePlus, Plus, ShieldCheck, Trash2 } from 'lucide-react';
 import { readImageFile } from '../lib/image';
-import { errorMessage } from '../lib/api';
+import { api, errorMessage } from '../lib/api';
 import type { CompanyDraft } from '../lib/company';
 import { ACCOUNT_PROVIDERS, ONLINE_PAYMENT_METHODS, type PaymentAccount } from '../lib/types';
 import { Alert, Field } from './ui';
@@ -65,6 +65,34 @@ function PaymentAccountsEditor({ value, onChange }: { value: PaymentAccount[]; o
           <Plus size={16} /> Ajouter un numéro ou un compte
         </button>
       )}
+    </div>
+  );
+}
+
+// Vérifie la clé pawaPay enregistrée : lit les opérateurs (portefeuilles) ouverts sur le compte
+function PawapayCheck({ saved }: { saved: boolean }) {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; env: string; message?: string; providers?: { method: string; currencies: string[] }[] } | null>(null);
+  const verify = async () => {
+    setBusy(true);
+    setResult(null);
+    try { setResult(await api.post('/company/pawapay/verify')); } catch (err) { setResult({ ok: false, env: '', message: errorMessage(err) }); } finally { setBusy(false); }
+  };
+  return (
+    <div className="pawapay-check">
+      <button type="button" className="btn btn-outline btn-sm" onClick={verify} disabled={busy || !saved}>
+        <ShieldCheck size={16} /> {busy ? 'Vérification…' : 'Vérifier ma clé pawaPay'}
+      </button>
+      {!saved && <span className="muted small">Enregistrez d'abord la clé.</span>}
+      {result?.ok && (
+        <div className="alert alert-success small">
+          <strong><CheckCircle2 size={15} /> Connexion à pawaPay réussie ({result.env === 'live' ? 'réel' : 'test'}).</strong>
+          {result.providers?.length ? (
+            <div>Opérateurs ouverts sur votre compte : {result.providers.map((p) => `${p.method} (${p.currencies.join(', ')})`).join(' · ')}</div>
+          ) : <div>Aucun portefeuille Mobile Money ouvert en RDC sur ce compte : activez-les dans pawaPay (Finances → Wallets).</div>}
+        </div>
+      )}
+      {result && !result.ok && <div className="alert alert-danger small">{result.message}</div>}
     </div>
   );
 }
@@ -161,6 +189,7 @@ export default function CompanyForm({ form, onChange, showRules = true, tokenSet
               <li>Créez votre compte gratuit sur <a href="https://dashboard.sandbox.pawapay.io" target="_blank" rel="noreferrer">dashboard.sandbox.pawapay.io</a> (test) ; le compte réel s'ouvre après validation de votre entreprise par pawaPay.</li>
               <li>Dans le tableau de bord pawaPay : <strong>System configuration → API tokens</strong>, générez une clé et collez-la ci-dessous.</li>
               <li>Dans <strong>Callback URLs → Deposits</strong>, collez : <code>{`${window.location.origin}/api/public/pawapay/callback`}</code></li>
+              <li>Vos clients voient les opérateurs ouverts sur votre compte (<strong>Finances → Wallets</strong> : M-Pesa, Orange, Airtel, Africell…), selon la devise de la facture.</li>
             </ol>
             <div className="form-grid">
               <Field label="Environnement pawaPay">
@@ -177,6 +206,7 @@ export default function CompanyForm({ form, onChange, showRules = true, tokenSet
             {form.pawapayEnv === 'sandbox' && (
               <div className="alert alert-info small">Environnement de test : la page de paiement appelle vraiment pawaPay, mais aucun argent ne bouge et la facture ne change pas. Numéro de test M-Pesa qui réussit : <strong>0973456789</strong>.</div>
             )}
+            <PawapayCheck saved={pawapayTokenSet} />
             {!(pawapayTokenSet || form.pawapayToken) && (
               <div className="alert alert-warning small">Tant que la clé pawaPay n'est pas enregistrée, la page de paiement propose seulement vos numéros et « J'ai payé ».</div>
             )}

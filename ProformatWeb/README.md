@@ -168,6 +168,10 @@ automatiquement (une seule fois), la facture passe en « Payée » et la trésor
   vraiment pawaPay mais rien n'est encaissé (numéro de test M-Pesa qui réussit : 0973456789). Passez en *Réel* quand
   pawaPay a validé votre compte (commission par transaction, pas d'abonnement). Adresse de notification à saisir dans
   pawaPay (*Callback URLs → Deposits*) : `https://VOTRE-SITE/api/public/pawapay/callback`.
+  Les opérateurs proposés au client sont lus sur **votre compte pawaPay** (portefeuilles *Finances → Wallets* :
+  M-Pesa, Orange Money, Airtel Money, Africell Money… selon ce que pawaPay a ouvert), en ne gardant que ceux qui
+  acceptent la devise de la facture. Le bouton **« Vérifier ma clé pawaPay »** (Entreprise & logo) interroge le vrai
+  compte et affiche ces opérateurs : c'est le moyen de confirmer que la connexion fonctionne.
 - **FlexPaie** : Mobile Money (dont Africell) et carte, avec le code marchand et la clé fournis par FlexPaie.
 
 **Sécurité du paiement en ligne**
