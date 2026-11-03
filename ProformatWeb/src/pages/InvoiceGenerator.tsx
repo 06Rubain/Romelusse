@@ -6,7 +6,7 @@ import { api, errorMessage, isQueued, type Queued } from '../lib/api';
 import { useFeedback } from '../components/feedback';
 import { useAuth } from '../auth/AuthContext';
 import { convertAmount, formatDate, formatMoney, PRINT_SCALE, round2, toInputDate } from '../lib/format';
-import { type Company, ZONE_LABELS, type Client, type Currency, type Invoice, type InvoiceTemplate, type Product, type ZoneKey } from '../lib/types';
+import { DOC_INFO, DOC_TYPES, docTypeFrom, type DocType, type Company, ZONE_LABELS, type Client, type Currency, type Invoice, type InvoiceTemplate, type Product, type ZoneKey } from '../lib/types';
 import { Alert, Field, StatusBadge } from '../components/ui';
 import InvoiceDocument from '../components/InvoiceDocument';
 import TemplateDocument from '../components/TemplateDocument';
@@ -29,9 +29,9 @@ const whatsappLink = (invoice: Invoice, company: Company | null, phone?: string)
   const due = invoice.type === 'Facture' && invoice.balance > 0 && open ? `\nReste à payer : ${formatMoney(invoice.balance, invoice.currency)}` : '';
   const page = clientPageUrl(invoice);
   const action = page
-    ? `\n${open && company?.paymentLink ? 'Voir et payer en ligne (Mobile Money, carte)' : `Voir ${invoice.type === 'Proforma' ? 'la proforma' : 'la facture'}`} : ${page}`
+    ? `\n${open && company?.paymentLink ? 'Voir et payer en ligne (Mobile Money, carte)' : `Voir ${DOC_INFO[invoice.type].the}`} : ${page}`
     : '';
-  const text = `Bonjour ${invoice.client},\nVoici votre ${invoice.type === 'Proforma' ? 'proforma' : 'facture'} ${invoice.number}`
+  const text = `Bonjour ${invoice.client},\nVoici votre ${DOC_INFO[invoice.type].name} ${invoice.number}`
     + `${companyName ? ` de ${companyName}` : ''}.\nMontant : ${formatMoney(invoice.totalAmount, invoice.currency)}${due}${action}`
     + '\nMerci pour votre confiance.';
   const digits = (phone || '').replace(/\D/g, '').replace(/^0+/, '');
@@ -55,7 +55,7 @@ export default function InvoiceGenerator() {
   // Formulaire
   const [searchParams] = useSearchParams();
   const location = useLocation();
-  const [type, setType] = useState<'Proforma' | 'Facture'>(() => (searchParams.get('type') === 'Facture' ? 'Facture' : 'Proforma'));
+  const [type, setType] = useState<DocType>(() => docTypeFrom(searchParams.get('type')));
   const [number, setNumber] = useState('');
   const [suggestedNumber, setSuggestedNumber] = useState('');
   const [clientName, setClientName] = useState('');
@@ -81,7 +81,7 @@ export default function InvoiceGenerator() {
   const contentRef = useRef<HTMLDivElement>(null);
   const print = useReactToPrint({ contentRef, documentTitle: number || 'facture' });
 
-  const editable = !id || (invoice?.type === 'Proforma' && invoice.status === 'En attente');
+  const editable = !id || (!!invoice && invoice.type !== 'Facture' && invoice.status === 'En attente');
 
   useEffect(() => {
     api.get<Product[]>('/products', { active: 'true' }).then(setCatalog).catch(() => setCatalog([]));
@@ -122,7 +122,7 @@ export default function InvoiceGenerator() {
 
   function resetForm() {
     const copy = (location.state as { copy?: Invoice } | null)?.copy;
-    setType(copy?.type || (searchParams.get('type') === 'Facture' ? 'Facture' : 'Proforma'));
+    setType(copy?.type || docTypeFrom(searchParams.get('type')));
     setNumber(''); setClientName(copy?.client || ''); setClientActivity(copy?.clientActivity || ''); setIssueDate(toInputDate());
     setDueDate(''); setCurrency(copy?.currency || 'USD'); setDiscount(copy?.discount ? String(copy.discount) : ''); setNotes(copy?.notes || '');
     setLines(copy ? copy.products.map((l) => ({ key: newKey(), productId: l.productId, name: l.name, quantity: l.quantity, unitPrice: l.unitPrice })) : []);
@@ -243,7 +243,7 @@ export default function InvoiceGenerator() {
   };
 
   const convert = async () => {
-    if (!invoice || !(await confirm({ title: 'Convertir en facture ?', message: 'Une facture sera créée à partir de cette proforma et le stock sera mis à jour.', confirmLabel: 'Convertir' }))) return;
+    if (!invoice || !(await confirm({ title: 'Convertir en facture ?', message: `Une facture sera créée à partir de ${invoice.type === 'Proforma' ? 'cette proforma' : 'ce bon de commande'} et le stock sera mis à jour.`, confirmLabel: 'Convertir' }))) return;
     try {
       const created = await api.post<Invoice>(`/invoices/${invoice._id}/convert`);
       navigate(`/invoice/${created._id}`);
@@ -283,10 +283,10 @@ export default function InvoiceGenerator() {
           <>
             <div className="step-title"><span>1</span>Type et client</div>
             <div className="segmented segmented-lg" role="radiogroup" aria-label="Type de document">
-              {(['Proforma', 'Facture'] as const).map((t) => (
+              {DOC_TYPES.map((t) => (
                 <button key={t} type="button" role="radio" aria-checked={type === t} className={type === t ? 'active' : ''}
                   onClick={() => setType(t)} disabled={!!id && type !== t}>
-                  {t === 'Proforma' ? 'Proforma (devis)' : 'Facture'}
+                  {DOC_INFO[t].choice}
                 </button>
               ))}
             </div>
@@ -410,15 +410,15 @@ export default function InvoiceGenerator() {
                 <div className="strong"><span>Total</span><span>{formatMoney(total, currency)}</span></div>
               </div>
               <button className="btn btn-primary btn-block btn-lg" onClick={save} disabled={busy}>
-                <Save size={18} /> {busy ? 'Enregistrement…' : id ? 'Enregistrer les modifications' : `Enregistrer ${type === 'Proforma' ? 'la proforma' : 'la facture'}`}
+                <Save size={18} /> {busy ? 'Enregistrement…' : id ? 'Enregistrer les modifications' : `Enregistrer ${DOC_INFO[type].the}`}
               </button>
             </div>
             {id && (
               <div className="stack-sm" style={{ marginTop: 10 }}>
                 <button className="btn btn-outline btn-block" onClick={() => print()}><Printer size={18} /> Imprimer / PDF</button>
                 {shareButtons}
-                {invoice?.type === 'Proforma' && <button className="btn btn-outline btn-block" onClick={convert}><ArrowRightLeft size={18} /> Le client accepte : convertir en facture</button>}
-                {invoice && can('invoices.cancel') && <button className="btn btn-ghost btn-block text-danger" onClick={cancel}><Ban size={18} /> Annuler la proforma</button>}
+                {invoice && invoice.type !== 'Facture' && <button className="btn btn-outline btn-block" onClick={convert}><ArrowRightLeft size={18} /> {invoice.type === 'Proforma' ? 'Le client accepte : convertir en facture' : 'Commande confirmée : transformer en facture'}</button>}
+                {invoice && can('invoices.cancel') && <button className="btn btn-ghost btn-block text-danger" onClick={cancel}><Ban size={18} /> Annuler {DOC_INFO[invoice.type].the}</button>}
               </div>
             )}
           </>
@@ -434,7 +434,7 @@ export default function InvoiceGenerator() {
               <div><span>Créée par</span><strong>{invoice.createdBy || '—'}</strong></div>
             </div>
             {invoice.convertedTo && <Alert tone="info">Convertie en facture : <Link to={`/invoice/${invoice.convertedTo}`}>voir la facture</Link></Alert>}
-            {invoice.sourceProforma && <p className="muted small">Issue de la <Link to={`/invoice/${invoice.sourceProforma}`}>proforma d'origine</Link>.</p>}
+            {invoice.sourceProforma && <p className="muted small">Issue du <Link to={`/invoice/${invoice.sourceProforma}`}>document d'origine</Link>.</p>}
 
             {!customTemplate && (
             <Field label="Format d'impression">

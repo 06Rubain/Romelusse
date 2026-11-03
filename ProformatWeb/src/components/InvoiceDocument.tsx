@@ -1,14 +1,14 @@
 import { forwardRef } from 'react';
 import { numberToFrenchWords } from '../utils/numberToWords';
 import { formatDate, PRINT_SCALE } from '../lib/format';
-import type { Company, Currency } from '../lib/types';
+import { DOC_INFO, type Company, type Currency, type DocType } from '../lib/types';
 import { brandColors, headerBackground, labelBackground } from '../lib/brand';
 import PaymentBlock from './PaymentBlock';
 
 export interface DocumentLine { name: string; quantity: number; unitPrice: number }
 
 interface Props {
-  type: 'Proforma' | 'Facture';
+  type: DocType;
   number: string;
   client: string;
   clientActivity: string;
@@ -58,8 +58,8 @@ const InvoiceDocument = forwardRef<HTMLDivElement, Props>(function InvoiceDocume
         <div style={{ width: 2, height: 90, background: 'white', margin: '0 30px' }} />
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', marginBottom: 8, alignItems: 'center' }}>
-            <div style={{ background: labelBackground(settings), color: 'white', padding: '6px 15px', fontWeight: 'bold', fontSize: 14, minWidth: 130, textAlign: 'center' }}>
-              {type === 'Proforma' ? 'PROFORMA N°' : 'FACTURE N°'}
+            <div style={{ background: labelBackground(settings), color: 'white', padding: '6px 15px', fontWeight: 'bold', fontSize: 14, minWidth: 130, textAlign: 'center', whiteSpace: 'nowrap' }}>
+              {DOC_INFO[type].title}
             </div>
             <div style={{ background: 'white', color: 'black', padding: '6px 15px', fontWeight: 'bold', fontSize: 14, width: 220 }}>: {number}</div>
           </div>

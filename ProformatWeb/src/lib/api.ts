@@ -50,7 +50,7 @@ export const buildQuery = (query?: Query) => {
 
 // Saisies qui peuvent attendre le retour de la connexion (envoyées ensuite, sans doublon)
 const QUEUEABLE: [RegExp, (body: Record<string, unknown>) => string][] = [
-  [/^\/invoices$/, (b) => `${b.type === 'Proforma' ? 'Proforma' : 'Facture'} pour ${b.client || 'un client'}`],
+  [/^\/invoices$/, (b) => `${b.type || 'Facture'} pour ${b.client || 'un client'}`],
   [/^\/invoices\/[a-f0-9]{24}\/payments$/, (b) => `Encaissement de ${b.amount}`],
   [/^\/expenses$/, (b) => `Dépense : ${b.description || ''}`],
   [/^\/clients$/, (b) => `Nouveau client : ${b.name || ''}`],

@@ -6,7 +6,7 @@ import { useFetch } from '../lib/useFetch';
 import { formatByCurrency, formatDate, formatMoney, toInputDate } from '../lib/format';
 import type { Currency } from '../lib/types';
 import { Alert, EmptyRow, PageHeader, StatusBadge } from '../components/ui';
-import type { InvoiceStatus } from '../lib/types';
+import type { DocType, InvoiceStatus } from '../lib/types';
 
 type Account = 'Caisse' | 'Mobile Money' | 'Banque';
 type Money = Record<Currency, number>;
@@ -17,7 +17,7 @@ interface Daily {
   byAccount: Record<Account, { in: Money; out: Money }>;
   opening: Record<Account, Money>;
   closing: Record<Account, Money>;
-  invoices: { _id: string; number: string; type: 'Proforma' | 'Facture'; client: string; totalAmount: number; currency: Currency; status: InvoiceStatus; createdBy: string }[];
+  invoices: { _id: string; number: string; type: DocType; client: string; totalAmount: number; currency: Currency; status: InvoiceStatus; createdBy: string }[];
   entries: { _id: string; kind: string; date: string; amount: number; currency: Currency; account: Account; toAccount?: Account; label: string; detail?: string; invoice?: string }[];
   topProducts: { name: string; currency: Currency; quantity: number; total: number }[];
 }
@@ -42,7 +42,7 @@ const whatsappText = (r: Daily) => {
   const net: Money = { USD: r.totals.in.USD - r.totals.out.USD, FC: r.totals.in.FC - r.totals.out.FC };
   return [
     `*Rapport du ${formatDate(r.date)} — ${r.company.name}*`,
-    `Documents : ${r.invoices.filter((i) => i.type === 'Facture').length} facture(s), ${r.invoices.filter((i) => i.type === 'Proforma').length} proforma(s)`,
+    `Documents : ${r.invoices.filter((i) => i.type === 'Facture').length} facture(s), ${r.invoices.filter((i) => i.type === 'Proforma').length} proforma(s), ${r.invoices.filter((i) => i.type === 'Bon de commande').length} bon(s) de commande`,
     `Facturé : ${line(r.totals.invoiced)}`,
     `Encaissé : ${line(r.totals.in)}`,
     `Dépensé : ${line(r.totals.out)}`,
@@ -60,6 +60,7 @@ export default function DailyReport() {
   const net: Money | null = r ? { USD: r.totals.in.USD - r.totals.out.USD, FC: r.totals.in.FC - r.totals.out.FC } : null;
   const factures = r?.invoices.filter((i) => i.type === 'Facture').length ?? 0;
   const proformas = r?.invoices.filter((i) => i.type === 'Proforma').length ?? 0;
+  const commandes = r?.invoices.filter((i) => i.type === 'Bon de commande').length ?? 0;
 
   return (
     <div className="animate-fade-in daily-report">
@@ -80,7 +81,7 @@ export default function DailyReport() {
       {r && net && (
         <>
           <div className="stat-grid">
-            <div className="card stat-card"><div className="muted small">Facturé</div><div className="stat-value"><Amounts value={r.totals.invoiced} /></div><div className="muted small">{factures} facture(s) · {proformas} proforma(s)</div></div>
+            <div className="card stat-card"><div className="muted small">Facturé</div><div className="stat-value"><Amounts value={r.totals.invoiced} /></div><div className="muted small">{factures} facture(s) · {proformas} proforma(s){commandes > 0 ? ` · ${commandes} bon(s) de commande` : ''}</div></div>
             <div className="card stat-card"><div className="muted small">Encaissé (entrées)</div><div className="stat-value text-success"><Amounts value={r.totals.in} sign="+ " /></div></div>
             <div className="card stat-card"><div className="muted small">Dépensé (sorties)</div><div className="stat-value text-danger"><Amounts value={r.totals.out} sign="− " /></div></div>
             <div className="card stat-card"><div className="muted small">Résultat du jour</div><div className={`stat-value ${net.USD < 0 || net.FC < 0 ? 'text-danger' : ''}`}><Amounts value={net} /></div></div>

@@ -18,6 +18,7 @@ export const warmOfflineCache = (sessionKey: string, company: boolean) => {
     api.get('/clients'),
     api.get('/company/template'),
     api.get('/invoices/next-number', { type: 'Proforma' }),
+    api.get('/invoices/next-number', { type: 'Bon de commande' }),
     api.get('/invoices/next-number', { type: 'Facture' }),
     api.get('/reports/summary'),
     api.get('/invoices', { limit: 8 }),

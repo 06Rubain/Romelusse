@@ -1,7 +1,7 @@
 # OmniCom Facturation
 
 Plateforme de facturation multi-entreprise éditée par **OmniCom**. Chaque entreprise cliente dispose
-d'un espace isolé pour émettre ses **proformas** et **factures** à son logo et à ses couleurs, suivre
+d'un espace isolé pour émettre ses **proformas**, **bons de commande** et **factures** à son logo et à ses couleurs, suivre
 ses encaissements, ses clients, son stock et ses dépenses.
 
 - **Frontend** : React 19 + TypeScript + Vite (`src/`)
@@ -53,6 +53,7 @@ qu'une entreprise ne peut ni lire ni modifier les données d'une autre.
 |---|---|
 | **Tableau de bord** | CA facturé et encaissé, créances et retards, résultat, graphique sur 12 mois, alertes de stock |
 | **Factures & proformas** | Modèle imprimable A4/A5/A6 au logo, aux couleurs et aux coordonnées de l'entreprise, remise, échéance, conversion proforma → facture, annulation, export CSV |
+| **Bons de commande** | Commande d'un client numérotée `BC-AAAA-0001`, au même modèle (titre « BON DE COMMANDE N° » personnalisable dans le modèle importé), modifiable tant qu'elle est en attente, sans effet sur le stock ni encaissement ; « Commande confirmée » la transforme en facture |
 | **Encaissements** | Paiements partiels ou totaux, statut automatique, journal exportable |
 | **Clients** | Fiches, solde dû par devise, historique |
 | **Produits & stock** | Catalogue USD/FC, prix sur devis, stock décrémenté à la facturation, mouvements, seuils d'alerte |

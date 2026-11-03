@@ -42,7 +42,7 @@ export default function Invoices() {
   };
 
   const convert = (inv: Invoice) => action(async () => {
-    if (!(await confirm({ title: `Convertir ${inv.number} en facture ?`, message: 'Une facture sera créée à partir de cette proforma et le stock sera mis à jour.', confirmLabel: 'Convertir' }))) return;
+    if (!(await confirm({ title: `Convertir ${inv.number} en facture ?`, message: `Une facture sera créée à partir de ${inv.type === 'Proforma' ? 'cette proforma' : 'ce bon de commande'} et le stock sera mis à jour.`, confirmLabel: 'Convertir' }))) return;
     const created = await api.post<Invoice>(`/invoices/${inv._id}/convert`);
     navigate(`/invoice/${created._id}`);
   });
@@ -83,6 +83,7 @@ export default function Invoices() {
           <option value="">Tous les types</option>
           <option value="Facture">Factures</option>
           <option value="Proforma">Proformas</option>
+          <option value="Bon de commande">Bons de commande</option>
         </select>
         <select className="input-field" value={status} onChange={(e) => setFilter(setStatus)(e.target.value)}>
           <option value="">Tous les statuts</option>
@@ -117,7 +118,7 @@ export default function Invoices() {
                     {inv.type === 'Facture' && inv.balance > 0 && !['Annulée', 'Convertie'].includes(inv.status) && can('payments.create') && (
                       <button className="icon-btn text-success" title="Encaisser" onClick={() => setPaying(inv)}><Wallet size={17} /></button>
                     )}
-                    {inv.type === 'Proforma' && inv.status === 'En attente' && can('invoices.create') && (
+                    {inv.type !== 'Facture' && inv.status === 'En attente' && can('invoices.create') && (
                       <button className="icon-btn text-primary" title="Convertir en facture" onClick={() => convert(inv)}><ArrowRightLeft size={17} /></button>
                     )}
                     {can('invoices.cancel') && inv.status !== 'Annulée' && inv.status !== 'Convertie' && inv.amountPaid === 0 && (

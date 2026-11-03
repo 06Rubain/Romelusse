@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertTriangle, CalendarDays, Check, FilePlus2, FileText, Package, PiggyBank, Receipt, UserPlus, Wallet, X } from 'lucide-react';
+import { AlertTriangle, CalendarDays, Check, ClipboardList, FilePlus2, FileText, Package, PiggyBank, Receipt, UserPlus, Wallet, X } from 'lucide-react';
 import { api } from '../lib/api';
 import { useFetch } from '../lib/useFetch';
 import { useAuth } from '../auth/AuthContext';
 import { formatByCurrency, formatDate, formatMoney } from '../lib/format';
-import type { Invoice, Paginated, Summary } from '../lib/types';
+import { DOC_INFO, type Invoice, type Paginated, type Summary } from '../lib/types';
 import { Alert, EmptyRow, PageHeader, StatCard, StatusBadge } from '../components/ui';
 import MonthlyChart from '../components/MonthlyChart';
 
@@ -28,6 +28,7 @@ export default function Dashboard() {
   const quickActions = [
     { to: '/invoice?type=Facture', label: 'Nouvelle facture', hint: 'Facturer un client', icon: FilePlus2, tone: '', show: can('invoices.create') },
     { to: '/invoice', label: 'Nouvelle proforma', hint: 'Envoyer un devis', icon: FileText, tone: 'purple', show: can('invoices.create') },
+    { to: '/invoice?type=Bon%20de%20commande', label: 'Bon de commande', hint: 'Commande d\'un client', icon: ClipboardList, tone: 'orange', show: can('invoices.create') },
     { to: '/invoices?status=unpaid', label: 'Encaisser', hint: 'Factures à régler', icon: Wallet, tone: 'green', show: can('payments.create') },
     { to: '/expenses?new=1', label: 'Dépense', hint: 'L\'argent qui sort', icon: Receipt, tone: 'orange', show: can('expenses.manage') },
     { to: '/daily', label: 'Rapport du jour', hint: 'La journée en un coup d\'œil', icon: CalendarDays, tone: 'green', show: can('payments.create', 'expenses.manage', 'reports.view') },
@@ -40,7 +41,7 @@ export default function Dashboard() {
     { label: 'Ajouter votre logo', hint: 'Il apparaîtra sur vos documents', to: '/settings', done: Boolean(company?.logo) },
     { label: 'Créer votre catalogue', hint: 'Produits et services avec leurs prix', to: '/products', done: s.counts.products > 0 },
     { label: 'Inviter votre équipe', hint: 'Un compte par collaborateur', to: '/users', done: s.counts.users > 1 },
-    { label: 'Émettre votre premier document', hint: 'Proforma ou facture', to: '/invoice', done: s.counts.invoices > 0 },
+    { label: 'Émettre votre premier document', hint: 'Proforma, bon de commande ou facture', to: '/invoice', done: s.counts.invoices > 0 },
   ] : [];
   const doneCount = steps.filter((x) => x.done).length;
   const showOnboarding = can('settings.manage') && steps.length > 0 && doneCount < steps.length && !onboardingHidden;
@@ -151,7 +152,7 @@ export default function Dashboard() {
                   <td className="strong">{inv.number}</td>
                   <td className="muted">{formatDate(inv.issueDate)}</td>
                   <td>{inv.client}</td>
-                  <td><span className={`badge ${inv.type === 'Proforma' ? 'badge-neutral' : 'badge-info'}`}>{inv.type}</span></td>
+                  <td><span className={`badge ${DOC_INFO[inv.type]?.badge || 'badge-info'}`}>{inv.type}</span></td>
                   <td className="num strong">{formatMoney(inv.totalAmount, inv.currency)}</td>
                   <td className="num">{inv.type === 'Facture' && inv.status !== 'Annulée' ? formatMoney(inv.balance, inv.currency) : '—'}</td>
                   <td><StatusBadge status={inv.status} /></td>

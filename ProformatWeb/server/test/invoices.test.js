@@ -182,3 +182,37 @@ test('isolation : une entreprise ne voit jamais les données d\'une autre', asyn
   assert.strictEqual(summary.invoiced.count, 2);
   assert.strictEqual(summary.counts.clients, 2);
 });
+
+const stockOf = async () => (await admin.get('/api/products').expect(200)).body.find((p) => p._id === product._id).stockQuantity;
+
+test('bon de commande : numérotation BC, modifiable, sans stock ni paiement, transformé en facture', async () => {
+  const year = new Date().getFullYear();
+  const next = (await admin.get('/api/invoices/next-number?type=Bon%20de%20commande').expect(200)).body;
+  assert.strictEqual(next.nextNumber, `BC-${year}-0001`);
+  const bc = (await admin.post('/api/invoices', {
+    type: 'Bon de commande', client: 'Société Delta', currency: 'USD',
+    products: [{ productId: product._id, name: product.name, quantity: 2, unitPrice: 8 }],
+  }).expect(201)).body;
+  assert.strictEqual(bc.type, 'Bon de commande');
+  assert.strictEqual(bc.number, `BC-${year}-0001`);
+  assert.ok(!bc.dueDate);
+  const stockBefore = (await stockOf());
+
+  const edited = (await admin.put(`/api/invoices/${bc._id}`, {
+    type: 'Facture', client: 'Société Delta', currency: 'USD',
+    products: [{ productId: product._id, name: product.name, quantity: 3, unitPrice: 8 }],
+  }).expect(200)).body;
+  assert.strictEqual(edited.type, 'Bon de commande');
+  assert.strictEqual(edited.totalAmount, 24);
+  await admin.post(`/api/invoices/${bc._id}/payments`, { amount: 5, method: 'Espèces' }).expect(400);
+  assert.strictEqual((await stockOf()), stockBefore);
+
+  const facture = (await admin.post(`/api/invoices/${bc._id}/convert`).expect(201)).body;
+  assert.strictEqual(facture.type, 'Facture');
+  assert.strictEqual(facture.totalAmount, 24);
+  assert.strictEqual(String(facture.sourceProforma), bc._id);
+  assert.strictEqual((await stockOf()), stockBefore - 3);
+  assert.strictEqual((await admin.get(`/api/invoices/${bc._id}`).expect(200)).body.status, 'Convertie');
+  const list = (await admin.get('/api/invoices?type=Bon%20de%20commande').expect(200)).body;
+  assert.strictEqual((list.items || list).length, 1);
+});

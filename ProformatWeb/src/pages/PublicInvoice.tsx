@@ -5,13 +5,13 @@ import { api } from '../lib/api';
 import { useFetch } from '../lib/useFetch';
 import { formatDate, formatMoney } from '../lib/format';
 import { logoBackground } from '../lib/brand';
-import type { Company, Currency, InvoiceStatus, InvoiceTemplate } from '../lib/types';
+import { DOC_INFO, type DocType, type Company, type Currency, type InvoiceStatus, type InvoiceTemplate } from '../lib/types';
 import InvoiceDocument from '../components/InvoiceDocument';
 import TemplateDocument from '../components/TemplateDocument';
 
 interface PublicData {
   invoice: {
-    number: string; type: 'Proforma' | 'Facture'; client: string; clientActivity: string; issueDate: string; dueDate: string | null;
+    number: string; type: DocType; client: string; clientActivity: string; issueDate: string; dueDate: string | null;
     currency: Currency; products: { name: string; quantity: number; unitPrice: number }[]; subtotal: number; discount: number;
     totalAmount: number; amountPaid: number; balance: number; status: InvoiceStatus; notes: string;
   };
@@ -65,7 +65,8 @@ export default function PublicInvoice() {
   }
 
   const { invoice, company, template } = data;
-  const isProforma = invoice.type === 'Proforma';
+  // Proforma ou bon de commande : on présente le montant total, sans reste à payer
+  const isProforma = invoice.type !== 'Facture';
   const paid = invoice.status === 'Payée';
   const cancelled = invoice.status === 'Annulée';
   const converted = invoice.status === 'Convertie';
@@ -89,19 +90,19 @@ export default function PublicInvoice() {
         </header>
 
         <div className="pay-doc-title">
-          <span className="muted small">{isProforma ? 'Proforma (devis)' : 'Facture'} {invoice.number}</span>
+          <span className="muted small">{DOC_INFO[invoice.type].choice} {invoice.number}</span>
           <span className="muted small">{formatDate(invoice.issueDate)}</span>
         </div>
         <p className="pay-hello">Bonjour <strong>{invoice.client}</strong>,</p>
 
         {paid && <div className="pay-status success"><CheckCircle2 size={22} /><div><strong>Facture réglée</strong><div>Merci pour votre paiement de {formatMoney(invoice.totalAmount, invoice.currency)}.</div></div></div>}
         {cancelled && <div className="pay-status danger"><XCircle size={22} /><div><strong>Facture annulée</strong><div>Aucun paiement n'est demandé.</div></div></div>}
-        {converted && <div className="pay-status info"><FileText size={22} /><div><strong>Proforma acceptée</strong><div>Elle a été transformée en facture : demandez le nouveau lien à {company.name}.</div></div></div>}
+        {converted && <div className="pay-status info"><FileText size={22} /><div><strong>Document accepté</strong><div>{DOC_INFO[invoice.type].the.replace(/^./, (c) => c.toUpperCase())} a été transformé(e) en facture : demandez le nouveau lien à {company.name}.</div></div></div>}
 
         {payable && (
           <>
             <div className="pay-amount">
-              <span className="muted">{isProforma ? 'Montant du devis' : 'Montant à payer'}</span>
+              <span className="muted">{invoice.type === 'Proforma' ? 'Montant du devis' : invoice.type === 'Bon de commande' ? 'Montant de la commande' : 'Montant à payer'}</span>
               <strong>{amount}</strong>
               {!isProforma && invoice.amountPaid > 0 && <span className="muted small">Déjà payé : {formatMoney(invoice.amountPaid, invoice.currency)} sur {formatMoney(invoice.totalAmount, invoice.currency)}</span>}
               {!isProforma && invoice.dueDate && <span className="muted small">À payer avant le {formatDate(invoice.dueDate)}</span>}
@@ -137,7 +138,7 @@ export default function PublicInvoice() {
 
         <div className="pay-actions">
           <button type="button" className="btn btn-outline btn-block" onClick={() => setShowDoc((v) => !v)}>
-            <FileText size={18} /> {showDoc ? 'Masquer la facture' : `Voir ${isProforma ? 'la proforma' : 'la facture'}`}
+            <FileText size={18} /> {showDoc ? 'Masquer la facture' : `Voir ${DOC_INFO[invoice.type].the}`}
           </button>
           {firstPhone && (
             <a className="btn btn-ghost btn-block" href={`tel:${firstPhone}`}><Phone size={18} /> Appeler {company.name}</a>

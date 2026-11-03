@@ -1,14 +1,14 @@
 import { forwardRef, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { numberToFrenchWords } from '../utils/numberToWords';
 import { formatDate, PAGE_MM } from '../lib/format';
-import { ZONE_LABELS, type Company, type Currency, type InvoiceTemplate, type Zone, type ZoneKey } from '../lib/types';
+import { ZONE_LABELS, type Company, type Currency, type DocType, type InvoiceTemplate, type Zone, type ZoneKey } from '../lib/types';
 import PaymentBlock from './PaymentBlock';
 import type { DocumentLine } from './InvoiceDocument';
 
 const PT_TO_MM = 0.3528;
 
 export interface DocumentData {
-  type: 'Proforma' | 'Facture';
+  type: DocType;
   number: string;
   client: string;
   clientActivity: string;
@@ -161,7 +161,7 @@ const TemplateDocument = forwardRef<HTMLDivElement, Props>(function TemplateDocu
 
         {zone('meta', (
           <>
-            <div style={{ fontWeight: 800, fontSize: '1.15em' }}>{data.type === 'Proforma' ? labels.proforma : labels.facture} {data.number}</div>
+            <div style={{ fontWeight: 800, fontSize: '1.15em' }}>{data.type === 'Facture' ? labels.facture : data.type === 'Proforma' ? labels.proforma : labels.commande || 'BON DE COMMANDE N°'} {data.number}</div>
             <div>{labels.date} : <b>{formatDate(data.issueDate)}</b></div>
             {data.type === 'Facture' && data.dueDate && <div>{labels.dueDate} : <b>{formatDate(data.dueDate)}</b></div>}
           </>

@@ -5,7 +5,7 @@ import { useAuth } from '../auth/AuthContext';
 import { toInputDate } from '../lib/format';
 import {
   TEMPLATE_FONTS, TEMPLATE_LABELS, ZONE_LABELS,
-  type InvoiceTemplate, type TemplateLabel, type Zone, type ZoneKey,
+  type DocType, type InvoiceTemplate, type TemplateLabel, type Zone, type ZoneKey,
 } from '../lib/types';
 import { Alert, Field, PageHeader } from '../components/ui';
 import TemplateDocument, { type DocumentData } from '../components/TemplateDocument';
@@ -34,7 +34,7 @@ export default function TemplateEditor() {
   const [template, setTemplate] = useState<InvoiceTemplate | null>(null);
   const [selected, setSelected] = useState<ZoneKey | null>('items');
   const [lineCount, setLineCount] = useState(4);
-  const [sampleType, setSampleType] = useState<'Facture' | 'Proforma'>('Facture');
+  const [sampleType, setSampleType] = useState<DocType>('Facture');
   const [samplePaid, setSamplePaid] = useState(true);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -49,7 +49,7 @@ export default function TemplateEditor() {
   // Données d'exemple : le nombre de lignes montre l'adaptation automatique du tableau
   const sample: DocumentData = useMemo(() => ({
     type: sampleType,
-    number: sampleType === 'Facture' ? 'FAC-2026-0042' : 'PRO-2026-0017',
+    number: sampleType === 'Facture' ? 'FAC-2026-0042' : sampleType === 'Proforma' ? 'PRO-2026-0017' : 'BC-2026-0008',
     client: 'Credo Création',
     clientActivity: 'Agence de communication',
     issueDate: toInputDate(),
@@ -207,9 +207,10 @@ export default function TemplateEditor() {
 
         <div className="tpl-preview-col">
           <div className="toolbar card">
-            <select className="input-field" value={sampleType} onChange={(e) => setSampleType(e.target.value as 'Facture' | 'Proforma')} aria-label="Type d'aperçu">
+            <select className="input-field" value={sampleType} onChange={(e) => setSampleType(e.target.value as DocType)} aria-label="Type d'aperçu">
               <option value="Facture">Aperçu : facture</option>
               <option value="Proforma">Aperçu : proforma</option>
+              <option value="Bon de commande">Aperçu : bon de commande</option>
             </select>
             <label className="color-field" style={{ flex: 1, minWidth: 180 }}>Lignes d'exemple : {lineCount}
               <input type="range" min="1" max="30" value={lineCount} onChange={(e) => setLineCount(parseInt(e.target.value, 10))} />

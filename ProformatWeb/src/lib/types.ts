@@ -92,11 +92,23 @@ export interface Payment {
   createdBy: string;
 }
 
+// Types de document : proforma et bon de commande se transforment en facture
+export type DocType = 'Proforma' | 'Bon de commande' | 'Facture';
+export const DOC_TYPES: DocType[] = ['Proforma', 'Bon de commande', 'Facture'];
+export const DOC_INFO: Record<DocType, { title: string; the: string; name: string; choice: string; badge: string }> = {
+  Proforma: { title: 'PROFORMA N°', the: 'la proforma', name: 'proforma', choice: 'Proforma', badge: 'badge-neutral' },
+  'Bon de commande': { title: 'BON DE COMMANDE N°', the: 'le bon de commande', name: 'bon de commande', choice: 'Bon de commande', badge: 'badge-warning' },
+  Facture: { title: 'FACTURE N°', the: 'la facture', name: 'facture', choice: 'Facture', badge: 'badge-info' },
+};
+export const docTypeFrom = (value: string | null | undefined, fallback: DocType = 'Proforma'): DocType => (
+  DOC_TYPES.includes(value as DocType) ? value as DocType : fallback
+);
+
 export interface Invoice {
   _id: string;
   publicToken?: string;
   number: string;
-  type: 'Proforma' | 'Facture';
+  type: DocType;
   clientId: string | null;
   client: string;
   clientActivity: string;
@@ -261,7 +273,7 @@ export interface InvoiceTemplate {
 }
 
 export type TemplateLabel = 'facture' | 'proforma' | 'client' | 'date' | 'dueDate' | 'quantity' | 'designation' | 'unitPrice'
-  | 'lineTotal' | 'subtotal' | 'discount' | 'grandTotal' | 'amountInWords' | 'paid' | 'cancelled';
+  | 'lineTotal' | 'subtotal' | 'discount' | 'grandTotal' | 'amountInWords' | 'paid' | 'cancelled' | 'commande';
 
 export const ZONE_LABELS: Record<ZoneKey, string> = {
   meta: 'Numéro et dates',
@@ -279,7 +291,7 @@ export const ZONE_LABELS: Record<ZoneKey, string> = {
 export const ONLINE_PAYMENT_METHODS = ['M-Pesa', 'Orange Money', 'Airtel Money', 'Africell Money', 'Visa', 'Mastercard', 'RakkaCash', 'Masolo'];
 
 export const TEMPLATE_LABELS: Record<TemplateLabel, string> = {
-  facture: 'Titre facture', proforma: 'Titre proforma', client: 'Client', date: 'Date', dueDate: 'Échéance',
+  facture: 'Titre facture', proforma: 'Titre proforma', commande: 'Titre bon de commande', client: 'Client', date: 'Date', dueDate: 'Échéance',
   quantity: 'Colonne quantité', designation: 'Colonne désignation', unitPrice: 'Colonne prix unitaire', lineTotal: 'Colonne prix total',
   subtotal: 'Total', discount: 'Remise', grandTotal: 'Total général', amountInWords: 'Montant en lettres', paid: 'Cachet payé', cancelled: 'Cachet annulé',
 };
