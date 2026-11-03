@@ -37,6 +37,8 @@ const getTemplate = async (companyId) => (await InvoiceTemplate.findOne({ compan
 const serialize = (template) => {
   const json = template.toJSON();
   json.zones = sanitizeZones(json.zones);
+  // Libellés ajoutés depuis (ex. « BON DE COMMANDE N° ») : valeur par défaut pour les modèles déjà enregistrés
+  json.labels = { ...DEFAULT_LABELS, ...(json.labels || {}) };
   return json;
 };
 

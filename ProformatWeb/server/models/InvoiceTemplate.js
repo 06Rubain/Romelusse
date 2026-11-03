@@ -19,6 +19,7 @@ const DEFAULT_ZONES = {
 const DEFAULT_LABELS = {
   facture: 'FACTURE N°',
   proforma: 'PROFORMA N°',
+  commande: 'BON DE COMMANDE N°',
   client: 'Client',
   date: 'Date',
   dueDate: 'Échéance',

@@ -81,7 +81,7 @@ router.put('/:id', requirePermission('clients.manage'), async (req, res) => {
   await client.save();
   // Seules les proformas en cours suivent la fiche ; une facture émise reste inchangée
   if (req.body.name) {
-    await Invoice.updateMany({ company: req.company._id, clientId: client._id, type: 'Proforma', status: 'En attente' }, { $set: { client: client.name } });
+    await Invoice.updateMany({ company: req.company._id, clientId: client._id, type: { $ne: 'Facture' }, status: 'En attente' }, { $set: { client: client.name } });
   }
   await logActivity(req.user, 'Client', `Modification du client ${client.name}`);
   res.json(client);

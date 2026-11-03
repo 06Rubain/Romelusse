@@ -153,7 +153,7 @@ router.get('/daily', async (req, res) => {
   for (const inv of invoices) {
     if (inv.status === 'Annulée') continue;
     if (inv.type === 'Facture') totals.invoiced[inv.currency] += inv.totalAmount;
-    else totals.proforma[inv.currency] += inv.totalAmount;
+    else if (inv.type === 'Proforma') totals.proforma[inv.currency] += inv.totalAmount;
     if (inv.type !== 'Facture') continue;
     for (const line of inv.products) {
       const key = `${line.name}|${inv.currency}`;

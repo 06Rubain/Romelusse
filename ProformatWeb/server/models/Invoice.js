@@ -4,7 +4,8 @@ const mongoose = require('mongoose');
 // 24 caractères aléatoires : impossible à deviner
 const newPublicToken = () => crypto.randomBytes(18).toString('base64url');
 
-const TYPES = ['Proforma', 'Facture'];
+// Proforma et bon de commande : documents préparatoires (modifiables, sans stock ni paiement), transformés en facture
+const TYPES = ['Proforma', 'Facture', 'Bon de commande'];
 const STATUSES = ['En attente', 'Partiellement payée', 'Payée', 'Convertie', 'Annulée'];
 
 const lineSchema = new mongoose.Schema({

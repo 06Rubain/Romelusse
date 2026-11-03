@@ -1,7 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const Invoice = require('../models/Invoice');
-const { newPublicToken } = require('../models/Invoice');
+const { newPublicToken, TYPES } = require('../models/Invoice');
 const Client = require('../models/Client');
 const Payment = require('../models/Payment');
 const { METHODS } = require('../models/Payment');
@@ -60,7 +60,7 @@ const buildInvoiceFields = async (body, settings) => {
   const totalAmount = round2(subtotal - discount);
   const issueDate = parseDate(body.issueDate) || new Date();
   let dueDate = parseDate(body.dueDate);
-  if (!dueDate && body.type !== 'Proforma' && settings.paymentTermDays) {
+  if (!dueDate && body.type === 'Facture' && settings.paymentTermDays) {
     dueDate = new Date(issueDate.getTime() + settings.paymentTermDays * 86400000);
   }
   return {
@@ -96,6 +96,9 @@ const refreshPaymentStatus = async (invoice) => {
   return invoice;
 };
 
+// Type de document demandé (facture par défaut)
+const docType = (value) => (TYPES.includes(value) ? value : 'Facture');
+
 const findInvoice = async (req) => {
   const id = req.params.id;
   if (!mongoose.isValidObjectId(id)) throw new HttpError(404, 'Facture introuvable.');
@@ -125,7 +128,7 @@ router.get('/', async (req, res) => {
 });
 
 router.get('/next-number', async (req, res) => {
-  res.json({ nextNumber: await peekInvoiceNumber(req.company._id, req.query.type === 'Proforma' ? 'Proforma' : 'Facture') });
+  res.json({ nextNumber: await peekInvoiceNumber(req.company._id, docType(req.query.type)) });
 });
 
 router.get('/:id', async (req, res) => {
@@ -141,7 +144,7 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', requirePermission('invoices.create'), async (req, res) => {
   const settings = req.company;
-  const type = req.body.type === 'Proforma' ? 'Proforma' : 'Facture';
+  const type = docType(req.body.type);
   const fields = await buildInvoiceFields({ ...req.body, type }, settings);
   let number = String(req.body.number || '').trim();
   if (number) {
@@ -155,15 +158,15 @@ router.post('/', requirePermission('invoices.create'), async (req, res) => {
     invoice.stockApplied = true;
     await invoice.save();
   }
-  await logActivity(req.user, `Création ${type === 'Proforma' ? 'de proforma' : 'de facture'}`,
+  await logActivity(req.user, `Création ${type === 'Facture' ? 'de facture' : type === 'Proforma' ? 'de proforma' : 'de bon de commande'}`,
     `${type} N° ${number} pour ${invoice.client} — ${fmt(invoice.totalAmount, invoice.currency)}`);
   res.status(201).json(invoice);
 });
 
-// Seules les proformas sont modifiables ; une facture se corrige par annulation puis réémission
+// Seuls les proformas et bons de commande en attente sont modifiables ; une facture se corrige par annulation puis réémission
 router.put('/:id', requirePermission('invoices.create'), async (req, res) => {
   const invoice = await findInvoice(req);
-  if (invoice.type !== 'Proforma' || invoice.status !== 'En attente') {
+  if (invoice.type === 'Facture' || invoice.status !== 'En attente') {
     if (req.body.notes !== undefined || req.body.dueDate !== undefined) {
       if (req.body.notes !== undefined) invoice.notes = String(req.body.notes);
       if (req.body.dueDate !== undefined) invoice.dueDate = parseDate(req.body.dueDate);
@@ -172,17 +175,17 @@ router.put('/:id', requirePermission('invoices.create'), async (req, res) => {
     }
     throw new HttpError(400, 'Une facture émise ne peut plus être modifiée. Annulez-la puis créez-en une nouvelle.');
   }
-  invoice.set(await buildInvoiceFields({ ...req.body, type: 'Proforma' }, req.company));
+  invoice.set(await buildInvoiceFields({ ...req.body, type: invoice.type }, req.company));
   await invoice.save();
-  await logActivity(req.user, 'Modification de proforma', `Proforma N° ${invoice.number}`);
+  await logActivity(req.user, `Modification : ${invoice.type.toLowerCase()}`, `${invoice.type} N° ${invoice.number}`);
   res.json(invoice);
 });
 
-// Transforme une proforma acceptée en facture
+// Transforme une proforma acceptée ou un bon de commande en facture
 router.post('/:id/convert', requirePermission('invoices.create'), async (req, res) => {
   const proforma = await findInvoice(req);
-  if (proforma.type !== 'Proforma') throw new HttpError(400, 'Seule une proforma peut être convertie.');
-  if (proforma.status !== 'En attente') throw new HttpError(400, 'Cette proforma a déjà été convertie ou annulée.');
+  if (proforma.type === 'Facture') throw new HttpError(400, 'Seuls une proforma ou un bon de commande peuvent être transformés en facture.');
+  if (proforma.status !== 'En attente') throw new HttpError(400, `Ce document (${proforma.type.toLowerCase()}) a déjà été transformé ou annulé.`);
   const settings = req.company;
   const issueDate = new Date();
   const number = await nextInvoiceNumber(req.company._id, 'Facture', issueDate);
@@ -213,7 +216,7 @@ router.post('/:id/convert', requirePermission('invoices.create'), async (req, re
   proforma.status = 'Convertie';
   proforma.convertedTo = invoice._id;
   await proforma.save();
-  await logActivity(req.user, 'Conversion de proforma', `Proforma N° ${proforma.number} → Facture N° ${number}`);
+  await logActivity(req.user, 'Transformation en facture', `${proforma.type} N° ${proforma.number} → Facture N° ${number}`);
   res.status(201).json(invoice);
 });
 

@@ -1,9 +1,9 @@
 const Counter = require('../models/Counter');
 const Invoice = require('../models/Invoice');
 
-const PREFIXES = { Facture: 'FAC', Proforma: 'PRO' };
+const PREFIXES = { Facture: 'FAC', Proforma: 'PRO', 'Bon de commande': 'BC' };
 
-// Numérotation atomique par type et par année : FAC-2026-0001, PRO-2026-0001
+// Numérotation atomique par type et par année : FAC-2026-0001, PRO-2026-0001, BC-2026-0001
 const nextInvoiceNumber = async (companyId, type, date = new Date()) => {
   const prefix = PREFIXES[type] || 'FAC';
   const label = `${prefix}-${date.getFullYear()}`;
