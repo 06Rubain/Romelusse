@@ -181,6 +181,10 @@ export interface Company {
   flexpayMerchant: string;
   flexpayToken?: string;
   flexpayTokenSet?: boolean;
+  paymentProvider: 'flexpay' | 'pawapay';
+  pawapayEnv: 'sandbox' | 'live';
+  pawapayToken?: string;
+  pawapayTokenSet?: boolean;
   exchangeRate: number;
   reportingCurrency: Currency;
   paymentTermDays: number;

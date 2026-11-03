@@ -160,6 +160,16 @@ sécurisée de FlexPaie puis revient sur la page du client. L'état est vérifi�
 que la page est ouverte, et à la notification de FlexPaie) : quand le paiement réussit, l'encaissement est créé
 automatiquement (une seule fois), la facture passe en « Payée » et la trésorerie est à jour.
 
+**Prestataire du paiement réel** (mode « Réel ») :
+
+- **pawaPay** (recommandé pour démarrer) : inscription et environnement de **test gratuits**, clé API immédiate sur
+  [dashboard.sandbox.pawapay.io](https://dashboard.sandbox.pawapay.io). M-Pesa (Vodacom), Orange Money et Airtel Money
+  en RDC, demande de paiement envoyée **directement sur le téléphone** du client. En environnement *Test*, la page appelle
+  vraiment pawaPay mais rien n'est encaissé (numéro de test M-Pesa qui réussit : 0973456789). Passez en *Réel* quand
+  pawaPay a validé votre compte (commission par transaction, pas d'abonnement). Adresse de notification à saisir dans
+  pawaPay (*Callback URLs → Deposits*) : `https://VOTRE-SITE/api/public/pawapay/callback`.
+- **FlexPaie** : Mobile Money (dont Africell) et carte, avec le code marchand et la clé fournis par FlexPaie.
+
 **Sécurité du paiement en ligne**
 
 - La clé API FlexPaie est **chiffrée en base** (AES-256-GCM, clé `PAYMENT_SECRET_KEY` ou dérivée de `JWT_SECRET`) et

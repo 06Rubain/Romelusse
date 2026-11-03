@@ -86,7 +86,7 @@ function BrandPreview({ form }: { form: CompanyDraft }) {
   );
 }
 
-export default function CompanyForm({ form, onChange, showRules = true, tokenSet = false }: { form: CompanyDraft; onChange: (f: CompanyDraft) => void; showRules?: boolean; tokenSet?: boolean }) {
+export default function CompanyForm({ form, onChange, showRules = true, tokenSet = false, pawapayTokenSet = false }: { form: CompanyDraft; onChange: (f: CompanyDraft) => void; showRules?: boolean; tokenSet?: boolean; pawapayTokenSet?: boolean }) {
   const set = <K extends keyof CompanyDraft>(key: K, value: CompanyDraft[K]) => onChange({ ...form, [key]: value });
   return (
     <div className="grid-2 even">
@@ -136,7 +136,7 @@ export default function CompanyForm({ form, onChange, showRules = true, tokenSet
         <h3>Page de paiement en ligne</h3>
         <p className="muted small" style={{ marginTop: -6 }}>Le client paie depuis le lien de sa facture, sur une page à vos couleurs : il choisit M-Pesa, Orange Money, Airtel Money, Africell Money ou la carte, confirme sur son téléphone, et la facture passe en « Payée » toute seule.</p>
         <div className="segmented" role="radiogroup" aria-label="Paiement en ligne" style={{ marginBottom: 12 }}>
-          {([['off', 'Désactivé'], ['demo', 'Essai (sans argent)'], ['live', 'Réel (FlexPaie)']] as const).map(([mode, label]) => (
+          {([['off', 'Désactivé'], ['demo', 'Essai (sans argent)'], ['live', 'Réel']] as const).map(([mode, label]) => (
             <button key={mode} type="button" role="radio" aria-checked={form.checkoutMode === mode} className={form.checkoutMode === mode ? 'active' : ''}
               onClick={() => set('checkoutMode', mode)}>{label}</button>
           ))}
@@ -145,6 +145,44 @@ export default function CompanyForm({ form, onChange, showRules = true, tokenSet
           <div className="alert alert-info small">Mode essai : la page de paiement fonctionne mais aucun argent ne bouge. Le paiement est accepté après quelques secondes (un numéro qui finit par 000 est refusé). Passez en « Réel » quand FlexPaie vous a donné vos identifiants.</div>
         )}
         {form.checkoutMode === 'live' && (
+          <>
+            <span className="label">Prestataire de paiement</span>
+            <div className="segmented" role="radiogroup" aria-label="Prestataire" style={{ margin: '6px 0 12px' }}>
+              {([['pawapay', 'pawaPay (test gratuit)'], ['flexpay', 'FlexPaie']] as const).map(([p, label]) => (
+                <button key={p} type="button" role="radio" aria-checked={form.paymentProvider === p} className={form.paymentProvider === p ? 'active' : ''}
+                  onClick={() => set('paymentProvider', p)}>{label}</button>
+              ))}
+            </div>
+          </>
+        )}
+        {form.checkoutMode === 'live' && form.paymentProvider === 'pawapay' && (
+          <>
+            <ol className="setup-steps small">
+              <li>Créez votre compte gratuit sur <a href="https://dashboard.sandbox.pawapay.io" target="_blank" rel="noreferrer">dashboard.sandbox.pawapay.io</a> (test) ; le compte réel s'ouvre après validation de votre entreprise par pawaPay.</li>
+              <li>Dans le tableau de bord pawaPay : <strong>System configuration → API tokens</strong>, générez une clé et collez-la ci-dessous.</li>
+              <li>Dans <strong>Callback URLs → Deposits</strong>, collez : <code>{`${window.location.origin}/api/public/pawapay/callback`}</code></li>
+            </ol>
+            <div className="form-grid">
+              <Field label="Environnement pawaPay">
+                <select className="input-field" value={form.pawapayEnv} onChange={(e) => set('pawapayEnv', e.target.value as CompanyDraft['pawapayEnv'])}>
+                  <option value="sandbox">Test (gratuit)</option>
+                  <option value="live">Réel (argent encaissé)</option>
+                </select>
+              </Field>
+              <Field label="Clé API pawaPay" hint={pawapayTokenSet ? 'Une clé est enregistrée. Saisissez-en une nouvelle seulement pour la remplacer.' : 'Chiffrée et gardée secrète sur le serveur.'}>
+                <input className="input-field" type="password" value={form.pawapayToken || ''} onChange={(e) => set('pawapayToken', e.target.value)}
+                  placeholder={pawapayTokenSet ? '•••••••• enregistrée' : 'Collez la clé ici'} autoComplete="new-password" />
+              </Field>
+            </div>
+            {form.pawapayEnv === 'sandbox' && (
+              <div className="alert alert-info small">Environnement de test : la page de paiement appelle vraiment pawaPay, mais aucun argent ne bouge et la facture ne change pas. Numéro de test M-Pesa qui réussit : <strong>0973456789</strong>.</div>
+            )}
+            {!(pawapayTokenSet || form.pawapayToken) && (
+              <div className="alert alert-warning small">Tant que la clé pawaPay n'est pas enregistrée, la page de paiement propose seulement vos numéros et « J'ai payé ».</div>
+            )}
+          </>
+        )}
+        {form.checkoutMode === 'live' && form.paymentProvider === 'flexpay' && (
           <div className="form-grid">
             <Field label="Code marchand FlexPaie" hint="Ex. : FPG_DRC (fourni par FlexPaie)">
               <input className="input-field" value={form.flexpayMerchant} onChange={(e) => set('flexpayMerchant', e.target.value)} autoComplete="off" />
@@ -155,7 +193,7 @@ export default function CompanyForm({ form, onChange, showRules = true, tokenSet
             </Field>
           </div>
         )}
-        {form.checkoutMode === 'live' && (!form.flexpayMerchant || !(tokenSet || form.flexpayToken)) && (
+        {form.checkoutMode === 'live' && form.paymentProvider === 'flexpay' && (!form.flexpayMerchant || !(tokenSet || form.flexpayToken)) && (
           <div className="alert alert-warning small">Tant que le code marchand et la clé ne sont pas enregistrés, la page de paiement propose seulement vos numéros et « J'ai payé ».</div>
         )}
         {showRules && (

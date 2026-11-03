@@ -5,7 +5,7 @@ const { encryptSecret } = require('./secret');
 
 const BRANDING_FIELDS = ['name', 'legalName', 'address', 'city', 'email', 'phone', 'taxNumber', 'nationalId', 'rccm', 'bankName', 'bankAccount',
   'exchangeRate', 'reportingCurrency', 'paymentTermDays', 'logo', 'footerImage', 'primaryColor', 'secondaryColor', 'accentColor',
-  'signature', 'paymentLink', 'paymentMethods', 'paymentAccounts', 'checkoutMode', 'flexpayMerchant', 'flexpayToken'];
+  'signature', 'paymentLink', 'paymentMethods', 'paymentAccounts', 'checkoutMode', 'flexpayMerchant', 'flexpayToken', 'paymentProvider', 'pawapayEnv', 'pawapayToken'];
 
 const ACCOUNT_PROVIDERS = ['M-Pesa', 'Orange Money', 'Airtel Money', 'Africell Money', 'Banque', 'Autre'];
 const MAX_ACCOUNTS = 8;
@@ -58,6 +58,13 @@ const sanitizeCompany = async (body) => {
     // Chiffrée avant d'être enregistrée
     if (token) data.flexpayToken = encryptSecret(token.slice(0, 2000));
     else delete data.flexpayToken;
+  }
+  if (data.paymentProvider !== undefined && !['flexpay', 'pawapay'].includes(data.paymentProvider)) delete data.paymentProvider;
+  if (data.pawapayEnv !== undefined && !['sandbox', 'live'].includes(data.pawapayEnv)) delete data.pawapayEnv;
+  if (data.pawapayToken !== undefined) {
+    const token = String(data.pawapayToken || '').trim();
+    if (token) data.pawapayToken = encryptSecret(token.slice(0, 4000));
+    else delete data.pawapayToken;
   }
   if (data.paymentLink !== undefined) {
     data.paymentLink = normalizeLink(data.paymentLink);

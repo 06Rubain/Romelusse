@@ -8,7 +8,9 @@ const onlinePaymentSchema = new mongoose.Schema({
   invoice: { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice', required: true },
   invoiceNumber: { type: String, default: '' },
   client: { type: String, default: '' },
-  mode: { type: String, enum: ['demo', 'live'], required: true },
+  // demo : simulé ; sandbox : vrai appel à l'environnement de test du prestataire ; live : argent réel
+  mode: { type: String, enum: ['demo', 'sandbox', 'live'], required: true },
+  provider: { type: String, enum: ['demo', 'flexpay', 'pawapay'], default: 'flexpay' },
   method: { type: String, required: true },
   channel: { type: String, enum: ['mobile', 'card'], required: true },
   phone: { type: String, default: '' },

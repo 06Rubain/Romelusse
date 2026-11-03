@@ -10,14 +10,14 @@ const WAIT_LIMIT_MS = 3 * 60 * 1000;
 
 interface Online {
   id: string; status: 'En cours' | 'Réussi' | 'Échoué'; message: string; method: string; channel: 'mobile' | 'card';
-  amount: number; currency: Currency; mode: 'demo' | 'live'; phone: string; redirectUrl?: string | null;
+  amount: number; currency: Currency; mode: 'demo' | 'sandbox' | 'live'; phone: string; redirectUrl?: string | null;
 }
 
 const colorOf = (method: string) => (method === CARD ? '#1a1f71' : PROVIDER_COLORS[method as AccountProvider] || PROVIDER_COLORS.Autre);
 
 // Paiement sur la page du client : choix du moyen, numéro, confirmation sur le téléphone, reçu
-export default function Checkout({ token, methods, mode, amount, currency, brand, onPaid }: {
-  token: string; methods: string[]; mode: 'demo' | 'live'; amount: number; currency: Currency; brand: string; onPaid: () => void;
+export default function Checkout({ token, methods, mode, provider, amount, currency, brand, onPaid }: {
+  token: string; methods: string[]; mode: 'demo' | 'sandbox' | 'live'; provider?: string; amount: number; currency: Currency; brand: string; onPaid: () => void;
 }) {
   const [method, setMethod] = useState('');
   const [phone, setPhone] = useState('');
@@ -66,13 +66,13 @@ export default function Checkout({ token, methods, mode, amount, currency, brand
   const restart = () => { setOnline(null); setError(''); window.history.replaceState(null, '', window.location.pathname); };
   const total = formatMoney(amount, currency);
 
-  if (online?.status === 'Réussi' && online.mode === 'demo') {
+  if (online?.status === 'Réussi' && online.mode !== 'live') {
     return (
       <div className="checkout checkout-done">
         <CheckCircle2 size={56} />
-        <h2>Essai réussi</h2>
+        <h2>{online.mode === 'sandbox' ? 'Test réussi' : 'Essai réussi'}</h2>
         <p>Voici ce que verra votre client après un vrai paiement de <strong>{formatMoney(online.amount, online.currency)}</strong> par {online.method}.</p>
-        <p className="muted small">Mode essai : aucun argent n'a été débité et la facture n'a pas changé.</p>
+        <p className="muted small">{online.mode === 'sandbox' ? 'Environnement de test pawaPay' : 'Mode essai'} : aucun argent n'a été débité et la facture n'a pas changé.</p>
         <button type="button" className="btn btn-outline btn-sm" onClick={restart}>Refaire un essai</button>
       </div>
     );
@@ -111,7 +111,7 @@ export default function Checkout({ token, methods, mode, amount, currency, brand
 
   return (
     <div className="checkout">
-      {mode === 'demo' && <div className="checkout-demo">MODE ESSAI : aucun paiement réel</div>}
+      {mode !== 'live' && <div className="checkout-demo">{mode === 'sandbox' ? 'TEST pawaPay' : 'MODE ESSAI'} : aucun paiement réel</div>}
       {online?.status === 'Échoué' && (
         <div className="pay-status danger"><XCircle size={22} /><div><strong>Paiement non abouti</strong><div>{online.message || 'Réessayez ou choisissez un autre moyen.'}</div></div></div>
       )}
@@ -152,7 +152,7 @@ export default function Checkout({ token, methods, mode, amount, currency, brand
         </form>
       )}
       <div className="checkout-secure">
-        <ShieldCheck size={15} /> {mode === 'demo' ? 'Mode essai : aucun argent réel n\'est débité.' : 'Paiement sécurisé par FlexPaie. Votre code secret n\'est jamais demandé sur cette page.'}
+        <ShieldCheck size={15} /> {mode === 'demo' ? 'Mode essai : aucun argent réel n\'est débité.' : `Paiement sécurisé par ${provider === 'pawapay' ? 'pawaPay' : 'FlexPaie'}. Votre code secret n'est jamais demandé sur cette page.`}
       </div>
     </div>
   );

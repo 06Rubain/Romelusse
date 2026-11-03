@@ -4,6 +4,10 @@ const Invoice = require('../models/Invoice');
 const Payment = require('../models/Payment');
 const OnlinePayment = require('../models/OnlinePayment');
 const flexpay = require('./flexpay');
+const pawapay = require('./pawapay');
+
+const PROVIDER_API = { flexpay, pawapay };
+const PROVIDER_NAME = { flexpay: 'FlexPaie', pawapay: 'pawaPay' };
 const { HttpError, round2 } = require('./helpers');
 const { decryptSecret } = require('./secret');
 const { logActivity } = require('./activity');
@@ -18,13 +22,22 @@ const EXPIRY_MS = { mobile: 10 * 60 * 1000, card: 60 * 60 * 1000 };
 // Mode essai : le paiement réussit après quelques secondes (numéro finissant par 000 : refusé)
 const DEMO_DELAY_MS = Number(process.env.CHECKOUT_DEMO_DELAY_MS || 5000);
 
-// Paiement en ligne disponible pour cette entreprise ? (mode réel : identifiants FlexPaie enregistrés)
+// Paiement en ligne disponible pour cette entreprise ? Mode, prestataire, identifiants et moyens proposés
 const checkoutConfig = async (companyId) => {
-  const company = await Company.findById(companyId).select('+flexpayToken checkoutMode flexpayMerchant').lean();
+  const company = await Company.findById(companyId)
+    .select('+flexpayToken +pawapayToken checkoutMode flexpayMerchant paymentProvider pawapayEnv').lean();
   if (!company || company.checkoutMode === 'off' || !company.checkoutMode) return null;
+  if (company.checkoutMode === 'demo') return { mode: 'demo', provider: 'demo', methods: CHECKOUT_METHODS };
+  if (company.paymentProvider === 'pawapay') {
+    const token = decryptSecret(company.pawapayToken);
+    if (!token) return null;
+    const env = company.pawapayEnv === 'live' ? 'live' : 'sandbox';
+    // Environnement de test pawaPay : vrais appels, mais pas d'argent réel
+    return { mode: env === 'live' ? 'live' : 'sandbox', provider: 'pawapay', env, token, methods: pawapay.METHODS };
+  }
   const token = decryptSecret(company.flexpayToken);
-  if (company.checkoutMode === 'live' && !(company.flexpayMerchant && token)) return null;
-  return { mode: company.checkoutMode, merchant: company.flexpayMerchant, token };
+  if (!(company.flexpayMerchant && token)) return null;
+  return { mode: 'live', provider: 'flexpay', merchant: company.flexpayMerchant, token, methods: CHECKOUT_METHODS };
 };
 
 const balanceOf = (invoice) => round2(invoice.totalAmount - invoice.amountPaid);
@@ -58,9 +71,9 @@ const settle = async (online, providerReference = '') => {
 
 // Mode essai : la page montre un paiement réussi, mais rien n'est encaissé et la facture ne change pas
 // (un mode essai oublié ne peut jamais faire passer une facture en « Payée » sans argent)
-const demoComplete = async (online) => (await OnlinePayment.findOneAndUpdate(
+const demoComplete = async (online, message = 'Essai réussi : aucun argent débité, la facture n\'a pas changé.') => (await OnlinePayment.findOneAndUpdate(
   { _id: online._id, status: 'En cours' },
-  { status: 'Réussi', message: 'Essai réussi : aucun argent débité, la facture n\'a pas changé.' },
+  { status: 'Réussi', message },
   { returnDocument: 'after' },
 )) || OnlinePayment.findById(online._id);
 
@@ -83,7 +96,7 @@ const startCheckout = async ({ invoice, company, method, phone, origin, apiOrigi
   if (!config) throw new HttpError(400, 'Le paiement en ligne n\'est pas activé pour cette entreprise.');
   if (invoice.type !== 'Facture') throw new HttpError(400, 'Seule une facture se paie en ligne.');
   if (['Annulée', 'Convertie', 'Payée'].includes(invoice.status)) throw new HttpError(400, 'Cette facture n\'attend plus de paiement.');
-  if (!CHECKOUT_METHODS.includes(method)) throw new HttpError(400, 'Choisissez un moyen de paiement.');
+  if (!config.methods.includes(method)) throw new HttpError(400, 'Choisissez un moyen de paiement.');
   const amount = balanceOf(invoice);
   if (!(amount > 0)) throw new HttpError(400, 'Cette facture est déjà réglée.');
   const channel = method === CARD_METHOD ? 'card' : 'mobile';
@@ -94,7 +107,7 @@ const startCheckout = async ({ invoice, company, method, phone, origin, apiOrigi
   if (recent && channel === 'mobile') throw new HttpError(409, 'Un paiement est déjà en attente de confirmation sur un téléphone. Patientez une minute.');
 
   const online = await OnlinePayment.create({
-    company: company._id, invoice: invoice._id, invoiceNumber: invoice.number, client: invoice.client, mode: config.mode,
+    company: company._id, invoice: invoice._id, invoiceNumber: invoice.number, client: invoice.client, mode: config.mode, provider: config.provider,
     method, channel, phone: msisdn, amount, currency: invoice.currency,
     reference: `${invoice.number}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`,
     callbackKey: crypto.randomBytes(18).toString('base64url'),
@@ -116,7 +129,9 @@ const startCheckout = async ({ invoice, company, method, phone, origin, apiOrigi
 
   const fpCurrency = invoice.currency === 'FC' ? 'CDF' : 'USD';
   const callbackUrl = `${apiOrigin}/api/public/flexpay/callback/${online._id}/${online.callbackKey}`;
-  const result = channel === 'card'
+  const result = config.provider === 'pawapay'
+    ? await pawapay.startDeposit({ env: config.env, token: config.token, method, phone: msisdn, amount, currency: fpCurrency, reference: online.reference })
+    : channel === 'card'
     ? await flexpay.startCard({ merchant: config.merchant, token: config.token, reference: online.reference, amount, currency: fpCurrency, callbackUrl, returnUrl })
     : await flexpay.startMobile({ merchant: config.merchant, token: config.token, phone: msisdn, reference: online.reference, amount, currency: fpCurrency, callbackUrl });
   if (!result.ok) {
@@ -142,13 +157,16 @@ const refreshCheckout = async (online, { force = false } = {}) => {
   }
 
   const config = await checkoutConfig(online.company);
-  if (config?.mode === 'live') {
-    const result = await flexpay.check({ token: config.token, orderNumber: online.orderNumber });
+  const provider = online.provider || 'flexpay';
+  if (config && config.provider === provider && PROVIDER_API[provider]) {
+    const result = await PROVIDER_API[provider].check({ env: config.env, token: config.token, orderNumber: online.orderNumber });
     if (result.status === 'success') {
       if (!amountMatches(online, result)) {
-        await logActivity('Paiement en ligne', 'Alerte paiement', `Montant FlexPaie différent sur ${online.invoiceNumber} : attendu ${online.amount} ${online.currency}, reçu ${result.amount} ${result.currency || ''} (commande ${online.orderNumber})`, online.company);
-        return fail(online, 'Montant reçu différent du montant demandé : l\'entreprise va vérifier avec FlexPaie.');
+        await logActivity('Paiement en ligne', 'Alerte paiement', `Montant ${PROVIDER_NAME[provider]} différent sur ${online.invoiceNumber} : attendu ${online.amount} ${online.currency}, reçu ${result.amount} ${result.currency || ''} (commande ${online.orderNumber})`, online.company);
+        return fail(online, `Montant reçu différent du montant demandé : l'entreprise va vérifier avec ${PROVIDER_NAME[provider]}.`);
       }
+      // Environnement de test : la page montre la réussite, mais rien n'est encaissé
+      if (online.mode === 'sandbox') return demoComplete(online, `Test ${PROVIDER_NAME[provider]} réussi : aucun argent réel, la facture n'a pas changé.`);
       return settle(online, result.providerReference);
     }
     if (result.status === 'failed') return fail(online, result.message);

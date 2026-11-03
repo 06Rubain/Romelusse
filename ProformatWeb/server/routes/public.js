@@ -7,7 +7,7 @@ const mongoose = require('mongoose');
 const PaymentNotice = require('../models/PaymentNotice');
 const OnlinePayment = require('../models/OnlinePayment');
 const {
-  checkoutConfig, startCheckout, refreshCheckout, CHECKOUT_METHODS,
+  checkoutConfig, startCheckout, refreshCheckout,
 } = require('../lib/checkout');
 const { ACCOUNT_PROVIDERS } = require('../lib/company');
 const { HttpError, toNumber, round2 } = require('../lib/helpers');
@@ -54,7 +54,7 @@ router.get('/invoices/:token', async (req, res) => {
     invoice: pickFields(invoice.toJSON(), INVOICE_FIELDS),
     company: pickFields(company.toJSON(), COMPANY_FIELDS),
     notices: invoice.type === 'Facture' ? await noticesOf(invoice) : [],
-    checkout: checkout ? { mode: checkout.mode, methods: CHECKOUT_METHODS } : null,
+    checkout: checkout ? { mode: checkout.mode, provider: checkout.provider, methods: checkout.methods } : null,
     template: custom ? pickFields(serializeTemplate(template), ['mode', 'background', 'pageSize', 'zones', 'style', 'labels']) : null,
   });
 });
@@ -104,6 +104,17 @@ router.post('/flexpay/callback/:id/:key', async (req, res) => {
       await online.save();
     }
     await refreshCheckout(online, { force: true });
+  }
+  res.json({ received: true });
+});
+
+// Notification de pawaPay (adresse à saisir dans le tableau de bord pawaPay) : on ne croit pas le contenu,
+// on redemande l'état du paiement à pawaPay avec la clé de l'entreprise
+router.post('/pawapay/callback', async (req, res) => {
+  const depositId = String(req.body?.depositId || req.body?.data?.depositId || '');
+  if (/^[0-9a-f-]{36}$/i.test(depositId)) {
+    const online = await OnlinePayment.findOne({ orderNumber: depositId, provider: 'pawapay' });
+    if (online) await refreshCheckout(online, { force: true });
   }
   res.json({ received: true });
 });

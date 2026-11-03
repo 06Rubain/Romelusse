@@ -40,7 +40,7 @@ export default function SettingsPage() {
         actions={<button type="submit" className="btn btn-primary" disabled={busy}><Save size={18} /> {busy ? 'Enregistrement…' : 'Enregistrer'}</button>} />
       <Alert>{error}</Alert>
       <Alert tone="success">{message}</Alert>
-      <div className="card"><CompanyForm form={form} onChange={setForm} tokenSet={!!company?.flexpayTokenSet} /></div>
+      <div className="card"><CompanyForm form={form} onChange={setForm} tokenSet={!!company?.flexpayTokenSet} pawapayTokenSet={!!company?.pawapayTokenSet} /></div>
     </form>
 
     <div className="card danger-zone">

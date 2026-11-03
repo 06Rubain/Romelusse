@@ -19,7 +19,7 @@ interface PublicData {
   company: Company;
   template: InvoiceTemplate | null;
   notices: ClientNotice[];
-  checkout: { mode: 'demo' | 'live'; methods: string[] } | null;
+  checkout: { mode: 'demo' | 'sandbox' | 'live'; provider: string; methods: string[] } | null;
 }
 
 interface ClientNotice { provider: string; amount: number; currency: Currency; reference: string; status: NoticeStatus; createdAt: string }
@@ -195,7 +195,7 @@ export default function PublicInvoice() {
         )}
 
         {checkoutOn && (payable || justPaid) && (
-          <Checkout token={token} methods={data.checkout!.methods} mode={data.checkout!.mode} amount={due} currency={invoice.currency}
+          <Checkout token={token} methods={data.checkout!.methods} mode={data.checkout!.mode} provider={data.checkout!.provider} amount={due} currency={invoice.currency}
             brand={company.name} onPaid={onPaid} />
         )}
 

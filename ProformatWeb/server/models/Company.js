@@ -43,6 +43,10 @@ const companySchema = new mongoose.Schema({
   flexpayMerchant: { type: String, default: '' },
   // Clé secrète de l'API : jamais renvoyée au navigateur
   flexpayToken: { type: String, default: '', select: false },
+  // Prestataire du paiement réel : FlexPaie (Mobile Money + carte) ou pawaPay (Mobile Money, compte de test gratuit)
+  paymentProvider: { type: String, enum: ['flexpay', 'pawapay'], default: 'flexpay' },
+  pawapayEnv: { type: String, enum: ['sandbox', 'live'], default: 'sandbox' },
+  pawapayToken: { type: String, default: '', select: false },
   // Règles de gestion
   exchangeRate: { type: Number, default: 2250, min: 0 },
   reportingCurrency: { type: String, enum: ['USD', 'FC'], default: 'USD' },

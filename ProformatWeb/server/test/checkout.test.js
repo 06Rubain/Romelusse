@@ -131,3 +131,64 @@ test('mode réel : appels FlexPaie (Mobile Money et carte), clé jamais renvoyé
     global.fetch = realFetch;
   }
 });
+
+test('pawaPay : demande envoyée sur le téléphone, test gratuit sans encaissement, réel encaissé', async () => {
+  const saved = (await admin.put('/api/company', { checkoutMode: 'live', paymentProvider: 'pawapay', pawapayEnv: 'sandbox', pawapayToken: 'pawa-key-456' }).expect(200)).body;
+  assert.strictEqual(saved.pawapayTokenSet, true);
+  assert.strictEqual(saved.pawapayToken, undefined);
+  const raw = await Company.findOne({ name: 'Imprimerie Caisse' }).select('+pawapayToken').lean();
+  assert.ok(raw.pawapayToken.startsWith('enc:v1:'));
+
+  const calls = [];
+  const realFetch = global.fetch;
+  const deposits = new Map();
+  global.fetch = async (url, options = {}) => {
+    calls.push({ url: String(url), options });
+    const reply = (status, json) => ({ status, text: async () => JSON.stringify(json) });
+    if (options.body) {
+      const body = JSON.parse(options.body);
+      deposits.set(body.depositId, body);
+      return reply(200, { depositId: body.depositId, status: 'ACCEPTED' });
+    }
+    const id = String(url).split('/').pop();
+    const d = deposits.get(id);
+    return reply(200, { status: 'FOUND', data: { depositId: id, status: 'COMPLETED', amount: d.amount, currency: d.currency } });
+  };
+  try {
+    const inv = await newInvoice(12);
+    const page = (await request(app).get(`/api/public/invoices/${inv.publicToken}`).expect(200)).body;
+    assert.deepStrictEqual(page.checkout.methods, ['M-Pesa', 'Orange Money', 'Airtel Money']);
+    assert.strictEqual(page.checkout.mode, 'sandbox');
+    await request(app).post(`/api/public/invoices/${inv.publicToken}/checkout`).send({ method: 'Carte bancaire' }).expect(400);
+
+    const started = (await request(app).post(`/api/public/invoices/${inv.publicToken}/checkout`).send({ method: 'M-Pesa', phone: '0973456789' }).expect(201)).body;
+    const sent = calls[0];
+    assert.strictEqual(sent.url, 'https://api.sandbox.pawapay.io/v2/deposits');
+    assert.strictEqual(sent.options.headers.Authorization, 'Bearer pawa-key-456');
+    const body = JSON.parse(sent.options.body);
+    assert.deepStrictEqual(body.payer, { type: 'MMO', accountDetails: { phoneNumber: '243973456789', provider: 'VODACOM_MPESA_COD' } });
+    assert.deepStrictEqual([body.amount, body.currency], ['12', 'USD']);
+    assert.match(body.depositId, /^[0-9a-f-]{36}$/);
+
+    // Notification de pawaPay : l'état est redemandé à pawaPay ; en test, rien n'est encaissé
+    await request(app).post('/api/public/pawapay/callback').send({ depositId: body.depositId, status: 'COMPLETED' }).expect(200);
+    const state = (await request(app).get(`/api/public/invoices/${inv.publicToken}/checkout/${started.id}`).expect(200)).body;
+    assert.strictEqual(state.status, 'Réussi');
+    assert.strictEqual(state.mode, 'sandbox');
+    assert.strictEqual(state.invoice.status, 'En attente');
+
+    // Environnement réel : encaissé automatiquement
+    await admin.put('/api/company', { pawapayEnv: 'live' }).expect(200);
+    const inv2 = await newInvoice(7);
+    const live = (await request(app).post(`/api/public/invoices/${inv2.publicToken}/checkout`).send({ method: 'Orange Money', phone: '0898765432' }).expect(201)).body;
+    assert.ok(calls.at(-1).url.startsWith('https://api.pawapay.io/v2/deposits'));
+    const done = (await request(app).get(`/api/public/invoices/${inv2.publicToken}/checkout/${live.id}`).expect(200)).body;
+    assert.strictEqual(done.status, 'Réussi');
+    assert.strictEqual(done.invoice.status, 'Payée');
+    const after = (await admin.get(`/api/invoices/${inv2._id}`).expect(200)).body;
+    assert.strictEqual(after.payments.length, 1);
+    assert.strictEqual(after.payments[0].method, 'Mobile Money');
+  } finally {
+    global.fetch = realFetch;
+  }
+});
