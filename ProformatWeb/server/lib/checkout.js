@@ -5,6 +5,7 @@ const Payment = require('../models/Payment');
 const OnlinePayment = require('../models/OnlinePayment');
 const flexpay = require('./flexpay');
 const { HttpError, round2 } = require('./helpers');
+const { decryptSecret } = require('./secret');
 const { logActivity } = require('./activity');
 
 // Moyens proposés sur la page de paiement du client
@@ -21,8 +22,9 @@ const DEMO_DELAY_MS = Number(process.env.CHECKOUT_DEMO_DELAY_MS || 5000);
 const checkoutConfig = async (companyId) => {
   const company = await Company.findById(companyId).select('+flexpayToken checkoutMode flexpayMerchant').lean();
   if (!company || company.checkoutMode === 'off' || !company.checkoutMode) return null;
-  if (company.checkoutMode === 'live' && !(company.flexpayMerchant && company.flexpayToken)) return null;
-  return { mode: company.checkoutMode, merchant: company.flexpayMerchant, token: company.flexpayToken };
+  const token = decryptSecret(company.flexpayToken);
+  if (company.checkoutMode === 'live' && !(company.flexpayMerchant && token)) return null;
+  return { mode: company.checkoutMode, merchant: company.flexpayMerchant, token };
 };
 
 const balanceOf = (invoice) => round2(invoice.totalAmount - invoice.amountPaid);
@@ -32,7 +34,7 @@ const settle = async (online, providerReference = '') => {
   const claimed = await OnlinePayment.findOneAndUpdate(
     { _id: online._id, status: 'En cours' },
     { status: 'Réussi', message: 'Paiement reçu.' },
-    { new: true },
+    { returnDocument: 'after' },
   );
   if (!claimed) return OnlinePayment.findById(online._id);
   const invoice = await Invoice.findById(online.invoice);
@@ -54,8 +56,25 @@ const settle = async (online, providerReference = '') => {
   return claimed;
 };
 
+// Mode essai : la page montre un paiement réussi, mais rien n'est encaissé et la facture ne change pas
+// (un mode essai oublié ne peut jamais faire passer une facture en « Payée » sans argent)
+const demoComplete = async (online) => (await OnlinePayment.findOneAndUpdate(
+  { _id: online._id, status: 'En cours' },
+  { status: 'Réussi', message: 'Essai réussi : aucun argent débité, la facture n\'a pas changé.' },
+  { returnDocument: 'after' },
+)) || OnlinePayment.findById(online._id);
+
+// Montant et devise réellement payés chez FlexPaie (s'ils sont connus) : doivent correspondre à la demande
+const amountMatches = (online, result) => {
+  if (result.amount !== undefined && Number.isFinite(result.amount) && Math.abs(result.amount - online.amount) > 0.01) return false;
+  const expected = online.currency === 'FC' ? 'CDF' : 'USD';
+  if (result.currency && !['CDF', 'FC', 'USD'].includes(result.currency)) return false;
+  if (result.currency && (result.currency === 'FC' ? 'CDF' : result.currency) !== expected) return false;
+  return true;
+};
+
 const fail = async (online, message) => (await OnlinePayment.findOneAndUpdate(
-  { _id: online._id, status: 'En cours' }, { status: 'Échoué', message }, { new: true },
+  { _id: online._id, status: 'En cours' }, { status: 'Échoué', message }, { returnDocument: 'after' },
 )) || OnlinePayment.findById(online._id);
 
 // Démarre un paiement depuis la page du client
@@ -81,6 +100,13 @@ const startCheckout = async ({ invoice, company, method, phone, origin, apiOrigi
     callbackKey: crypto.randomBytes(18).toString('base64url'),
   });
   const returnUrl = `${origin}/p/${token}?paiement=${online._id}`;
+
+  // En production, le paiement réel n'utilise que des adresses https
+  const { isProduction } = require('./origin');
+  if (config.mode === 'live' && isProduction() && !(origin.startsWith('https://') && apiOrigin.startsWith('https://'))) {
+    await fail(online, 'Adresse non sécurisée.');
+    throw new HttpError(400, 'Le paiement en ligne exige une adresse sécurisée (https).');
+  }
 
   if (config.mode === 'demo') {
     online.orderNumber = `ESSAI-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
@@ -112,13 +138,19 @@ const refreshCheckout = async (online, { force = false } = {}) => {
   if (online.mode === 'demo') {
     if (age < DEMO_DELAY_MS && online.channel === 'mobile') return online;
     if (online.phone.endsWith('000')) return fail(online, 'Paiement refusé (essai : numéro se terminant par 000).');
-    return settle(online, online.orderNumber);
+    return demoComplete(online);
   }
 
   const config = await checkoutConfig(online.company);
   if (config?.mode === 'live') {
     const result = await flexpay.check({ token: config.token, orderNumber: online.orderNumber });
-    if (result.status === 'success') return settle(online, result.providerReference);
+    if (result.status === 'success') {
+      if (!amountMatches(online, result)) {
+        await logActivity('Paiement en ligne', 'Alerte paiement', `Montant FlexPaie différent sur ${online.invoiceNumber} : attendu ${online.amount} ${online.currency}, reçu ${result.amount} ${result.currency || ''} (commande ${online.orderNumber})`, online.company);
+        return fail(online, 'Montant reçu différent du montant demandé : l\'entreprise va vérifier avec FlexPaie.');
+      }
+      return settle(online, result.providerReference);
+    }
     if (result.status === 'failed') return fail(online, result.message);
   }
   if (age > EXPIRY_MS[online.channel]) return fail(online, 'Paiement non confirmé à temps.');

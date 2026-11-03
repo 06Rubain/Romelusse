@@ -4,6 +4,7 @@ const assert = require('node:assert');
 const request = require('supertest');
 const { startDb, stopDb, setupPlatform, createCompany, client } = require('./helpers');
 const OnlinePayment = require('../models/OnlinePayment');
+const Company = require('../models/Company');
 
 let app;
 let admin;
@@ -30,7 +31,7 @@ test('paiement en ligne désactivé par défaut', async () => {
   await request(app).post(`/api/public/invoices/${inv.publicToken}/checkout`).send({ method: 'M-Pesa', phone: '0812345678' }).expect(400);
 });
 
-test('mode essai : Mobile Money encaissé automatiquement, numéro en 000 refusé', async () => {
+test('mode essai : la page fonctionne mais rien n\'est encaissé, numéro en 000 refusé', async () => {
   const company = (await admin.put('/api/company', { checkoutMode: 'demo' }).expect(200)).body;
   assert.strictEqual(company.checkoutMode, 'demo');
   const inv = await newInvoice(40);
@@ -49,14 +50,12 @@ test('mode essai : Mobile Money encaissé automatiquement, numéro en 000 refus�
   assert.ok(!JSON.stringify(started).includes('898765432'));
   const done = (await request(app).get(`/api/public/invoices/${inv.publicToken}/checkout/${started.id}`).expect(200)).body;
   assert.strictEqual(done.status, 'Réussi');
-  assert.strictEqual(done.invoice.status, 'Payée');
-  // Un deuxième passage n'encaisse pas deux fois
-  await request(app).get(`/api/public/invoices/${inv.publicToken}/checkout/${started.id}`).expect(200);
+  assert.strictEqual(done.mode, 'demo');
+  // Un mode essai (même oublié) ne fait jamais passer une facture en « Payée »
+  assert.strictEqual(done.invoice.status, 'En attente');
   const after = (await admin.get(`/api/invoices/${inv._id}`).expect(200)).body;
-  assert.strictEqual(after.payments.length, 1);
-  assert.strictEqual(after.payments[0].method, 'Mobile Money');
-  assert.strictEqual(after.amountPaid, 40);
-  await request(app).post(`/api/public/invoices/${inv.publicToken}/checkout`).send({ method: 'M-Pesa', phone: '0812345678' }).expect(400);
+  assert.strictEqual(after.payments.length, 0);
+  assert.strictEqual(after.amountPaid, 0);
 });
 
 test('mode réel : appels FlexPaie (Mobile Money et carte), clé jamais renvoyée', async () => {
@@ -66,17 +65,27 @@ test('mode réel : appels FlexPaie (Mobile Money et carte), clé jamais renvoyé
   const again = (await admin.put('/api/company', { flexpayToken: '' }).expect(200)).body;
   assert.strictEqual(again.flexpayTokenSet, true);
   assert.ok(!JSON.stringify((await admin.get('/api/company').expect(200)).body).includes('secret-token-123'));
+  // Chiffrée en base : une copie de la base ne révèle pas la clé
+  const raw = await Company.findOne({ name: 'Imprimerie Caisse' }).select('+flexpayToken').lean();
+  assert.ok(raw.flexpayToken.startsWith('enc:v1:'));
+  assert.ok(!raw.flexpayToken.includes('secret-token-123'));
+  const journal = (await admin.get('/api/activities').expect(200)).body;
+  const entries = JSON.stringify(journal);
+  assert.ok(entries.includes('Clé API FlexPaie remplacée'));
+  assert.ok(!entries.includes('secret-token-123'));
 
   const calls = [];
   const realFetch = global.fetch;
   let txStatus = '2';
+  let txAmount = 25;
   global.fetch = async (url, options = {}) => {
     calls.push({ url: String(url), options });
     const body = options.body ? JSON.parse(options.body) : null;
     const reply = (json) => ({ status: 200, text: async () => JSON.stringify(json) });
-    if (body?.type === '1') return reply({ code: '0', message: 'Transaction envoyée', orderNumber: 'ORD-1' });
+    if (body?.type === '1') return reply({ code: '0', message: 'Transaction envoyée', orderNumber: body.phone === '243990000003' ? 'ORD-3' : 'ORD-1' });
     if (body?.type === '2') return reply({ code: '0', message: 'ok', orderNumber: 'ORD-2', url: 'https://cardpayment.flexpay.cd/checkout/abc' });
-    if (String(url).endsWith('/check/ORD-1')) return reply({ code: '0', transaction: { status: txStatus, reference: 'x' } });
+    if (String(url).endsWith('/check/ORD-1')) return reply({ code: '0', transaction: { status: txStatus, reference: 'x', amount: String(txAmount), currency: 'USD' } });
+    if (String(url).endsWith('/check/ORD-3')) return reply({ code: '0', transaction: { status: '0', amount: '1', currency: 'USD' } });
     return reply({ code: '1', message: 'inconnu' });
   };
   try {
@@ -102,10 +111,22 @@ test('mode réel : appels FlexPaie (Mobile Money et carte), clé jamais renvoyé
 
     const inv2 = await newInvoice(10);
     const card = (await request(app).post(`/api/public/invoices/${inv2.publicToken}/checkout`)
-      .set('Origin', 'https://app.example.cd').send({ method: 'Carte bancaire' }).expect(201)).body;
+      .set('Origin', 'https://faux-site.example').send({ method: 'Carte bancaire' }).expect(201)).body;
     assert.strictEqual(card.redirectUrl, 'https://cardpayment.flexpay.cd/checkout/abc');
     const cardBody = JSON.parse(calls.filter((c) => c.options.body).pop().options.body);
-    assert.strictEqual(cardBody.approve_url, `https://app.example.cd/p/${inv2.publicToken}?paiement=${card.id}`);
+    // Une adresse de retour imposée par la requête (faux site) est ignorée
+    assert.ok(!cardBody.approve_url.includes('faux-site'));
+    assert.ok(cardBody.approve_url.endsWith(`/p/${inv2.publicToken}?paiement=${card.id}`));
+
+    // FlexPaie annonce un paiement d'un autre montant : refusé, rien n'est encaissé, alerte au journal
+    const inv3 = await newInvoice(30);
+    const odd = (await request(app).post(`/api/public/invoices/${inv3.publicToken}/checkout`).send({ method: 'Airtel Money', phone: '0990000003' }).expect(201)).body;
+    const oddState = (await request(app).get(`/api/public/invoices/${inv3.publicToken}/checkout/${odd.id}`).expect(200)).body;
+    assert.strictEqual(oddState.status, 'Échoué');
+    assert.strictEqual(oddState.invoice.status, 'En attente');
+    assert.ok(JSON.stringify((await admin.get('/api/activities').expect(200)).body).includes('Montant FlexPaie différent'));
+    // Une même transaction FlexPaie ne peut pas servir deux fois
+    await assert.rejects(OnlinePayment.create({ ...(await OnlinePayment.findById(odd.id).lean()), _id: undefined, callbackKey: 'x' }));
   } finally {
     global.fetch = realFetch;
   }

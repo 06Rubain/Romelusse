@@ -65,7 +65,12 @@ const check = async ({ token, orderNumber }) => {
   if (!orderNumber) return { status: 'pending' };
   const { json } = await call(`${CHECK_URL}/${encodeURIComponent(orderNumber)}`, { token });
   const tx = json.transaction || {};
-  if (isZero(json.code) && isZero(tx.status)) return { status: 'success', providerReference: tx.provider_reference || tx.providerReference || '' };
+  if (isZero(json.code) && isZero(tx.status)) {
+    return {
+      status: 'success', providerReference: tx.provider_reference || tx.providerReference || '',
+      amount: tx.amount !== undefined ? Number(tx.amount) : undefined, currency: tx.currency ? String(tx.currency).toUpperCase() : undefined,
+    };
+  }
   if (isZero(json.code) && String(tx.status) === '1') return { status: 'failed', message: tx.message || json.message || 'Paiement refusé.' };
   return { status: 'pending' };
 };

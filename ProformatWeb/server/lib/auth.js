@@ -119,6 +119,7 @@ const sessionUser = (user) => {
 };
 
 module.exports = {
+  getSecret,
   signSession,
   signTwoFactorChallenge,
   verifyTwoFactorChallenge,

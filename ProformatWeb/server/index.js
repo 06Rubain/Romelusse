@@ -67,7 +67,15 @@ app.use('/api', async (req, res, next) => {
 
 app.use('/api/auth', require('./routes/auth'));
 // Pages client sans compte (lien secret d'une facture)
-app.use('/api/public', require('./routes/public'));
+app.use('/api/public', rateLimit({
+  windowMs: 15 * 60 * 1000,
+  // Pages client : consultation et suivi d'un paiement (environ 60 requêtes pour 3 minutes de suivi)
+  limit: 600,
+  skip: () => isTest,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Trop de requêtes. Réessayez dans quelques minutes.' },
+}), require('./routes/public'));
 
 app.use('/api', requireAuth);
 // Saisies hors ligne renvoyées après une coupure : jamais enregistrées deux fois

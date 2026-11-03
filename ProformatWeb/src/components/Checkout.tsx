@@ -39,7 +39,7 @@ export default function Checkout({ token, methods, mode, amount, currency, brand
     const timer = setInterval(async () => {
       try {
         const next = await api.get<Online>(`/public/invoices/${token}/checkout/${online.id}`);
-        if (next.status !== 'En cours') { setOnline(next); if (next.status === 'Réussi') onPaid(); }
+        if (next.status !== 'En cours') { setOnline(next); if (next.status === 'Réussi' && next.mode === 'live') onPaid(); }
         if (Date.now() - startedAt.current > WAIT_LIMIT_MS) setSlow(true);
       } catch { /* connexion instable : on réessaie au prochain passage */ }
     }, POLL_MS);
@@ -65,6 +65,18 @@ export default function Checkout({ token, methods, mode, amount, currency, brand
 
   const restart = () => { setOnline(null); setError(''); window.history.replaceState(null, '', window.location.pathname); };
   const total = formatMoney(amount, currency);
+
+  if (online?.status === 'Réussi' && online.mode === 'demo') {
+    return (
+      <div className="checkout checkout-done">
+        <CheckCircle2 size={56} />
+        <h2>Essai réussi</h2>
+        <p>Voici ce que verra votre client après un vrai paiement de <strong>{formatMoney(online.amount, online.currency)}</strong> par {online.method}.</p>
+        <p className="muted small">Mode essai : aucun argent n'a été débité et la facture n'a pas changé.</p>
+        <button type="button" className="btn btn-outline btn-sm" onClick={restart}>Refaire un essai</button>
+      </div>
+    );
+  }
 
   if (online?.status === 'Réussi') {
     return (
@@ -99,6 +111,7 @@ export default function Checkout({ token, methods, mode, amount, currency, brand
 
   return (
     <div className="checkout">
+      {mode === 'demo' && <div className="checkout-demo">MODE ESSAI : aucun paiement réel</div>}
       {online?.status === 'Échoué' && (
         <div className="pay-status danger"><XCircle size={22} /><div><strong>Paiement non abouti</strong><div>{online.message || 'Réessayez ou choisissez un autre moyen.'}</div></div></div>
       )}

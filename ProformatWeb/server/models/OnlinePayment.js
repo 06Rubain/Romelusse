@@ -26,6 +26,8 @@ const onlinePaymentSchema = new mongoose.Schema({
 
 onlinePaymentSchema.index({ invoice: 1, createdAt: -1 });
 onlinePaymentSchema.index({ company: 1, createdAt: -1 });
+// Une transaction FlexPaie ne peut servir qu'à un seul paiement
+onlinePaymentSchema.index({ orderNumber: 1 }, { unique: true, partialFilterExpression: { orderNumber: { $type: 'string', $gt: '' } } });
 
 module.exports = mongoose.model('OnlinePayment', onlinePaymentSchema);
 module.exports.STATUSES = STATUSES;

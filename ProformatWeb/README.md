@@ -160,6 +160,26 @@ sécurisée de FlexPaie puis revient sur la page du client. L'état est vérifi�
 que la page est ouverte, et à la notification de FlexPaie) : quand le paiement réussit, l'encaissement est créé
 automatiquement (une seule fois), la facture passe en « Payée » et la trésorerie est à jour.
 
+**Sécurité du paiement en ligne**
+
+- La clé API FlexPaie est **chiffrée en base** (AES-256-GCM, clé `PAYMENT_SECRET_KEY` ou dérivée de `JWT_SECRET`) et
+  n'est jamais renvoyée au navigateur. Si la clé du serveur change, ressaisissez la clé FlexPaie.
+- Le montant est toujours calculé par le serveur (reste dû de la facture) ; le client ne peut pas le modifier.
+- Un paiement n'est encaissé qu'après **vérification auprès de FlexPaie** ; la notification de FlexPaie n'est jamais crue
+  telle quelle (lien secret par paiement + nouvelle vérification). Si FlexPaie annonce un autre montant ou une autre
+  devise, rien n'est encaissé et une alerte est écrite au journal d'activité.
+- Une même transaction FlexPaie ne peut servir qu'une fois ; un double clic ou une double notification n'encaisse
+  jamais deux fois.
+- Le **mode essai** n'encaisse jamais rien et ne change jamais la facture : un mode essai oublié ne peut pas faire passer
+  une facture en « Payée ».
+- Les adresses de retour (après la carte) et les liens imprimés ne viennent jamais de la requête : seulement de
+  `PUBLIC_APP_URL`, `CORS_ORIGIN` ou de l'adresse du site (pas de redirection vers un faux site). En production, le
+  paiement réel exige le https.
+- Changement de mode, de code marchand ou de clé : tracé au journal d'activité (jamais la valeur de la clé).
+- Limites de débit sur les pages publiques (consultation, paiement, « J'ai payé »).
+- En-têtes de sécurité du site (`vercel.json`) : Content-Security-Policy, interdiction d'affichage dans un autre site
+  (anti-hameçonnage), `Referrer-Policy: no-referrer` (le lien secret d'une facture ne fuit pas vers d'autres sites), HSTS.
+
 Adresses de l'API utilisées par défaut (modifiables si FlexPaie vous en donne d'autres) :
 `FLEXPAY_PAYMENT_URL=https://corporateapi.flexpay.cd/api/rest/v1/paymentService` et
 `FLEXPAY_CHECK_URL=https://apicheck.flexpaie.com/api/rest/v1/check`.

@@ -8,6 +8,7 @@ const { METHODS } = require('../models/Payment');
 const PaymentNotice = require('../models/PaymentNotice');
 const Company = require('../models/Company');
 const qrcode = require('qrcode');
+const { appOrigin } = require('../lib/origin');
 const {
   HttpError, toNumber, round2, parseDate, escapeRegex, paginate, dateRangeFilter, CURRENCIES,
 } = require('../lib/helpers');
@@ -105,11 +106,7 @@ const clientPayLink = async (req, invoice) => {
   if (invoice.type !== 'Facture' || !invoice.publicToken) return null;
   const company = await Company.findById(req.company._id).select('checkoutMode paymentAccounts paymentLink').lean();
   if (!company || !(company.checkoutMode !== 'off' || company.paymentAccounts?.length)) return null;
-  const raw = process.env.PUBLIC_APP_URL || String(req.query.origin || '');
-  let origin;
-  try { origin = new URL(raw); } catch { return null; }
-  if (!['http:', 'https:'].includes(origin.protocol)) return null;
-  const url = `${origin.origin}/p/${invoice.publicToken}`;
+  const url = `${appOrigin(req, req.query.origin)}/p/${invoice.publicToken}`;
   return { url, qr: await qrcode.toDataURL(url, { margin: 1, width: 240 }) };
 };
 
@@ -313,7 +310,7 @@ router.post('/:id/notices/:noticeId/confirm', requirePermission('payments.create
   const claimed = await PaymentNotice.findOneAndUpdate(
     { _id: notice._id, status: 'En attente' },
     { status: 'Confirmé', handledBy: req.user.email, handledAt: new Date() },
-    { new: true },
+    { returnDocument: 'after' },
   );
   if (!claimed) throw new HttpError(400, 'Ce paiement a déjà été traité.');
   let payment;

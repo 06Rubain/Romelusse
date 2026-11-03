@@ -65,9 +65,7 @@ const checkoutLimit = rateLimit({
   message: { error: 'Trop de tentatives de paiement. Réessayez plus tard ou appelez l\'entreprise.' },
 });
 
-// Adresse de l'application (pour le retour après la page carte) et de l'API (pour la notification de FlexPaie)
-const appOrigin = (req) => process.env.PUBLIC_APP_URL || req.get('origin') || `${req.protocol}://${req.get('host')}`;
-const apiOrigin = (req) => process.env.PUBLIC_API_URL || `${req.protocol}://${req.get('host')}`;
+const { appOrigin, apiOrigin } = require('../lib/origin');
 
 const onlineView = (online, invoice) => ({
   id: online._id, status: online.status, message: online.message, method: online.method, channel: online.channel,

@@ -1,6 +1,7 @@
 const qrcode = require('qrcode');
 const { pick, toNumber, CURRENCIES, HttpError } = require('./helpers');
 const { validateImage, validateColor } = require('./images');
+const { encryptSecret } = require('./secret');
 
 const BRANDING_FIELDS = ['name', 'legalName', 'address', 'city', 'email', 'phone', 'taxNumber', 'nationalId', 'rccm', 'bankName', 'bankAccount',
   'exchangeRate', 'reportingCurrency', 'paymentTermDays', 'logo', 'footerImage', 'primaryColor', 'secondaryColor', 'accentColor',
@@ -54,7 +55,8 @@ const sanitizeCompany = async (body) => {
   // Clé : remplacée seulement si une nouvelle est saisie (le formulaire ne la connaît jamais)
   if (data.flexpayToken !== undefined) {
     const token = String(data.flexpayToken || '').trim();
-    if (token) data.flexpayToken = token.slice(0, 2000);
+    // Chiffrée avant d'être enregistrée
+    if (token) data.flexpayToken = encryptSecret(token.slice(0, 2000));
     else delete data.flexpayToken;
   }
   if (data.paymentLink !== undefined) {

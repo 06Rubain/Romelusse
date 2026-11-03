@@ -5,6 +5,7 @@ const { requirePermission } = require('../lib/auth');
 const { sanitizeCompany } = require('../lib/company');
 const { logActivity } = require('../lib/activity');
 const { resetCompanyData } = require('../lib/reset');
+const { decryptSecret } = require('../lib/secret');
 
 const router = express.Router();
 
@@ -13,7 +14,7 @@ const router = express.Router();
 // La clé FlexPaie n'est jamais renvoyée : seulement le fait qu'elle est enregistrée
 const withSecrets = async (company) => {
   const secret = await Company.findById(company._id).select('+flexpayToken').lean();
-  return { ...company.toJSON(), flexpayTokenSet: !!secret?.flexpayToken };
+  return { ...company.toJSON(), flexpayTokenSet: !!decryptSecret(secret?.flexpayToken) };
 };
 
 router.get('/', async (req, res) => res.json(await withSecrets(await Company.findById(req.company._id))));
@@ -23,6 +24,15 @@ router.put('/', requirePermission('settings.manage'), async (req, res) => {
   if (data.name === '') throw new HttpError(400, 'Le nom de l\'entreprise est obligatoire.');
   const company = await Company.findByIdAndUpdate(req.company._id, data, { returnDocument: 'after', runValidators: true });
   await logActivity(req.user, 'Paramètres', 'Mise à jour des paramètres de l\'entreprise');
+  // Réglages du paiement en ligne : toujours tracés (jamais la valeur de la clé)
+  const MODES = { off: 'désactivé', demo: 'essai', live: 'réel' };
+  if (data.checkoutMode !== undefined && data.checkoutMode !== req.company.checkoutMode) {
+    await logActivity(req.user, 'Sécurité paiement', `Paiement en ligne : ${MODES[req.company.checkoutMode || 'off']} → ${MODES[data.checkoutMode]}`);
+  }
+  if (data.flexpayToken) await logActivity(req.user, 'Sécurité paiement', 'Clé API FlexPaie remplacée');
+  if (data.flexpayMerchant !== undefined && data.flexpayMerchant !== (req.company.flexpayMerchant || '')) {
+    await logActivity(req.user, 'Sécurité paiement', `Code marchand FlexPaie : ${data.flexpayMerchant || '(vide)'}`);
+  }
   res.json(await withSecrets(company));
 });
 
