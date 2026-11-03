@@ -39,7 +39,8 @@ const checkoutConfig = async (companyId, { currency } = {}) => {
     const wanted = currency === 'FC' ? 'CDF' : currency;
     const providers = (await pawapay.activeProviders({ env, token })).filter((p) => p.currencies.includes(wanted));
     const providerCodes = Object.fromEntries(providers.map((p) => [p.method, p.code]));
-    return { ...base, methods: Object.keys(providerCodes), providerCodes };
+    const limits = Object.fromEntries(providers.map((p) => [p.method, p.limits?.[wanted] || null]));
+    return { ...base, methods: Object.keys(providerCodes), providerCodes, limits };
   }
   const token = decryptSecret(company.flexpayToken);
   if (!(company.flexpayMerchant && token)) return null;
@@ -109,6 +110,12 @@ const startCheckout = async ({ invoice, company, method, phone, origin, apiOrigi
   const msisdn = channel === 'mobile' ? flexpay.normalizePhone(phone) : '';
   if (channel === 'mobile' && !msisdn) throw new HttpError(400, 'Numéro invalide : saisissez votre numéro Mobile Money (ex. 0991234567).');
 
+  // Limites de montant de l'opérateur (lues sur le compte pawaPay)
+  const limit = config.limits?.[method];
+  const shown = (v) => `${v} ${invoice.currency === 'FC' ? 'FC' : 'USD'}`;
+  if (limit?.min !== undefined && amount < limit.min) throw new HttpError(400, `Montant trop petit pour ${method} (minimum ${shown(limit.min)}). Choisissez un autre moyen ou payez sur nos numéros.`);
+  if (limit?.max !== undefined && amount > limit.max) throw new HttpError(400, `Montant trop élevé pour ${method} (maximum ${shown(limit.max)}). Payez en plusieurs fois ou choisissez un autre moyen.`);
+
   const recent = await OnlinePayment.findOne({ invoice: invoice._id, status: 'En cours', channel: 'mobile', createdAt: { $gt: new Date(Date.now() - 90 * 1000) } });
   if (recent && channel === 'mobile') throw new HttpError(409, 'Un paiement est déjà en attente de confirmation sur un téléphone. Patientez une minute.');
 
@@ -176,9 +183,23 @@ const refreshCheckout = async (online, { force = false } = {}) => {
       return settle(online, result.providerReference);
     }
     if (result.status === 'failed') return fail(online, result.message);
+    // Demande jamais arrivée chez le prestataire (coupure au moment de l'envoi) : rien n'a pu être payé
+    if (result.status === 'not_found' && age > 2 * 60 * 1000) return fail(online, 'La demande de paiement n\'est pas arrivée chez l\'opérateur : réessayez.');
   }
   if (age > EXPIRY_MS[online.channel]) return fail(online, 'Paiement non confirmé à temps.');
   return online;
 };
 
-module.exports = { checkoutConfig, startCheckout, refreshCheckout, CHECKOUT_METHODS, MOBILE_METHODS, CARD_METHOD };
+// Revérifie les paiements restés « en cours » (client parti avant la fin, notification perdue) :
+// appelé quand l'entreprise ouvre une facture ou son tableau de bord
+const reconcilePending = async (filter) => {
+  const pending = await OnlinePayment.find({ ...filter, status: 'En cours' }).sort({ createdAt: -1 }).limit(10);
+  for (const online of pending) {
+    try { await refreshCheckout(online); } catch (err) { console.error('Vérification de paiement impossible :', err.message); }
+  }
+  return pending.length;
+};
+
+module.exports = {
+  checkoutConfig, startCheckout, refreshCheckout, reconcilePending, CHECKOUT_METHODS, MOBILE_METHODS, CARD_METHOD,
+};

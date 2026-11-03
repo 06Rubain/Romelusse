@@ -479,6 +479,25 @@ export default function InvoiceGenerator() {
                   ))}
                   {invoice.payments?.length === 0 && <li className="muted">Aucun encaissement.</li>}
                 </ul>
+                {(invoice.onlinePayments?.length ?? 0) > 0 && (
+                  <>
+                    <h3 className="section-title">Paiements en ligne</h3>
+                    <ul className="list online-list">
+                      {invoice.onlinePayments!.map((o) => (
+                        <li key={o._id}>
+                          <span>
+                            {formatDate(o.createdAt)} · {o.method}{o.phone ? ` · ${o.phone}` : ''}{o.mode !== 'live' ? ' · essai' : ''}
+                            {o.message && o.status !== 'Réussi' && <div className="muted small">{o.message}</div>}
+                          </span>
+                          <span className="row-gap">
+                            <strong>{formatMoney(o.amount, o.currency)}</strong>
+                            <span className={`badge ${o.status === 'Réussi' ? 'badge-success' : o.status === 'Échoué' ? 'badge-danger' : 'badge-warning'}`}>{o.status}</span>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
               </>
             )}
             {invoice.notes && <><h3 className="section-title">Notes</h3><p className="muted" style={{ whiteSpace: 'pre-line' }}>{invoice.notes}</p></>}

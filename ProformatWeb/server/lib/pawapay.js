@@ -45,7 +45,29 @@ const call = async (env, path, { token, body }) => {
   }
 };
 
-const failureText = (json) => json.failureReason?.failureMessage || json.failureReason?.failureCode || json.message || json.errorMessage || '';
+// Motifs de refus pawaPay expliqués simplement au client
+const FAILURES = {
+  INSUFFICIENT_BALANCE: 'Solde insuffisant sur ce compte Mobile Money.',
+  PAYMENT_NOT_APPROVED: 'Paiement non validé sur le téléphone (code secret non saisi ou demande refusée).',
+  PAYER_NOT_FOUND: 'Ce numéro n\'a pas de compte Mobile Money chez cet opérateur.',
+  PAYER_LIMIT_REACHED: 'Plafond de transactions atteint sur ce compte Mobile Money.',
+  INVALID_PHONE_NUMBER: 'Numéro de téléphone invalide pour cet opérateur.',
+  INVALID_PAYER_FORMAT: 'Numéro de téléphone invalide pour cet opérateur.',
+  AMOUNT_OUT_OF_BOUNDS: 'Montant hors des limites acceptées par l\'opérateur.',
+  INVALID_AMOUNT: 'Montant non accepté par l\'opérateur.',
+  INVALID_CURRENCY: 'Devise non acceptée par cet opérateur : essayez un autre opérateur.',
+  PROVIDER_TEMPORARILY_UNAVAILABLE: 'L\'opérateur est momentanément indisponible : réessayez dans quelques minutes ou choisissez un autre opérateur.',
+  PAYMENT_IN_PROGRESS: 'Un paiement est déjà en cours sur ce numéro : validez-le ou attendez quelques minutes.',
+  MANUALLY_CANCELLED: 'Paiement annulé.',
+  WALLET_LIMIT_REACHED: 'Plafond du compte Mobile Money atteint.',
+  UNSPECIFIED_FAILURE: 'Paiement refusé par l\'opérateur.',
+  UNKNOWN_ERROR: 'Paiement refusé par l\'opérateur.',
+};
+const failureText = (json) => {
+  const code = json.failureReason?.failureCode || json.rejectionReason?.rejectionCode;
+  if (code && FAILURES[code]) return FAILURES[code];
+  return json.failureReason?.failureMessage || json.rejectionReason?.rejectionMessage || code || json.message || json.errorMessage || '';
+};
 
 // Montant au format pawaPay : francs congolais sans décimales, dollars avec 2 décimales au plus
 const formatAmount = (amount, currency) => (currency === 'CDF' ? String(Math.round(amount)) : String(Math.round(amount * 100) / 100));
@@ -65,8 +87,22 @@ const parseConf = (json) => {
       const ops = cur.operationTypes || cur.operations || {};
       const deposit = Array.isArray(ops) ? ops.find((o) => (o.operationType || o.type) === 'DEPOSIT') : ops.DEPOSIT;
       return deposit && (!deposit.status || deposit.status === 'OPERATIONAL');
-    }).map((cur) => String(cur.currency).toUpperCase());
-    if (currencies.length) list.push({ method: methodName(code, p.displayName), code, currencies });
+    });
+    if (!currencies.length) continue;
+    const entry = { method: methodName(code, p.displayName), code, currencies: currencies.map((cur) => String(cur.currency).toUpperCase()) };
+    // Montants minimum et maximum de l'opérateur, par devise (s'ils sont donnés)
+    const limits = {};
+    for (const cur of currencies) {
+      const ops = cur.operationTypes || cur.operations || {};
+      const deposit = Array.isArray(ops) ? ops.find((o) => (o.operationType || o.type) === 'DEPOSIT') : ops.DEPOSIT;
+      const min = Number(deposit?.minAmount ?? deposit?.minTransactionLimit);
+      const max = Number(deposit?.maxAmount ?? deposit?.maxTransactionLimit);
+      if (Number.isFinite(min) || Number.isFinite(max)) {
+        limits[String(cur.currency).toUpperCase()] = { ...(Number.isFinite(min) ? { min } : {}), ...(Number.isFinite(max) ? { max } : {}) };
+      }
+    }
+    if (Object.keys(limits).length) entry.limits = limits;
+    list.push(entry);
   }
   return list;
 };
@@ -107,6 +143,9 @@ const startDeposit = async ({ env, token, method, providerCode, phone, amount, c
   });
   if (httpStatus >= 200 && httpStatus < 300 && ['ACCEPTED', 'DUPLICATE_IGNORED'].includes(json.status)) return { ok: true, orderNumber: depositId };
   if (httpStatus === 401 || httpStatus === 403) return { ok: false, message: 'Clé API pawaPay refusée : vérifiez la clé et l\'environnement (test ou réel).' };
+  // Pas de réponse claire (coupure, délai, erreur du serveur pawaPay) : la demande a peut-être été reçue et payée.
+  // On garde le paiement « en cours » et on interroge pawaPay avec le même identifiant, sans jamais le refaire.
+  if (httpStatus === 0 || httpStatus >= 500) return { ok: true, orderNumber: depositId, uncertain: true };
   return { ok: false, message: failureText(json) || 'Paiement refusé par pawaPay.' };
 };
 
@@ -122,6 +161,7 @@ const check = async ({ env, token, orderNumber }) => {
     };
   }
   if (data.status === 'FAILED') return { status: 'failed', message: failureText(data) || 'Paiement refusé.' };
+  if (json.status === 'NOT_FOUND') return { status: 'not_found' };
   return { status: 'pending' };
 };
 

@@ -174,6 +174,17 @@ automatiquement (une seule fois), la facture passe en « Payée » et la trésor
   compte et affiche ces opérateurs : c'est le moyen de confirmer que la connexion fonctionne.
 - **FlexPaie** : Mobile Money (dont Africell) et carte, avec le code marchand et la clé fournis par FlexPaie.
 
+**Fiabilité du paiement**
+
+- Coupure réseau au moment de l'envoi : le paiement reste « en cours » et est revérifié chez pawaPay avec le même
+  identifiant (jamais renvoyé deux fois, jamais marqué échoué à tort). Une demande jamais arrivée est close après 2 minutes.
+- Client parti avant la fin ou notification perdue : les paiements en cours sont revérifiés quand l'entreprise ouvre la
+  facture ou le tableau de bord ; un paiement réussi est alors encaissé.
+- Le client est guidé : opérateur détecté d'après le préfixe du numéro (« Ce numéro est un numéro Airtel Money »),
+  limites de montant de l'opérateur vérifiées avant l'envoi, motifs de refus traduits (solde insuffisant, paiement non
+  validé sur le téléphone…).
+- Chaque facture affiche l'historique de ses paiements en ligne (réussi, en cours, échoué et pourquoi).
+
 **Sécurité du paiement en ligne**
 
 - La clé API FlexPaie est **chiffrée en base** (AES-256-GCM, clé `PAYMENT_SECRET_KEY` ou dérivée de `JWT_SECRET`) et

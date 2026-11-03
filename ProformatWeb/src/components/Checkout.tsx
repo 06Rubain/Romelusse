@@ -13,6 +13,19 @@ interface Online {
   amount: number; currency: Currency; mode: 'demo' | 'sandbox' | 'live'; phone: string; redirectUrl?: string | null;
 }
 
+// Opérateur d'un numéro congolais d'après son préfixe (aide le client à choisir le bon)
+const PREFIXES: Record<string, string> = {
+  81: 'M-Pesa', 82: 'M-Pesa', 83: 'M-Pesa', 84: 'Orange Money', 85: 'Orange Money', 89: 'Orange Money', 80: 'Orange Money',
+  97: 'Airtel Money', 98: 'Airtel Money', 99: 'Airtel Money', 90: 'Africell Money', 91: 'Africell Money',
+};
+const operatorOf = (phone: string) => {
+  let d = phone.replace(/\D/g, '');
+  if (d.startsWith('00')) d = d.slice(2);
+  if (d.startsWith('243')) d = d.slice(3);
+  if (d.startsWith('0')) d = d.slice(1);
+  return d.length >= 2 ? PREFIXES[d.slice(0, 2)] : undefined;
+};
+
 const colorOf = (method: string) => (method === CARD ? '#1a1f71' : PROVIDER_COLORS[method as AccountProvider] || PROVIDER_COLORS.Autre);
 
 // Paiement sur la page du client : choix du moyen, numéro, confirmation sur le téléphone, reçu
@@ -145,6 +158,16 @@ export default function Checkout({ token, methods, mode, provider, amount, curre
               </div>
             </label>
           )}
+          {method !== CARD && (() => {
+            const detected = operatorOf(phone);
+            if (!detected || detected === method) return null;
+            return methods.includes(detected) ? (
+              <div className="alert alert-warning small checkout-hint">
+                <span>Ce numéro est un numéro <strong>{detected}</strong>.</span>
+                <button type="button" className="btn btn-outline btn-sm" onClick={() => setMethod(detected)}>Payer avec {detected}</button>
+              </div>
+            ) : <div className="alert alert-warning small">Ce numéro ne semble pas être un numéro {method} : vérifiez-le.</div>;
+          })()}
           {error && <div className="alert alert-danger">{error}</div>}
           <button className="btn btn-block btn-lg checkout-pay" disabled={busy}>
             {busy ? <Loader2 size={18} className="spin" /> : <Lock size={18} />} {busy ? 'Envoi…' : `Payer ${total}`}

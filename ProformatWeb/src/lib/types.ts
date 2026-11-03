@@ -108,6 +108,7 @@ export interface Invoice {
   _id: string;
   publicToken?: string;
   clientPay?: { url: string; qr: string } | null;
+  onlinePayments?: { _id: string; method: string; provider: string; mode: 'demo' | 'sandbox' | 'live'; phone: string; amount: number; currency: Currency; status: 'En cours' | 'Réussi' | 'Échoué'; message: string; createdAt: string }[];
   number: string;
   type: DocType;
   clientId: string | null;

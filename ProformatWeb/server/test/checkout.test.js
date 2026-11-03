@@ -235,3 +235,59 @@ test('pawaPay : vérification de la clé depuis les réglages', async () => {
     global.fetch = realFetch;
   }
 });
+
+test('pawaPay : coupure à l\'envoi, limites, motif de refus traduit, paiement retrouvé à l\'ouverture de la facture', async () => {
+  await admin.put('/api/company', { checkoutMode: 'live', paymentProvider: 'pawapay', pawapayEnv: 'live', pawapayToken: 'cle-fiable' }).expect(200);
+  require('../lib/pawapay').clearConfCache();
+  const realFetch = global.fetch;
+  const deposits = new Map();
+  let cutNext = false;
+  global.fetch = async (url, options = {}) => {
+    const reply = (status, json) => ({ status, text: async () => JSON.stringify(json) });
+    if (String(url).includes('/v2/active-conf')) {
+      return reply(200, { countries: [{ country: 'COD', providers: [
+        { provider: 'VODACOM_MPESA_COD', currencies: [{ currency: 'USD', operationTypes: { DEPOSIT: { status: 'OPERATIONAL', minAmount: '1', maxAmount: '2500' } } }] },
+        { provider: 'AIRTEL_COD', currencies: [{ currency: 'USD', operationTypes: { DEPOSIT: { status: 'OPERATIONAL' } } }] },
+      ] }] });
+    }
+    if (options.body) {
+      const body = JSON.parse(options.body);
+      deposits.set(body.depositId, { ...body, status: 'SUBMITTED' });
+      // Coupure : pawaPay a reçu la demande mais la réponse n'arrive jamais
+      if (cutNext) { cutNext = false; throw Object.assign(new Error('timeout'), { name: 'AbortError' }); }
+      return reply(200, { depositId: body.depositId, status: 'ACCEPTED' });
+    }
+    const d = deposits.get(String(url).split('/').pop());
+    if (!d) return reply(200, { status: 'NOT_FOUND' });
+    return reply(200, { status: 'FOUND', data: { depositId: d.depositId, status: d.status, amount: d.amount, currency: d.currency, failureReason: d.failureReason } });
+  };
+  try {
+    // Limites de l'opérateur : 0,50 USD est sous le minimum M-Pesa
+    const small = await newInvoice(0.5);
+    const tooSmall = (await request(app).post(`/api/public/invoices/${small.publicToken}/checkout`).send({ method: 'M-Pesa', phone: '0812345678' }).expect(400)).body;
+    assert.match(tooSmall.error, /Montant trop petit pour M-Pesa/);
+
+    // Coupure à l'envoi : le paiement reste en cours (jamais marqué échoué à tort)
+    const inv = await newInvoice(20);
+    cutNext = true;
+    const started = (await request(app).post(`/api/public/invoices/${inv.publicToken}/checkout`).send({ method: 'M-Pesa', phone: '0812345678' }).expect(201)).body;
+    assert.strictEqual(started.status, 'En cours');
+    // Le client a payé puis fermé la page ; l'entreprise ouvre la facture : paiement retrouvé et encaissé
+    for (const d of deposits.values()) d.status = 'COMPLETED';
+    await OnlinePayment.updateMany({}, { $unset: { lastCheckedAt: 1 } });
+    const opened = (await admin.get(`/api/invoices/${inv._id}`).expect(200)).body;
+    assert.strictEqual(opened.status, 'Payée');
+    assert.strictEqual(opened.payments.length, 1);
+    assert.strictEqual(opened.onlinePayments[0].status, 'Réussi');
+
+    // Refus de l'opérateur : motif expliqué en français
+    const inv2 = await newInvoice(15);
+    const refused = (await request(app).post(`/api/public/invoices/${inv2.publicToken}/checkout`).send({ method: 'Airtel Money', phone: '0991234567' }).expect(201)).body;
+    for (const d of deposits.values()) if (d.status === 'SUBMITTED') Object.assign(d, { status: 'FAILED', failureReason: { failureCode: 'INSUFFICIENT_BALANCE' } });
+    const state = (await request(app).get(`/api/public/invoices/${inv2.publicToken}/checkout/${refused.id}`).expect(200)).body;
+    assert.strictEqual(state.status, 'Échoué');
+    assert.strictEqual(state.message, 'Solde insuffisant sur ce compte Mobile Money.');
+  } finally {
+    global.fetch = realFetch;
+  }
+});

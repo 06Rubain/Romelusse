@@ -6,6 +6,8 @@ const Client = require('../models/Client');
 const Payment = require('../models/Payment');
 const { METHODS } = require('../models/Payment');
 const PaymentNotice = require('../models/PaymentNotice');
+const OnlinePayment = require('../models/OnlinePayment');
+const { reconcilePending } = require('../lib/checkout');
 const Company = require('../models/Company');
 const qrcode = require('qrcode');
 const { appOrigin } = require('../lib/origin');
@@ -152,8 +154,15 @@ router.get('/:id', async (req, res) => {
     invoice.publicToken = newPublicToken();
     await invoice.save();
   }
-  const payments = await Payment.find({ invoice: invoice._id }).sort({ date: 1 });
-  res.json({ ...invoice.toJSON(), payments, clientPay: await clientPayLink(req, invoice) });
+  // Paiements en ligne restés en cours : revérifiés avant l'affichage (la facture peut passer en « Payée »)
+  await reconcilePending({ invoice: invoice._id, company: req.company._id });
+  const fresh = (await Invoice.findById(invoice._id)) || invoice;
+  const [payments, onlinePayments] = await Promise.all([
+    Payment.find({ invoice: invoice._id }).sort({ date: 1 }),
+    OnlinePayment.find({ invoice: invoice._id, company: req.company._id }).sort({ createdAt: -1 }).limit(10)
+      .select('method provider mode phone amount currency status message orderNumber createdAt').lean(),
+  ]);
+  res.json({ ...fresh.toJSON(), payments, onlinePayments, clientPay: await clientPayLink(req, fresh) });
 });
 
 router.post('/', requirePermission('invoices.create'), async (req, res) => {

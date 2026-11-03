@@ -20,6 +20,8 @@ router.get('/', async (req, res) => {
 
 // Paiements annoncés par les clients et pas encore vérifiés
 router.get('/notices', async (req, res) => {
+  // Le tableau de bord en profite pour revérifier les paiements en ligne restés en cours
+  await require('../lib/checkout').reconcilePending({ company: req.company._id });
   res.json(await PaymentNotice.find({ company: req.company._id, status: 'En attente' }).sort({ createdAt: -1 }).limit(50).lean());
 });
 
