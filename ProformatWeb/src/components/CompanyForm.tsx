@@ -89,7 +89,7 @@ function PawapayCheck({ saved }: { saved: boolean }) {
           <strong><CheckCircle2 size={15} /> Connexion à pawaPay réussie ({result.env === 'live' ? 'réel' : 'test'}).</strong>
           {result.providers?.length ? (
             <div>Opérateurs ouverts sur votre compte : {result.providers.map((p) => `${p.method} (${p.currencies.join(', ')})`).join(' · ')}</div>
-          ) : <div>Aucun portefeuille Mobile Money ouvert en RDC sur ce compte : activez-les dans pawaPay (Finances → Wallets).</div>}
+          ) : <div>Aucun portefeuille Mobile Money ouvert en RDC sur ce compte : activez-les dans pawaPay (Finances → Portefeuilles).</div>}
         </div>
       )}
       {result && !result.ok && <div className="alert alert-danger small">{result.message}</div>}
@@ -187,9 +187,10 @@ export default function CompanyForm({ form, onChange, showRules = true, tokenSet
           <>
             <ol className="setup-steps small">
               <li>Créez votre compte gratuit sur <a href="https://dashboard.sandbox.pawapay.io" target="_blank" rel="noreferrer">dashboard.sandbox.pawapay.io</a> (test) ; le compte réel s'ouvre après validation de votre entreprise par pawaPay.</li>
-              <li>Dans le tableau de bord pawaPay : <strong>System configuration → API tokens</strong>, générez une clé et collez-la ci-dessous.</li>
-              <li>Dans <strong>Callback URLs → Deposits</strong>, collez : <code>{`${window.location.origin}/api/public/pawapay/callback`}</code></li>
-              <li>Vos clients voient les opérateurs ouverts sur votre compte (<strong>Finances → Wallets</strong> : M-Pesa, Orange, Airtel, Africell…), selon la devise de la facture.</li>
+              <li>Dans le tableau de bord pawaPay : <strong>Paramètres → Développeurs → Jetons API</strong>, créez un jeton, copiez-le (il ne s'affiche qu'une fois) et collez-le ci-dessous.</li>
+              <li>Dans <strong>Paramètres → Développeurs → URL de rappel</strong>, pour les <strong>Dépôts</strong>, collez : <code>{`${window.location.origin}/api/public/pawapay/callback`}</code></li>
+              <li>Laissez <strong>Sécurité des API</strong> (signature des requêtes) désactivée.</li>
+              <li>Vos clients voient les opérateurs ouverts sur votre compte (<strong>Finances → Portefeuilles</strong> : M-Pesa, Orange, Airtel, Africell…), selon la devise de la facture.</li>
             </ol>
             <div className="form-grid">
               <Field label="Environnement pawaPay">
