@@ -10,6 +10,7 @@ import { DOC_INFO, DOC_TYPES, docTypeFrom, type DocType, type Company, ZONE_LABE
 import { Alert, Field, StatusBadge } from '../components/ui';
 import InvoiceDocument from '../components/InvoiceDocument';
 import TemplateDocument from '../components/TemplateDocument';
+import PaymentNotices from '../components/PaymentNotices';
 import { useFetch } from '../lib/useFetch';
 import PaymentModal from '../components/PaymentModal';
 
@@ -29,7 +30,7 @@ const whatsappLink = (invoice: Invoice, company: Company | null, phone?: string)
   const due = invoice.type === 'Facture' && invoice.balance > 0 && open ? `\nReste à payer : ${formatMoney(invoice.balance, invoice.currency)}` : '';
   const page = clientPageUrl(invoice);
   const action = page
-    ? `\n${open && company?.paymentLink ? 'Voir et payer en ligne (Mobile Money, carte)' : `Voir ${DOC_INFO[invoice.type].the}`} : ${page}`
+    ? `\n${open && (company?.paymentLink || company?.paymentAccounts?.length) ? 'Voir et payer (Mobile Money, carte)' : `Voir ${DOC_INFO[invoice.type].the}`} : ${page}`
     : '';
   const text = `Bonjour ${invoice.client},\nVoici votre ${DOC_INFO[invoice.type].name} ${invoice.number}`
     + `${companyName ? ` de ${companyName}` : ''}.\nMontant : ${formatMoney(invoice.totalAmount, invoice.currency)}${due}${action}`
@@ -444,6 +445,9 @@ export default function InvoiceGenerator() {
                 <option value="A6">A6 (petit)</option>
               </select>
             </Field>
+            )}
+            {invoice.type === 'Facture' && invoice.status !== 'Annulée' && (
+              <PaymentNotices key={`${invoice._id}-${invoice.amountPaid}`} invoiceId={invoice._id} canHandle={can('payments.create')} onChanged={loadInvoice} />
             )}
             <div className="stack-sm">
               {invoice.type === 'Facture' && invoice.balance > 0 && invoice.status !== 'Annulée' && can('payments.create') && (

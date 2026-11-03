@@ -175,6 +175,7 @@ export interface Company {
   paymentLink: string;
   paymentQr: string;
   paymentMethods: string[];
+  paymentAccounts: PaymentAccount[];
   exchangeRate: number;
   reportingCurrency: Currency;
   paymentTermDays: number;
@@ -288,6 +289,19 @@ export const ZONE_LABELS: Record<ZoneKey, string> = {
 };
 
 // Moyens de paiement proposés pour le lien de paiement en ligne (ex. FlexPaie)
+export type AccountProvider = 'M-Pesa' | 'Orange Money' | 'Airtel Money' | 'Africell Money' | 'Banque' | 'Autre';
+export const ACCOUNT_PROVIDERS: AccountProvider[] = ['M-Pesa', 'Orange Money', 'Airtel Money', 'Africell Money', 'Banque', 'Autre'];
+// Couleur de repère de chaque opérateur sur la page de paiement
+export const PROVIDER_COLORS: Record<AccountProvider, string> = {
+  'M-Pesa': '#e60000', 'Orange Money': '#ff7900', 'Airtel Money': '#d9001b', 'Africell Money': '#6a1b9a', Banque: '#0f766e', Autre: '#475569',
+};
+export interface PaymentAccount { provider: AccountProvider; number: string; holder: string; label: string }
+export type NoticeStatus = 'En attente' | 'Confirmé' | 'Refusé';
+export interface PaymentNotice {
+  _id: string; invoice: string; invoiceNumber: string; client: string; provider: string; amount: number; currency: Currency;
+  reference: string; payerName: string; payerPhone: string; status: NoticeStatus; handledBy: string; createdAt: string;
+}
+
 export const ONLINE_PAYMENT_METHODS = ['M-Pesa', 'Orange Money', 'Airtel Money', 'Africell Money', 'Visa', 'Mastercard', 'RakkaCash', 'Masolo'];
 
 export const TEMPLATE_LABELS: Record<TemplateLabel, string> = {

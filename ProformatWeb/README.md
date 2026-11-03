@@ -133,9 +133,15 @@ Chaque facture et proforma a un **lien secret** (`/p/…`, impossible à deviner
 téléphone :
 
 - montant à payer (reste dû), échéance, déjà payé ;
-- bouton **« Payer maintenant »** vers le lien de paiement de l'entreprise (ex. FlexPaie : M-Pesa, Orange Money,
+- bouton **« Payer en ligne »** vers le lien de paiement de l'entreprise (ex. FlexPaie : M-Pesa, Orange Money,
   Airtel Money, Africell Money, Visa, Mastercard, RakkaCash, Masolo), avec la référence et le montant à copier ;
-- sinon, les coordonnées bancaires ;
+- **nos numéros et comptes** (M-Pesa, Orange Money, Airtel Money, Africell Money, banque…) saisis dans
+  *Entreprise & logo → Paiement des clients*, chacun avec un bouton « Copier » ; ils sont aussi imprimés sur les factures ;
+- bouton **« J'ai payé »** : le client indique le moyen utilisé, le montant et la référence reçue par SMS. Rien n'est
+  encaissé tout de suite : le paiement annoncé apparaît sur le tableau de bord et sur la facture, l'entreprise vérifie
+  sur son téléphone ou son relevé puis clique **Reçu** (l'encaissement est créé, en Mobile Money, virement ou carte)
+  ou **Pas reçu**. Le client voit le résultat sur sa page ;
+- à défaut, les coordonnées bancaires ;
 - la facture elle-même (modèle standard ou importé), à télécharger en PDF.
 
 Une facture réglée affiche « Facture réglée », une facture annulée « Facture annulée ». Si l'entreprise est

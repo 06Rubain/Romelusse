@@ -62,3 +62,47 @@ test('page client : une facture créée avant cette fonction reçoit un lien sta
   assert.strictEqual(first, second);
   await request(app).get(`/api/public/invoices/${first}`).expect(200);
 });
+
+test('comptes de paiement et « J\'ai payé » : annoncé par le client, confirmé ou refusé par l\'entreprise', async () => {
+  const admin = client(app, adminToken);
+  const saved = (await admin.put('/api/company', { paymentAccounts: [
+    { provider: 'Airtel Money', number: ' 0990000001 ', holder: 'Imprimerie Lien' },
+    { provider: 'Inconnu', number: '0810000002' },
+    { provider: 'Orange Money', number: '' },
+  ] }).expect(200)).body;
+  assert.deepStrictEqual(saved.paymentAccounts.map((a) => [a.provider, a.number]), [['Airtel Money', '0990000001'], ['Autre', '0810000002']]);
+
+  const created = (await admin.post('/api/invoices', {
+    type: 'Facture', client: 'Client Mobile', currency: 'USD', products: [{ name: 'Bâche', quantity: 1, unitPrice: 50 }],
+  }).expect(201)).body;
+  const { publicToken } = (await admin.get(`/api/invoices/${created._id}`).expect(200)).body;
+  const page = (await request(app).get(`/api/public/invoices/${publicToken}`).expect(200)).body;
+  assert.strictEqual(page.company.paymentAccounts[0].number, '0990000001');
+  assert.deepStrictEqual(page.notices, []);
+
+  const notice = (body) => request(app).post(`/api/public/invoices/${publicToken}/notices`).send(body);
+  await notice({ provider: 'M-Pesa', amount: 50, reference: 'ABC123' }).expect(400); // pas de compte M-Pesa
+  await notice({ provider: 'Airtel Money', amount: 80, reference: 'ABC123' }).expect(400); // plus que le reste
+  await notice({ provider: 'Airtel Money', amount: 50, reference: '' }).expect(400);
+  const sent = (await notice({ provider: 'Airtel Money', amount: 30, reference: 'MP2611.1234', payerPhone: '0991112233' }).expect(201)).body;
+  assert.strictEqual(sent.notices[0].status, 'En attente');
+  assert.strictEqual(sent.notices[0].payerPhone, undefined);
+  await notice({ provider: 'Paiement en ligne', amount: 20, reference: 'FLEX-99' }).expect(201);
+
+  const pending = (await admin.get('/api/payments/notices').expect(200)).body;
+  assert.strictEqual(pending.length, 2);
+  const list = (await admin.get(`/api/invoices/${created._id}/notices`).expect(200)).body;
+  const airtel = list.find((n) => n.provider === 'Airtel Money');
+  const flex = list.find((n) => n.provider === 'Paiement en ligne');
+
+  const confirmed = (await admin.post(`/api/invoices/${created._id}/notices/${airtel._id}/confirm`).expect(200)).body;
+  assert.strictEqual(confirmed.payment.method, 'Mobile Money');
+  assert.strictEqual(confirmed.payment.reference, 'MP2611.1234');
+  assert.strictEqual(confirmed.invoice.balance, 20);
+  await admin.post(`/api/invoices/${created._id}/notices/${airtel._id}/confirm`).expect(400);
+  await admin.post(`/api/invoices/${created._id}/notices/${flex._id}/reject`).expect(200);
+  assert.strictEqual((await admin.get('/api/payments/notices').expect(200)).body.length, 0);
+  const after = (await request(app).get(`/api/public/invoices/${publicToken}`).expect(200)).body;
+  assert.deepStrictEqual(after.notices.map((n) => n.status).sort(), ['Confirmé', 'Refusé']);
+  assert.strictEqual(after.invoice.balance, 20);
+});

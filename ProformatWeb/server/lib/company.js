@@ -4,7 +4,10 @@ const { validateImage, validateColor } = require('./images');
 
 const BRANDING_FIELDS = ['name', 'legalName', 'address', 'city', 'email', 'phone', 'taxNumber', 'nationalId', 'rccm', 'bankName', 'bankAccount',
   'exchangeRate', 'reportingCurrency', 'paymentTermDays', 'logo', 'footerImage', 'primaryColor', 'secondaryColor', 'accentColor',
-  'signature', 'paymentLink', 'paymentMethods'];
+  'signature', 'paymentLink', 'paymentMethods', 'paymentAccounts'];
+
+const ACCOUNT_PROVIDERS = ['M-Pesa', 'Orange Money', 'Airtel Money', 'Africell Money', 'Banque', 'Autre'];
+const MAX_ACCOUNTS = 8;
 
 // Lien de paiement : https ajouté si absent, seuls http et https sont acceptés
 const normalizeLink = (value) => {
@@ -34,6 +37,18 @@ const sanitizeCompany = async (body) => {
     data.paymentMethods = (Array.isArray(data.paymentMethods) ? data.paymentMethods : [])
       .map((m) => String(m).trim().slice(0, 40)).filter(Boolean).slice(0, 20);
   }
+  if (data.paymentAccounts !== undefined) {
+    const list = Array.isArray(data.paymentAccounts) ? data.paymentAccounts : [];
+    data.paymentAccounts = list
+      .map((a) => ({
+        provider: ACCOUNT_PROVIDERS.includes(a?.provider) ? a.provider : 'Autre',
+        number: String(a?.number || '').trim().slice(0, 60),
+        holder: String(a?.holder || '').trim().slice(0, 80),
+        label: String(a?.label || '').trim().slice(0, 40),
+      }))
+      .filter((a) => a.number)
+      .slice(0, MAX_ACCOUNTS);
+  }
   if (data.paymentLink !== undefined) {
     data.paymentLink = normalizeLink(data.paymentLink);
     data.paymentQr = data.paymentLink ? await qrcode.toDataURL(data.paymentLink, { margin: 1, width: 240 }) : '';
@@ -42,4 +57,4 @@ const sanitizeCompany = async (body) => {
   return data;
 };
 
-module.exports = { sanitizeCompany };
+module.exports = { sanitizeCompany, ACCOUNT_PROVIDERS };

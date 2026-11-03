@@ -27,6 +27,17 @@ const companySchema = new mongoose.Schema({
   paymentLink: { type: String, default: '' },
   paymentQr: { type: String, default: '' },
   paymentMethods: { type: [String], default: [] },
+  // Comptes où le client peut payer directement (numéros Mobile Money, compte bancaire…)
+  paymentAccounts: {
+    type: [{
+      _id: false,
+      provider: { type: String, required: true },
+      number: { type: String, required: true },
+      holder: { type: String, default: '' },
+      label: { type: String, default: '' },
+    }],
+    default: [],
+  },
   // Règles de gestion
   exchangeRate: { type: Number, default: 2250, min: 0 },
   reportingCurrency: { type: String, enum: ['USD', 'FC'], default: 'USD' },

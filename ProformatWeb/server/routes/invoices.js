@@ -5,6 +5,7 @@ const { newPublicToken, TYPES } = require('../models/Invoice');
 const Client = require('../models/Client');
 const Payment = require('../models/Payment');
 const { METHODS } = require('../models/Payment');
+const PaymentNotice = require('../models/PaymentNotice');
 const {
   HttpError, toNumber, round2, parseDate, escapeRegex, paginate, dateRangeFilter, CURRENCIES,
 } = require('../lib/helpers');
@@ -236,11 +237,11 @@ router.post('/:id/cancel', requirePermission('invoices.cancel'), async (req, res
 });
 
 // ---- Paiements ----
-router.post('/:id/payments', requirePermission('payments.create'), async (req, res) => {
-  const invoice = await findInvoice(req);
+// Enregistre un encaissement sur une facture (saisi au bureau ou paiement annoncé par le client puis confirmé)
+const recordPayment = async (req, invoice, body) => {
   if (invoice.type !== 'Facture') throw new HttpError(400, 'Les paiements ne s\'enregistrent que sur une facture.');
   if (['Annulée', 'Convertie'].includes(invoice.status)) throw new HttpError(400, 'Cette facture est annulée.');
-  const amount = round2(toNumber(req.body.amount));
+  const amount = round2(toNumber(body.amount));
   if (amount <= 0) throw new HttpError(400, 'Montant invalide.');
   const balance = round2(invoice.totalAmount - invoice.amountPaid);
   if (amount > balance + 0.005) throw new HttpError(400, `Le montant dépasse le solde restant (${fmt(balance, invoice.currency)}).`);
@@ -251,15 +252,77 @@ router.post('/:id/payments', requirePermission('payments.create'), async (req, r
     client: invoice.client,
     amount,
     currency: invoice.currency,
-    method: METHODS.includes(req.body.method) ? req.body.method : 'Espèces',
-    date: parseDate(req.body.date) || new Date(),
-    reference: String(req.body.reference || ''),
-    note: String(req.body.note || ''),
+    method: METHODS.includes(body.method) ? body.method : 'Espèces',
+    date: parseDate(body.date) || new Date(),
+    reference: String(body.reference || ''),
+    note: String(body.note || ''),
     createdBy: req.user.email,
   });
   await refreshPaymentStatus(invoice);
   await logActivity(req.user, 'Encaissement', `${fmt(amount, invoice.currency)} sur la facture N° ${invoice.number} (${payment.method})`);
+  return payment;
+};
+
+router.post('/:id/payments', requirePermission('payments.create'), async (req, res) => {
+  const invoice = await findInvoice(req);
+  const payment = await recordPayment(req, invoice, req.body);
   res.status(201).json({ invoice, payment });
+});
+
+// ---- Paiements annoncés par le client (« J'ai payé » sur sa page) ----
+const MOBILE_PROVIDERS = ['M-Pesa', 'Orange Money', 'Airtel Money', 'Africell Money'];
+const methodForProvider = (provider) => {
+  if (MOBILE_PROVIDERS.includes(provider)) return 'Mobile Money';
+  if (provider === 'Paiement en ligne') return 'Carte';
+  return 'Virement';
+};
+
+const findNotice = async (req, invoice) => {
+  if (!mongoose.isValidObjectId(req.params.noticeId)) throw new HttpError(404, 'Paiement annoncé introuvable.');
+  const notice = await PaymentNotice.findOne({ _id: req.params.noticeId, invoice: invoice._id, company: req.company._id });
+  if (!notice) throw new HttpError(404, 'Paiement annoncé introuvable.');
+  if (notice.status !== 'En attente') throw new HttpError(400, `Ce paiement a déjà été ${notice.status === 'Confirmé' ? 'confirmé' : 'refusé'}.`);
+  return notice;
+};
+
+router.get('/:id/notices', async (req, res) => {
+  const invoice = await findInvoice(req);
+  res.json(await PaymentNotice.find({ invoice: invoice._id, company: req.company._id }).sort({ createdAt: -1 }).lean());
+});
+
+router.post('/:id/notices/:noticeId/confirm', requirePermission('payments.create'), async (req, res) => {
+  const invoice = await findInvoice(req);
+  const notice = await findNotice(req, invoice);
+  // Réservé d'abord : deux confirmations simultanées n'encaissent jamais deux fois
+  const claimed = await PaymentNotice.findOneAndUpdate(
+    { _id: notice._id, status: 'En attente' },
+    { status: 'Confirmé', handledBy: req.user.email, handledAt: new Date() },
+    { new: true },
+  );
+  if (!claimed) throw new HttpError(400, 'Ce paiement a déjà été traité.');
+  let payment;
+  try {
+    payment = await recordPayment(req, invoice, {
+      amount: req.body.amount !== undefined ? req.body.amount : notice.amount,
+      method: methodForProvider(notice.provider), reference: notice.reference,
+      note: [`Annoncé par le client (${notice.provider})`, notice.payerName, notice.payerPhone].filter(Boolean).join(' · '),
+    });
+  } catch (err) {
+    await PaymentNotice.updateOne({ _id: notice._id }, { status: 'En attente', handledBy: '', $unset: { handledAt: 1 } });
+    throw err;
+  }
+  claimed.payment = payment._id;
+  await claimed.save();
+  res.json({ invoice, payment, notice: claimed });
+});
+
+router.post('/:id/notices/:noticeId/reject', requirePermission('payments.create'), async (req, res) => {
+  const invoice = await findInvoice(req);
+  const notice = await findNotice(req, invoice);
+  Object.assign(notice, { status: 'Refusé', handledBy: req.user.email, handledAt: new Date() });
+  await notice.save();
+  await logActivity(req.user, 'Paiement refusé', `${fmt(notice.amount, notice.currency)} annoncé sur la facture N° ${invoice.number} (réf. ${notice.reference})`);
+  res.json({ notice });
 });
 
 router.delete('/:id/payments/:paymentId', requirePermission('payments.delete'), async (req, res) => {

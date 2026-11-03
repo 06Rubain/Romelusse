@@ -1,9 +1,9 @@
 import { useRef, useState, type CSSProperties } from 'react';
-import { ImagePlus, Trash2 } from 'lucide-react';
+import { ImagePlus, Plus, Trash2 } from 'lucide-react';
 import { readImageFile } from '../lib/image';
 import { errorMessage } from '../lib/api';
 import type { CompanyDraft } from '../lib/company';
-import { ONLINE_PAYMENT_METHODS } from '../lib/types';
+import { ACCOUNT_PROVIDERS, ONLINE_PAYMENT_METHODS, type PaymentAccount } from '../lib/types';
 import { Alert, Field } from './ui';
 import { headerBackground, labelBackground, logoBackground } from '../lib/brand';
 
@@ -31,6 +31,40 @@ export function ImageInput({ label, value, wide, onChange, previewStyle }: { lab
         <input ref={ref} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ''; }} />
       </div>
       <Alert>{error}</Alert>
+    </div>
+  );
+}
+
+// Numéros Mobile Money et comptes où les clients paient directement
+function PaymentAccountsEditor({ value, onChange }: { value: PaymentAccount[]; onChange: (v: PaymentAccount[]) => void }) {
+  const update = (i: number, patch: Partial<PaymentAccount>) => onChange(value.map((a, j) => (j === i ? { ...a, ...patch } : a)));
+  const used = new Set(value.map((a) => a.provider));
+  const next = ACCOUNT_PROVIDERS.find((p) => !used.has(p)) || 'Autre';
+  return (
+    <div className="input-group">
+      <span className="label">Nos numéros et comptes</span>
+      <p className="muted small" style={{ margin: '0 0 8px' }}>Affichés sur la page de paiement du client et imprimés sur les factures. Le client y envoie l'argent puis appuie sur « J'ai payé ».</p>
+      <div className="account-rows">
+        {value.map((a, i) => (
+          <div key={i} className="account-row">
+            <select className="input-field" value={a.provider} aria-label="Opérateur" onChange={(e) => update(i, { provider: e.target.value as PaymentAccount['provider'] })}>
+              {ACCOUNT_PROVIDERS.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+            <input className="input-field" value={a.number} aria-label="Numéro ou compte" placeholder={a.provider === 'Banque' ? 'N° de compte' : 'Ex : 0990 000 000'}
+              inputMode={a.provider === 'Banque' || a.provider === 'Autre' ? 'text' : 'tel'} onChange={(e) => update(i, { number: e.target.value })} />
+            <input className="input-field" value={a.holder} aria-label="Au nom de" placeholder="Au nom de" onChange={(e) => update(i, { holder: e.target.value })} />
+            {(a.provider === 'Banque' || a.provider === 'Autre') && (
+              <input className="input-field" value={a.label} aria-label="Nom de la banque ou du service" placeholder={a.provider === 'Banque' ? 'Nom de la banque' : 'Nom du service'} onChange={(e) => update(i, { label: e.target.value })} />
+            )}
+            <button type="button" className="icon-btn text-danger" title="Retirer" onClick={() => onChange(value.filter((_, j) => j !== i))}><Trash2 size={17} /></button>
+          </div>
+        ))}
+      </div>
+      {value.length < 8 && (
+        <button type="button" className="btn btn-outline btn-sm" onClick={() => onChange([...value, { provider: next, number: '', holder: '', label: '' }])}>
+          <Plus size={16} /> Ajouter un numéro ou un compte
+        </button>
+      )}
     </div>
   );
 }
@@ -82,8 +116,9 @@ export default function CompanyForm({ form, onChange, showRules = true }: { form
             </Field>
           ))}
         </div>
-        <h3>Paiement en ligne</h3>
-        <Field label="Lien de paiement" hint="Imprimé sur les factures avec un QR code et ajouté au message WhatsApp. Ex. : vpos.flexpaie.com/pay/FPG_DRC">
+        <h3>Paiement des clients</h3>
+        <PaymentAccountsEditor value={form.paymentAccounts || []} onChange={(v) => set('paymentAccounts', v)} />
+        <Field label="Lien de paiement en ligne (carte, Mobile Money)" hint="Imprimé sur les factures avec un QR code et ajouté au message WhatsApp. Ex. : vpos.flexpaie.com/pay/FPG_DRC">
           <input className="input-field" value={form.paymentLink} onChange={(e) => set('paymentLink', e.target.value)} placeholder="vpos.flexpaie.com/pay/…" />
         </Field>
         <div className="input-group">

@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertTriangle, CalendarDays, Check, ClipboardList, FilePlus2, FileText, Package, PiggyBank, Receipt, UserPlus, Wallet, X } from 'lucide-react';
+import { AlertTriangle, BellRing, CalendarDays, Check, ClipboardList, FilePlus2, FileText, Package, PiggyBank, Receipt, UserPlus, Wallet, X } from 'lucide-react';
 import { api } from '../lib/api';
 import { useFetch } from '../lib/useFetch';
 import { useAuth } from '../auth/AuthContext';
 import { formatByCurrency, formatDate, formatMoney } from '../lib/format';
-import { DOC_INFO, type Invoice, type Paginated, type Summary } from '../lib/types';
+import { DOC_INFO, type Invoice, type Paginated, type PaymentNotice, type Summary } from '../lib/types';
 import { Alert, EmptyRow, PageHeader, StatCard, StatusBadge } from '../components/ui';
 import MonthlyChart from '../components/MonthlyChart';
 
@@ -22,6 +22,7 @@ export default function Dashboard() {
   const summary = useFetch(() => api.get<Summary>('/reports/summary'), []);
   const recent = useFetch(() => api.get<Paginated<Invoice>>('/invoices', { limit: 8 }), []);
   const overdue = useFetch(() => api.get<Paginated<Invoice>>('/invoices', { overdue: 'true', limit: 5 }), []);
+  const notices = useFetch(() => (can('payments.create') ? api.get<PaymentNotice[]>('/payments/notices') : Promise.resolve([])), []);
   const s = summary.data;
   const cur = s?.reportingCurrency || 'USD';
 
@@ -87,6 +88,18 @@ export default function Dashboard() {
               </Link>
             ))}
           </div>
+        </div>
+      )}
+
+      {(notices.data?.length ?? 0) > 0 && (
+        <div className="notice-panel">
+          <div className="notice-panel-title"><BellRing size={18} /> {notices.data!.length > 1 ? `${notices.data!.length} paiements annoncés par vos clients` : 'Un paiement annoncé par un client'} : à vérifier</div>
+          {notices.data!.slice(0, 5).map((n) => (
+            <Link key={n._id} to={`/invoice/${n.invoice}`} className="notice-item">
+              <span><strong>{formatMoney(n.amount, n.currency)}</strong> par {n.provider} · {n.client} · {n.invoiceNumber}</span>
+              <span className="muted small">Réf. {n.reference} →</span>
+            </Link>
+          ))}
         </div>
       )}
 

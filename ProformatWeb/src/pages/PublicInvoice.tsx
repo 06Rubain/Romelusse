@@ -1,11 +1,11 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Check, CheckCircle2, Copy, CreditCard, Download, ExternalLink, FileText, Phone, XCircle } from 'lucide-react';
-import { api } from '../lib/api';
+import { Check, CheckCircle2, Clock, Copy, CreditCard, Download, ExternalLink, FileText, Phone, Send, Smartphone, XCircle } from 'lucide-react';
+import { api, errorMessage } from '../lib/api';
 import { useFetch } from '../lib/useFetch';
 import { formatDate, formatMoney } from '../lib/format';
 import { logoBackground } from '../lib/brand';
-import { DOC_INFO, type DocType, type Company, type Currency, type InvoiceStatus, type InvoiceTemplate } from '../lib/types';
+import { DOC_INFO, PROVIDER_COLORS, type DocType, type Company, type Currency, type InvoiceStatus, type InvoiceTemplate, type NoticeStatus, type PaymentAccount } from '../lib/types';
 import InvoiceDocument from '../components/InvoiceDocument';
 import TemplateDocument from '../components/TemplateDocument';
 
@@ -17,7 +17,12 @@ interface PublicData {
   };
   company: Company;
   template: InvoiceTemplate | null;
+  notices: ClientNotice[];
 }
+
+interface ClientNotice { provider: string; amount: number; currency: Currency; reference: string; status: NoticeStatus; createdAt: string }
+
+const ONLINE = 'Paiement en ligne';
 
 const DOC_WIDTH = 800;
 
@@ -32,11 +37,83 @@ function CopyButton({ value, label }: { value: string; label: string }) {
   );
 }
 
+// Un compte de l'entreprise : opérateur, numéro à copier, titulaire
+function AccountCard({ account }: { account: PaymentAccount }) {
+  const color = PROVIDER_COLORS[account.provider] || PROVIDER_COLORS.Autre;
+  return (
+    <div className="pay-account" style={{ ['--provider' as string]: color }}>
+      <span className="pay-account-icon">{account.provider === 'Banque' ? <CreditCard size={18} /> : <Smartphone size={18} />}</span>
+      <div className="pay-account-body">
+        <span className="pay-account-name">{account.label || account.provider}</span>
+        <strong className="pay-account-number">{account.number}</strong>
+        {account.holder && <span className="muted small">Au nom de {account.holder}</span>}
+      </div>
+      <CopyButton value={account.number.replace(/\s/g, '')} label="Copier" />
+    </div>
+  );
+}
+
+const NOTICE_TEXT: Record<NoticeStatus, string> = {
+  'En attente': 'en cours de vérification', Confirmé: 'confirmé, merci', Refusé: 'non retrouvé : appelez-nous',
+};
+
+// « J'ai payé » : le client indique le moyen utilisé et la référence reçue par SMS ; l'entreprise vérifie puis confirme
+function NoticeForm({ token, providers, due, currency, onSent }: { token: string; providers: string[]; due: number; currency: Currency; onSent: (n: ClientNotice[]) => void }) {
+  const [provider, setProvider] = useState(providers[0] || '');
+  const [amount, setAmount] = useState(String(due));
+  const [reference, setReference] = useState('');
+  const [payerName, setPayerName] = useState('');
+  const [payerPhone, setPayerPhone] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      const res = await api.post<{ notices: ClientNotice[] }>(`/public/invoices/${token}/notices`, { provider, amount, reference, payerName, payerPhone });
+      onSent(res.notices);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <form className="pay-notice-form" onSubmit={submit}>
+      <strong>Vous avez payé ? Prévenez-nous</strong>
+      <label className="input-group"><span className="label">Moyen utilisé</span>
+        <select className="input-field" value={provider} onChange={(e) => setProvider(e.target.value)}>
+          {providers.map((p) => <option key={p} value={p}>{p}</option>)}
+        </select>
+      </label>
+      <div className="pay-notice-grid">
+        <label className="input-group"><span className="label">Montant payé ({currency})</span>
+          <input className="input-field" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} required />
+        </label>
+        <label className="input-group"><span className="label">Référence de la transaction</span>
+          <input className="input-field" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Reçue par SMS" required minLength={3} />
+        </label>
+        <label className="input-group"><span className="label">Votre nom (facultatif)</span>
+          <input className="input-field" value={payerName} onChange={(e) => setPayerName(e.target.value)} autoComplete="name" />
+        </label>
+        <label className="input-group"><span className="label">Numéro qui a payé (facultatif)</span>
+          <input className="input-field" inputMode="tel" value={payerPhone} onChange={(e) => setPayerPhone(e.target.value)} autoComplete="tel" />
+        </label>
+      </div>
+      {error && <div className="alert alert-danger">{error}</div>}
+      <button className="btn btn-primary btn-block" disabled={busy}><Send size={18} /> {busy ? 'Envoi…' : 'Envoyer'}</button>
+    </form>
+  );
+}
+
 // Page ouverte par le client depuis le lien reçu : voir sa facture et la payer, sans compte
 export default function PublicInvoice() {
   const { token = '' } = useParams();
   const { data, error, loading } = useFetch(() => api.get<PublicData>(`/public/invoices/${token}`), [token]);
   const [showDoc, setShowDoc] = useState(false);
+  const [sentNotices, setSentNotices] = useState<ClientNotice[] | null>(null);
+  const [noticeOpen, setNoticeOpen] = useState(false);
   const docRef = useRef<HTMLDivElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
@@ -74,6 +151,10 @@ export default function PublicInvoice() {
   const payable = !paid && !cancelled && !converted && due > 0;
   const amount = formatMoney(due, invoice.currency);
   const lines = invoice.products.map((p) => ({ name: p.name, quantity: p.quantity, unitPrice: p.unitPrice }));
+  const accounts = company.paymentAccounts || [];
+  const notices = sentNotices || data.notices || [];
+  const noticeProviders = [...new Set(accounts.map((a) => a.provider)), ...(company.paymentLink ? [ONLINE] : [])];
+  const canNotify = !isProforma && payable && noticeProviders.length > 0;
   const firstPhone = (company.phone || '').split(/[/,;]/)[0].replace(/[^\d+]/g, '');
 
   return (
@@ -108,32 +189,64 @@ export default function PublicInvoice() {
               {!isProforma && invoice.dueDate && <span className="muted small">À payer avant le {formatDate(invoice.dueDate)}</span>}
             </div>
 
-            {company.paymentLink ? (
+            {company.paymentLink && (
               <div className="pay-online">
                 <a className="btn btn-primary btn-block btn-lg pay-button" href={company.paymentLink} target="_blank" rel="noreferrer">
-                  <CreditCard size={20} /> Payer maintenant <ExternalLink size={16} />
+                  <CreditCard size={20} /> Payer en ligne <ExternalLink size={16} />
                 </a>
                 {company.paymentMethods?.length > 0 && (
                   <div className="pay-methods">{company.paymentMethods.map((m) => <span key={m}>{m}</span>)}</div>
                 )}
                 <ol className="pay-steps">
-                  <li>Appuyez sur <strong>Payer maintenant</strong> : la page de paiement sécurisée s'ouvre.</li>
+                  <li>Appuyez sur <strong>Payer en ligne</strong> : la page de paiement sécurisée s'ouvre.</li>
                   <li>Choisissez votre moyen : Mobile Money ou carte bancaire.</li>
                   <li>Saisissez le montant <strong>{amount}</strong> et la référence <strong>{invoice.number}</strong>.</li>
                 </ol>
-                <div className="row-gap pay-copy">
-                  <CopyButton value={invoice.number} label="Copier la référence" />
-                  <CopyButton value={String(due)} label="Copier le montant" />
-                </div>
               </div>
-            ) : (company.bankName || company.bankAccount) && (
+            )}
+
+            {accounts.length > 0 && (
+              <div className="pay-direct">
+                <strong>{company.paymentLink ? 'Ou envoyez directement sur nos numéros' : 'Payez sur nos numéros'}</strong>
+                <div className="pay-accounts">{accounts.map((a, i) => <AccountCard key={i} account={a} />)}</div>
+                <p className="muted small">Envoyez <strong>{amount}</strong> et indiquez le motif <strong>{invoice.number}</strong>.</p>
+              </div>
+            )}
+
+            {(company.paymentLink || accounts.length > 0) && (
+              <div className="row-gap pay-copy">
+                <CopyButton value={invoice.number} label="Copier la référence" />
+                <CopyButton value={String(due)} label="Copier le montant" />
+              </div>
+            )}
+
+            {!company.paymentLink && !accounts.length && (company.bankName || company.bankAccount) && (
               <div className="pay-bank">
                 <strong>Paiement par virement</strong>
                 <div>{company.bankName} : {company.bankAccount}</div>
                 {company.legalName && <div className="muted small">Au nom de {company.legalName} · référence {invoice.number}</div>}
               </div>
             )}
+
+            {canNotify && (sentNotices ? (
+              <div className="pay-status info"><CheckCircle2 size={22} /><div><strong>Merci, c'est noté !</strong><div>{company.name} vérifie votre paiement et met votre facture à jour.</div></div></div>
+            ) : noticeOpen ? (
+              <NoticeForm token={token} providers={noticeProviders} due={due} currency={invoice.currency} onSent={setSentNotices} />
+            ) : (
+              <button type="button" className="btn btn-whatsapp btn-block btn-lg pay-paid" onClick={() => setNoticeOpen(true)}><CheckCircle2 size={20} /> J'ai payé</button>
+            ))}
           </>
+        )}
+
+        {notices.length > 0 && (
+          <div className="pay-notices">
+            {notices.map((n, i) => (
+              <div key={i} className={`pay-notice ${n.status === 'Confirmé' ? 'ok' : n.status === 'Refusé' ? 'ko' : ''}`}>
+                {n.status === 'Confirmé' ? <CheckCircle2 size={16} /> : n.status === 'Refusé' ? <XCircle size={16} /> : <Clock size={16} />}
+                <span>{formatMoney(n.amount, n.currency)} par {n.provider} (réf. {n.reference}) : {NOTICE_TEXT[n.status]}</span>
+              </div>
+            ))}
+          </div>
         )}
 
         <div className="pay-actions">
