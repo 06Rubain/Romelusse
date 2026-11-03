@@ -320,3 +320,24 @@ test('FlexPaie : clé collée avec « Bearer », motif de refus et ancienne adre
     console.error = realError;
   }
 });
+
+test('FlexPaie : réponse vide de la première adresse, la seconde est essayée', async () => {
+  const flexpay = require('../lib/flexpay');
+  const realFetch = global.fetch;
+  const realError = console.error;
+  console.error = () => {};
+  const urls = [];
+  global.fetch = async (url) => {
+    urls.push(String(url));
+    if (String(url).includes('corporateapi')) return { status: 200, text: async () => '' };
+    return { status: 200, text: async () => JSON.stringify({ code: '0', message: 'Transaction envoyée', orderNumber: 'ORD-77' }) };
+  };
+  try {
+    const result = await flexpay.startMobile({ merchant: 'FPG_DRC', token: 't', phone: '243812345678', reference: 'R2', amount: 5, currency: 'USD', callbackUrl: 'https://x/cb' });
+    assert.deepStrictEqual([result.ok, result.orderNumber], [true, 'ORD-77']);
+    assert.ok(urls[1].startsWith('https://backend.flexpay.cd/'));
+  } finally {
+    global.fetch = realFetch;
+    console.error = realError;
+  }
+});

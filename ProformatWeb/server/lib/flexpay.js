@@ -38,8 +38,10 @@ const reason = (json, httpStatus, fallback) => {
   return httpStatus ? `${fallback} (réponse HTTP ${httpStatus})` : fallback;
 };
 
-// Adresse absente ou réponse non JSON (page d'erreur) : on peut essayer l'autre adresse sans risque de double paiement
-const notAnApi = (httpStatus, raw) => httpStatus === 404 || httpStatus === 405 || (httpStatus >= 200 && raw === false);
+// Adresse absente, réponse non JSON (page d'erreur) ou vide (service qui ne correspond pas au compte) :
+// aucune transaction n'a été créée, on peut essayer l'autre adresse sans risque de double paiement
+const notAnApi = (httpStatus, isJson, json = {}) => httpStatus === 404 || httpStatus === 405
+  || (httpStatus >= 200 && (isJson === false || (json.code === undefined && !json.orderNumber && !json.message)));
 
 const call = async (url, { token, body }) => {
   const controller = new AbortController();
@@ -52,6 +54,7 @@ const call = async (url, { token, body }) => {
       signal: controller.signal,
     });
     const text = await res.text();
+    if (!text.trim()) console.error('[FlexPaie] Réponse vide', JSON.stringify({ url: url.replace(/^https?:\/\//, '').split('?')[0], httpStatus: res.status, contentType: res.headers?.get?.('content-type') || '' }));
     let json = {};
     let isJson = true;
     try { json = text ? JSON.parse(text) : {}; } catch { isJson = false; json = { message: text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200) }; }
@@ -67,7 +70,8 @@ const call = async (url, { token, body }) => {
 const post = async (body, token) => {
   let res = await call(PAYMENT_URL, { token, body });
   let url = PAYMENT_URL;
-  if (notAnApi(res.httpStatus, res.isJson) && PAYMENT_URL !== LEGACY_PAYMENT_URL) {
+  if (notAnApi(res.httpStatus, res.isJson, res.json) && PAYMENT_URL !== LEGACY_PAYMENT_URL) {
+    logRefusal('Réponse vide ou inattendue, essai de l\'autre adresse', url, res.httpStatus, res.json);
     url = LEGACY_PAYMENT_URL;
     res = await call(LEGACY_PAYMENT_URL, { token, body });
   }
@@ -105,7 +109,7 @@ const startCard = async ({ merchant, token, reference, amount, currency, callbac
 const check = async ({ token, orderNumber }) => {
   if (!orderNumber) return { status: 'pending' };
   let { json, httpStatus, isJson } = await call(`${CHECK_URL}/${encodeURIComponent(orderNumber)}`, { token });
-  if (notAnApi(httpStatus, isJson)) ({ json } = await call(`${LEGACY_CHECK_URL}/${encodeURIComponent(orderNumber)}`, { token }));
+  if (notAnApi(httpStatus, isJson, json)) ({ json } = await call(`${LEGACY_CHECK_URL}/${encodeURIComponent(orderNumber)}`, { token }));
   const tx = json.transaction || {};
   if (isZero(json.code) && isZero(tx.status)) {
     return {
