@@ -291,3 +291,32 @@ test('pawaPay : coupure à l\'envoi, limites, motif de refus traduit, paiement r
     global.fetch = realFetch;
   }
 });
+
+test('FlexPaie : clé collée avec « Bearer », motif de refus et ancienne adresse', async () => {
+  const flexpay = require('../lib/flexpay');
+  assert.strictEqual(flexpay.cleanToken('  Bearer eyJabc.def '), 'eyJabc.def');
+  const realFetch = global.fetch;
+  const realError = console.error;
+  const calls = [];
+  const logs = [];
+  console.error = (...args) => logs.push(args.join(' '));
+  global.fetch = async (url, options = {}) => {
+    calls.push({ url: String(url), auth: options.headers.Authorization, body: options.body && JSON.parse(options.body) });
+    if (String(url).includes('corporateapi')) return { status: 404, text: async () => '<html>Not Found</html>' };
+    return { status: 200, text: async () => JSON.stringify({ code: '1', message: 'Montant minimum non atteint' }) };
+  };
+  try {
+    const result = await flexpay.startMobile({ merchant: 'FPG_DRC', token: 'Bearer secret-xyz', phone: '243812345678', reference: 'R1', amount: 0.13, currency: 'USD', callbackUrl: 'https://x/cb' });
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.message, 'Montant minimum non atteint (code 1)');
+    assert.strictEqual(calls[0].auth, 'Bearer secret-xyz');
+    assert.ok(calls[1].url.startsWith('https://backend.flexpay.cd/'));
+    assert.strictEqual(calls[1].body.callbackUrl, 'https://x/cb');
+    // Le journal garde la réponse de FlexPaie, jamais la clé
+    assert.ok(logs.some((l) => l.includes('Montant minimum non atteint')));
+    assert.ok(!logs.some((l) => l.includes('secret-xyz')));
+  } finally {
+    global.fetch = realFetch;
+    console.error = realError;
+  }
+});

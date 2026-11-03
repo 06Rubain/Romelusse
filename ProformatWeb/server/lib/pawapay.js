@@ -30,7 +30,7 @@ const call = async (env, path, { token, body }) => {
   try {
     const res = await fetch(`${BASE[env] || BASE.sandbox}${path}`, {
       method: body ? 'POST' : 'GET',
-      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json' } : {}) },
+      headers: { Authorization: `Bearer ${String(token || '').trim().replace(/^bearer\s+/i, '')}`, Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json' } : {}) },
       body: body ? JSON.stringify(body) : undefined,
       signal: controller.signal,
     });
@@ -122,7 +122,10 @@ const activeProviders = async ({ env, token }) => {
 const verify = async ({ env, token }) => {
   const { httpStatus, json } = await call(env, `/v2/active-conf?country=${COUNTRY}&operationType=DEPOSIT`, { token });
   if (httpStatus === 401 || httpStatus === 403) return { ok: false, message: 'Clé refusée par pawaPay : vérifiez la clé et l\'environnement (test ou réel).' };
-  if (!(httpStatus >= 200 && httpStatus < 300)) return { ok: false, message: json.message || `pawaPay injoignable (code ${httpStatus || 'réseau'}).` };
+  if (!(httpStatus >= 200 && httpStatus < 300)) {
+    console.error('[pawaPay] Vérification de la clé', JSON.stringify({ httpStatus, response: JSON.stringify(json).slice(0, 600) }));
+    return { ok: false, message: json.message || json.errorMessage || `pawaPay injoignable (code ${httpStatus || 'réseau'}).` };
+  }
   confCache.clear();
   return { ok: true, providers: parseConf(json) };
 };
@@ -146,6 +149,7 @@ const startDeposit = async ({ env, token, method, providerCode, phone, amount, c
   // Pas de réponse claire (coupure, délai, erreur du serveur pawaPay) : la demande a peut-être été reçue et payée.
   // On garde le paiement « en cours » et on interroge pawaPay avec le même identifiant, sans jamais le refaire.
   if (httpStatus === 0 || httpStatus >= 500) return { ok: true, orderNumber: depositId, uncertain: true };
+  console.error('[pawaPay] Paiement refusé', JSON.stringify({ httpStatus, response: JSON.stringify(json).slice(0, 600) }));
   return { ok: false, message: failureText(json) || 'Paiement refusé par pawaPay.' };
 };
 
