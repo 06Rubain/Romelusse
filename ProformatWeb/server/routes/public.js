@@ -3,7 +3,12 @@ const Invoice = require('../models/Invoice');
 const Company = require('../models/Company');
 const InvoiceTemplate = require('../models/InvoiceTemplate');
 const rateLimit = require('express-rate-limit');
+const mongoose = require('mongoose');
 const PaymentNotice = require('../models/PaymentNotice');
+const OnlinePayment = require('../models/OnlinePayment');
+const {
+  checkoutConfig, startCheckout, refreshCheckout, CHECKOUT_METHODS,
+} = require('../lib/checkout');
 const { ACCOUNT_PROVIDERS } = require('../lib/company');
 const { HttpError, toNumber, round2 } = require('../lib/helpers');
 const { serialize: serializeTemplate } = require('./template');
@@ -41,6 +46,7 @@ const noticesOf = async (invoice) => (await PaymentNotice.find({ invoice: invoic
 router.get('/invoices/:token', async (req, res) => {
   const { invoice, company } = await loadByToken(req.params.token);
   const template = await InvoiceTemplate.findOne({ company: company._id });
+  const checkout = invoice.type === 'Facture' ? await checkoutConfig(company._id) : null;
   const custom = template?.mode === 'custom' && template.background;
 
   res.set('Cache-Control', 'no-store');
@@ -48,8 +54,60 @@ router.get('/invoices/:token', async (req, res) => {
     invoice: pickFields(invoice.toJSON(), INVOICE_FIELDS),
     company: pickFields(company.toJSON(), COMPANY_FIELDS),
     notices: invoice.type === 'Facture' ? await noticesOf(invoice) : [],
+    checkout: checkout ? { mode: checkout.mode, methods: CHECKOUT_METHODS } : null,
     template: custom ? pickFields(serializeTemplate(template), ['mode', 'background', 'pageSize', 'zones', 'style', 'labels']) : null,
   });
+});
+
+// ---- Paiement en ligne sur la page du client ----
+const checkoutLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, limit: 20, standardHeaders: 'draft-7', legacyHeaders: false, skip: () => process.env.NODE_ENV === 'test',
+  message: { error: 'Trop de tentatives de paiement. Réessayez plus tard ou appelez l\'entreprise.' },
+});
+
+// Adresse de l'application (pour le retour après la page carte) et de l'API (pour la notification de FlexPaie)
+const appOrigin = (req) => process.env.PUBLIC_APP_URL || req.get('origin') || `${req.protocol}://${req.get('host')}`;
+const apiOrigin = (req) => process.env.PUBLIC_API_URL || `${req.protocol}://${req.get('host')}`;
+
+const onlineView = (online, invoice) => ({
+  id: online._id, status: online.status, message: online.message, method: online.method, channel: online.channel,
+  amount: online.amount, currency: online.currency, mode: online.mode, phone: online.phone ? `+${online.phone.slice(0, 3)} ${online.phone.slice(3, 5)}•••${online.phone.slice(-3)}` : '',
+  invoice: invoice ? { status: invoice.status, amountPaid: invoice.amountPaid, balance: invoice.balance } : undefined,
+});
+
+router.post('/invoices/:token/checkout', checkoutLimit, async (req, res) => {
+  const { invoice, company } = await loadByToken(req.params.token);
+  const { online, redirectUrl } = await startCheckout({
+    invoice, company, method: String(req.body.method || ''), phone: req.body.phone,
+    origin: appOrigin(req), apiOrigin: apiOrigin(req), token: req.params.token,
+  });
+  res.status(201).json({ ...onlineView(online), redirectUrl });
+});
+
+router.get('/invoices/:token/checkout/:id', async (req, res) => {
+  const { invoice } = await loadByToken(req.params.token);
+  if (!mongoose.isValidObjectId(req.params.id)) throw new HttpError(404, 'Paiement introuvable.');
+  let online = await OnlinePayment.findOne({ _id: req.params.id, invoice: invoice._id });
+  if (!online) throw new HttpError(404, 'Paiement introuvable.');
+  online = await refreshCheckout(online);
+  const fresh = await Invoice.findById(invoice._id);
+  res.set('Cache-Control', 'no-store');
+  res.json(onlineView(online, fresh.toJSON()));
+});
+
+// Notification de FlexPaie : on ne croit pas le contenu, on redemande l'état à FlexPaie
+router.post('/flexpay/callback/:id/:key', async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id)) return res.json({ received: true });
+  const online = await OnlinePayment.findOne({ _id: req.params.id, callbackKey: String(req.params.key) });
+  if (online) {
+    const orderNumber = req.body?.orderNumber || req.body?.order_number;
+    if (!online.orderNumber && orderNumber && (req.body?.reference === online.reference)) {
+      online.orderNumber = String(orderNumber).slice(0, 80);
+      await online.save();
+    }
+    await refreshCheckout(online, { force: true });
+  }
+  res.json({ received: true });
 });
 
 // « J'ai payé » : le client annonce un paiement fait sur un compte de l'entreprise ; rien n'est encaissé avant confirmation

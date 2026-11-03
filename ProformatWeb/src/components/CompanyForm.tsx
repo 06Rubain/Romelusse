@@ -86,7 +86,7 @@ function BrandPreview({ form }: { form: CompanyDraft }) {
   );
 }
 
-export default function CompanyForm({ form, onChange, showRules = true }: { form: CompanyDraft; onChange: (f: CompanyDraft) => void; showRules?: boolean }) {
+export default function CompanyForm({ form, onChange, showRules = true, tokenSet = false }: { form: CompanyDraft; onChange: (f: CompanyDraft) => void; showRules?: boolean; tokenSet?: boolean }) {
   const set = <K extends keyof CompanyDraft>(key: K, value: CompanyDraft[K]) => onChange({ ...form, [key]: value });
   return (
     <div className="grid-2 even">
@@ -133,6 +133,31 @@ export default function CompanyForm({ form, onChange, showRules = true }: { form
             })}
           </div>
         </div>
+        <h3>Page de paiement en ligne</h3>
+        <p className="muted small" style={{ marginTop: -6 }}>Le client paie depuis le lien de sa facture, sur une page à vos couleurs : il choisit M-Pesa, Orange Money, Airtel Money, Africell Money ou la carte, confirme sur son téléphone, et la facture passe en « Payée » toute seule.</p>
+        <div className="segmented" role="radiogroup" aria-label="Paiement en ligne" style={{ marginBottom: 12 }}>
+          {([['off', 'Désactivé'], ['demo', 'Essai (sans argent)'], ['live', 'Réel (FlexPaie)']] as const).map(([mode, label]) => (
+            <button key={mode} type="button" role="radio" aria-checked={form.checkoutMode === mode} className={form.checkoutMode === mode ? 'active' : ''}
+              onClick={() => set('checkoutMode', mode)}>{label}</button>
+          ))}
+        </div>
+        {form.checkoutMode === 'demo' && (
+          <div className="alert alert-info small">Mode essai : la page de paiement fonctionne mais aucun argent ne bouge. Le paiement est accepté après quelques secondes (un numéro qui finit par 000 est refusé). Passez en « Réel » quand FlexPaie vous a donné vos identifiants.</div>
+        )}
+        {form.checkoutMode === 'live' && (
+          <div className="form-grid">
+            <Field label="Code marchand FlexPaie" hint="Ex. : FPG_DRC (fourni par FlexPaie)">
+              <input className="input-field" value={form.flexpayMerchant} onChange={(e) => set('flexpayMerchant', e.target.value)} autoComplete="off" />
+            </Field>
+            <Field label="Clé API (jeton) FlexPaie" hint={tokenSet ? 'Une clé est enregistrée. Saisissez-en une nouvelle seulement pour la remplacer.' : 'Demandez-la à FlexPaie (espace marchand). Elle reste secrète sur le serveur.'}>
+              <input className="input-field" type="password" value={form.flexpayToken || ''} onChange={(e) => set('flexpayToken', e.target.value)}
+                placeholder={tokenSet ? '•••••••• enregistrée' : 'Collez la clé ici'} autoComplete="new-password" />
+            </Field>
+          </div>
+        )}
+        {form.checkoutMode === 'live' && (!form.flexpayMerchant || !(tokenSet || form.flexpayToken)) && (
+          <div className="alert alert-warning small">Tant que le code marchand et la clé ne sont pas enregistrés, la page de paiement propose seulement vos numéros et « J'ai payé ».</div>
+        )}
         {showRules && (
           <>
             <h3>Gestion</h3>

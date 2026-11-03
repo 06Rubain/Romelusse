@@ -1,6 +1,7 @@
 const Invoice = require('../models/Invoice');
 const Payment = require('../models/Payment');
 const PaymentNotice = require('../models/PaymentNotice');
+const OnlinePayment = require('../models/OnlinePayment');
 const Counter = require('../models/Counter');
 const Expense = require('../models/Expense');
 const CashMovement = require('../models/CashMovement');
@@ -36,6 +37,7 @@ const resetCompanyData = async (company, { scopes, confirm }) => {
     await remove('invoices', Invoice);
     await remove('payments', Payment);
     await remove('paymentNotices', PaymentNotice);
+    await remove('onlinePayments', OnlinePayment);
     await remove('counters', Counter, { _id: { $regex: `^${escapeRegex(String(company._id))}:` } });
   }
   if (chosen.includes('money')) {

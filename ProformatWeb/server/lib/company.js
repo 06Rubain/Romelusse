@@ -4,7 +4,7 @@ const { validateImage, validateColor } = require('./images');
 
 const BRANDING_FIELDS = ['name', 'legalName', 'address', 'city', 'email', 'phone', 'taxNumber', 'nationalId', 'rccm', 'bankName', 'bankAccount',
   'exchangeRate', 'reportingCurrency', 'paymentTermDays', 'logo', 'footerImage', 'primaryColor', 'secondaryColor', 'accentColor',
-  'signature', 'paymentLink', 'paymentMethods', 'paymentAccounts'];
+  'signature', 'paymentLink', 'paymentMethods', 'paymentAccounts', 'checkoutMode', 'flexpayMerchant', 'flexpayToken'];
 
 const ACCOUNT_PROVIDERS = ['M-Pesa', 'Orange Money', 'Airtel Money', 'Africell Money', 'Banque', 'Autre'];
 const MAX_ACCOUNTS = 8;
@@ -48,6 +48,14 @@ const sanitizeCompany = async (body) => {
       }))
       .filter((a) => a.number)
       .slice(0, MAX_ACCOUNTS);
+  }
+  if (data.checkoutMode !== undefined && !['off', 'demo', 'live'].includes(data.checkoutMode)) delete data.checkoutMode;
+  if (data.flexpayMerchant !== undefined) data.flexpayMerchant = String(data.flexpayMerchant || '').trim().slice(0, 60);
+  // Clé : remplacée seulement si une nouvelle est saisie (le formulaire ne la connaît jamais)
+  if (data.flexpayToken !== undefined) {
+    const token = String(data.flexpayToken || '').trim();
+    if (token) data.flexpayToken = token.slice(0, 2000);
+    else delete data.flexpayToken;
   }
   if (data.paymentLink !== undefined) {
     data.paymentLink = normalizeLink(data.paymentLink);

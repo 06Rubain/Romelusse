@@ -1,13 +1,14 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Check, CheckCircle2, Clock, Copy, CreditCard, Download, ExternalLink, FileText, Phone, Send, Smartphone, XCircle } from 'lucide-react';
 import { api, errorMessage } from '../lib/api';
 import { useFetch } from '../lib/useFetch';
 import { formatDate, formatMoney } from '../lib/format';
-import { logoBackground } from '../lib/brand';
+import { headerBackground, logoBackground } from '../lib/brand';
 import { DOC_INFO, PROVIDER_COLORS, type DocType, type Company, type Currency, type InvoiceStatus, type InvoiceTemplate, type NoticeStatus, type PaymentAccount } from '../lib/types';
 import InvoiceDocument from '../components/InvoiceDocument';
 import TemplateDocument from '../components/TemplateDocument';
+import Checkout from '../components/Checkout';
 
 interface PublicData {
   invoice: {
@@ -18,6 +19,7 @@ interface PublicData {
   company: Company;
   template: InvoiceTemplate | null;
   notices: ClientNotice[];
+  checkout: { mode: 'demo' | 'live'; methods: string[] } | null;
 }
 
 interface ClientNotice { provider: string; amount: number; currency: Currency; reference: string; status: NoticeStatus; createdAt: string }
@@ -110,10 +112,12 @@ function NoticeForm({ token, providers, due, currency, onSent }: { token: string
 // Page ouverte par le client depuis le lien reçu : voir sa facture et la payer, sans compte
 export default function PublicInvoice() {
   const { token = '' } = useParams();
-  const { data, error, loading } = useFetch(() => api.get<PublicData>(`/public/invoices/${token}`), [token]);
+  const { data, error, loading, reload } = useFetch(() => api.get<PublicData>(`/public/invoices/${token}`), [token]);
   const [showDoc, setShowDoc] = useState(false);
   const [sentNotices, setSentNotices] = useState<ClientNotice[] | null>(null);
   const [noticeOpen, setNoticeOpen] = useState(false);
+  const [justPaid, setJustPaid] = useState(false);
+  const onPaid = useCallback(() => { setJustPaid(true); reload(); }, [reload]);
   const docRef = useRef<HTMLDivElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
@@ -155,18 +159,19 @@ export default function PublicInvoice() {
   const notices = sentNotices || data.notices || [];
   const noticeProviders = [...new Set(accounts.map((a) => a.provider)), ...(company.paymentLink ? [ONLINE] : [])];
   const canNotify = !isProforma && payable && noticeProviders.length > 0;
+  const checkoutOn = !!data.checkout && invoice.type === 'Facture';
   const firstPhone = (company.phone || '').split(/[/,;]/)[0].replace(/[^\d+]/g, '');
 
   return (
     <div className="pay-page">
       <div className="pay-card">
-        <header className="pay-head">
+        <header className="pay-hero" style={headerBackground(company)}>
           {company.logo
             ? <img src={company.logo} alt="" className="pay-logo" style={logoBackground(company)} />
             : <span className="pay-logo placeholder">{company.name.charAt(0).toUpperCase()}</span>}
           <div>
-            <div className="strong">{company.name}</div>
-            <div className="muted small">{[company.city, company.phone].filter(Boolean).join(' · ')}</div>
+            <div className="pay-hero-name">{company.name}</div>
+            <div className="pay-hero-sub">{[company.city, company.phone].filter(Boolean).join(' · ')}</div>
           </div>
         </header>
 
@@ -176,19 +181,62 @@ export default function PublicInvoice() {
         </div>
         <p className="pay-hello">Bonjour <strong>{invoice.client}</strong>,</p>
 
-        {paid && <div className="pay-status success"><CheckCircle2 size={22} /><div><strong>Facture réglée</strong><div>Merci pour votre paiement de {formatMoney(invoice.totalAmount, invoice.currency)}.</div></div></div>}
+        {paid && !justPaid && <div className="pay-status success"><CheckCircle2 size={22} /><div><strong>Facture réglée</strong><div>Merci pour votre paiement de {formatMoney(invoice.totalAmount, invoice.currency)}.</div></div></div>}
         {cancelled && <div className="pay-status danger"><XCircle size={22} /><div><strong>Facture annulée</strong><div>Aucun paiement n'est demandé.</div></div></div>}
         {converted && <div className="pay-status info"><FileText size={22} /><div><strong>Document accepté</strong><div>{DOC_INFO[invoice.type].the.replace(/^./, (c) => c.toUpperCase())} a été transformé(e) en facture : demandez le nouveau lien à {company.name}.</div></div></div>}
 
         {payable && (
-          <>
             <div className="pay-amount">
               <span className="muted">{invoice.type === 'Proforma' ? 'Montant du devis' : invoice.type === 'Bon de commande' ? 'Montant de la commande' : 'Montant à payer'}</span>
               <strong>{amount}</strong>
               {!isProforma && invoice.amountPaid > 0 && <span className="muted small">Déjà payé : {formatMoney(invoice.amountPaid, invoice.currency)} sur {formatMoney(invoice.totalAmount, invoice.currency)}</span>}
               {!isProforma && invoice.dueDate && <span className="muted small">À payer avant le {formatDate(invoice.dueDate)}</span>}
             </div>
+        )}
 
+        {checkoutOn && (payable || justPaid) && (
+          <Checkout token={token} methods={data.checkout!.methods} mode={data.checkout!.mode} amount={due} currency={invoice.currency}
+            brand={company.name} onPaid={onPaid} />
+        )}
+
+        {payable && (checkoutOn ? (
+          (accounts.length > 0 || canNotify) && (
+            <details className="pay-more">
+              <summary>Autres façons de payer (envoi direct sur nos numéros)</summary>
+            {accounts.length > 0 && (
+              <div className="pay-direct">
+                <strong>{company.paymentLink ? 'Ou envoyez directement sur nos numéros' : 'Payez sur nos numéros'}</strong>
+                <div className="pay-accounts">{accounts.map((a, i) => <AccountCard key={i} account={a} />)}</div>
+                <p className="muted small">Envoyez <strong>{amount}</strong> et indiquez le motif <strong>{invoice.number}</strong>.</p>
+              </div>
+            )}
+
+            {(company.paymentLink || accounts.length > 0) && (
+              <div className="row-gap pay-copy">
+                <CopyButton value={invoice.number} label="Copier la référence" />
+                <CopyButton value={String(due)} label="Copier le montant" />
+              </div>
+            )}
+
+            {!company.paymentLink && !accounts.length && (company.bankName || company.bankAccount) && (
+              <div className="pay-bank">
+                <strong>Paiement par virement</strong>
+                <div>{company.bankName} : {company.bankAccount}</div>
+                {company.legalName && <div className="muted small">Au nom de {company.legalName} · référence {invoice.number}</div>}
+              </div>
+            )}
+
+            {canNotify && (sentNotices ? (
+              <div className="pay-status info"><CheckCircle2 size={22} /><div><strong>Merci, c'est noté !</strong><div>{company.name} vérifie votre paiement et met votre facture à jour.</div></div></div>
+            ) : noticeOpen ? (
+              <NoticeForm token={token} providers={noticeProviders} due={due} currency={invoice.currency} onSent={setSentNotices} />
+            ) : (
+              <button type="button" className="btn btn-whatsapp btn-block btn-lg pay-paid" onClick={() => setNoticeOpen(true)}><CheckCircle2 size={20} /> J'ai payé</button>
+            ))}
+            </details>
+          )
+        ) : (
+          <>
             {company.paymentLink && (
               <div className="pay-online">
                 <a className="btn btn-primary btn-block btn-lg pay-button" href={company.paymentLink} target="_blank" rel="noreferrer">
@@ -204,7 +252,6 @@ export default function PublicInvoice() {
                 </ol>
               </div>
             )}
-
             {accounts.length > 0 && (
               <div className="pay-direct">
                 <strong>{company.paymentLink ? 'Ou envoyez directement sur nos numéros' : 'Payez sur nos numéros'}</strong>
@@ -236,7 +283,7 @@ export default function PublicInvoice() {
               <button type="button" className="btn btn-whatsapp btn-block btn-lg pay-paid" onClick={() => setNoticeOpen(true)}><CheckCircle2 size={20} /> J'ai payé</button>
             ))}
           </>
-        )}
+        ))}
 
         {notices.length > 0 && (
           <div className="pay-notices">

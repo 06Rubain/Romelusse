@@ -65,6 +65,10 @@ export default function InvoiceGenerator() {
   const [dueDate, setDueDate] = useState('');
   const [currency, setCurrency] = useState<Currency>('USD');
   const [rate, setRate] = useState(settings?.exchangeRate || 2250);
+  // Sur la facture imprimée, le QR code et le lien ouvrent la page de paiement de cette facture
+  const docCompany = useMemo(() => (settings && invoice?.clientPay
+    ? { ...settings, paymentLink: invoice.clientPay.url, paymentQr: invoice.clientPay.qr }
+    : settings), [settings, invoice?.clientPay]);
   const [discount, setDiscount] = useState('');
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState<EditLine[]>([]);
@@ -94,7 +98,7 @@ export default function InvoiceGenerator() {
   const loadInvoice = async () => {
     if (!id) return;
     try {
-      const data = await api.get<Invoice>(`/invoices/${id}`);
+      const data = await api.get<Invoice>(`/invoices/${id}`, { origin: window.location.origin });
       setInvoice(data);
       setType(data.type);
       setNumber(data.number);
@@ -488,7 +492,7 @@ export default function InvoiceGenerator() {
           <TemplateDocument
             ref={contentRef}
             template={customTemplate}
-            company={settings}
+            company={docCompany}
             onOverflowChange={setOverflow}
             data={{
               type, number: number || suggestedNumber, client: clientName, clientActivity, issueDate, dueDate, currency, lines,
@@ -510,7 +514,7 @@ export default function InvoiceGenerator() {
           paid={invoice?.status === 'Payée'}
           cancelled={invoice?.status === 'Annulée'}
           notes={notes}
-          company={settings}
+          company={docCompany}
           printFormat={printFormat}
         />
         )}

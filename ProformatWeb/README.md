@@ -142,6 +142,27 @@ téléphone :
   sur son téléphone ou son relevé puis clique **Reçu** (l'encaissement est créé, en Mobile Money, virement ou carte)
   ou **Pas reçu**. Le client voit le résultat sur sa page ;
 - à défaut, les coordonnées bancaires ;
+
+### Page de paiement en ligne (FlexPaie)
+
+Dans *Entreprise & logo → Page de paiement en ligne*, trois modes :
+
+- **Désactivé** : la page propose vos numéros et « J'ai payé » (ci-dessus).
+- **Essai (sans argent)** : la vraie page de paiement fonctionne sans débiter personne. Le paiement est accepté
+  après quelques secondes ; un numéro qui finit par `000` est refusé. Idéal pour montrer la page ou former l'équipe.
+- **Réel (FlexPaie)** : saisissez le **code marchand** et la **clé API (jeton)** fournis par FlexPaie. La clé reste
+  sur le serveur (jamais renvoyée au navigateur, jamais dans les journaux).
+
+Le client ouvre le lien de sa facture (ou scanne le QR code imprimé, qui pointe maintenant vers cette page) et voit une page
+aux couleurs et au logo de l'entreprise : il choisit **M-Pesa, Orange Money, Airtel Money, Africell Money** ou **la carte**
+(Visa, Mastercard), saisit son numéro, puis confirme avec son code secret sur son téléphone. La carte passe par la page
+sécurisée de FlexPaie puis revient sur la page du client. L'état est vérifié auprès de FlexPaie (toutes les 3 s pendant
+que la page est ouverte, et à la notification de FlexPaie) : quand le paiement réussit, l'encaissement est créé
+automatiquement (une seule fois), la facture passe en « Payée » et la trésorerie est à jour.
+
+Adresses de l'API utilisées par défaut (modifiables si FlexPaie vous en donne d'autres) :
+`FLEXPAY_PAYMENT_URL=https://corporateapi.flexpay.cd/api/rest/v1/paymentService` et
+`FLEXPAY_CHECK_URL=https://apicheck.flexpaie.com/api/rest/v1/check`.
 - la facture elle-même (modèle standard ou importé), à télécharger en PDF.
 
 Une facture réglée affiche « Facture réglée », une facture annulée « Facture annulée ». Si l'entreprise est

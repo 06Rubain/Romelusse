@@ -386,6 +386,7 @@ td.actions > * { margin-left: 2px; }
 .alert-danger { background: var(--danger-soft); border-color: rgba(220, 38, 38, 0.25); color: var(--danger-text); }
 .alert-success { background: var(--success-soft); border-color: rgba(5, 150, 105, 0.25); color: var(--success-text); }
 .alert-info { background: var(--info-soft); border-color: var(--primary-ring); color: var(--info-text); }
+.alert-warning { background: var(--warning-soft); border-color: rgba(217, 119, 6, 0.3); color: var(--text); }
 
 .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
 .tabs button { background: none; border: none; color: var(--text-muted); padding: 10px 16px; font: inherit; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
@@ -757,7 +758,7 @@ input[type=range] { width: 100%; accent-color: var(--primary); }
 
 /* ---------- Page client (voir et payer une facture) ---------- */
 .pay-page { min-height: 100vh; background: var(--bg); padding: 24px 16px 32px; display: flex; flex-direction: column; align-items: center; }
-.pay-card { width: 100%; max-width: 560px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: var(--shadow-lg); padding: 22px; }
+.pay-card { overflow: hidden; width: 100%; max-width: 560px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: var(--shadow-lg); padding: 22px; }
 .pay-center { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .pay-head { display: flex; align-items: center; gap: 12px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
 .pay-logo { width: 56px; height: 56px; border-radius: 14px; object-fit: contain; padding: 4px; flex-shrink: 0; }
@@ -776,6 +777,41 @@ input[type=range] { width: 100%; accent-color: var(--primary); }
 .notice-panel-title { display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--warning); }
 .notice-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px; background: var(--surface); border-radius: 10px; }
 .notice-panel p { margin: 0; }
+.pay-hero { display: flex; align-items: center; gap: 14px; margin: -22px -22px 16px; padding: 20px 22px; border-radius: 20px 20px 0 0; color: #fff; }
+.pay-hero .pay-logo { border: 2px solid rgba(255, 255, 255, 0.85); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18); }
+.pay-hero .pay-logo.placeholder { background: #fff; color: var(--primary); }
+.pay-hero-name { font-weight: 800; font-size: 1.15rem; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25); }
+.pay-hero-sub { font-size: 0.85rem; opacity: 0.95; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25); }
+.checkout { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+.checkout-title { font-weight: 700; }
+.checkout-methods { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.checkout-method { display: flex; align-items: center; gap: 10px; padding: 14px 12px; border: 1.5px solid var(--border); border-radius: 14px; background: var(--surface); color: var(--text); font: inherit; font-weight: 700; text-align: left; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s; }
+.checkout-method:hover { border-color: var(--method); box-shadow: 0 0 0 3px color-mix(in srgb, var(--method) 18%, transparent); }
+.checkout-method:active { transform: scale(0.98); }
+.checkout-method small { display: block; font-weight: 500; font-size: 0.75rem; color: var(--text-muted); }
+.checkout-method:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.checkout-method-icon { width: 38px; height: 38px; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; color: #fff; background: var(--method); }
+.checkout-form { display: flex; flex-direction: column; gap: 12px; padding: 16px; border-radius: 16px; border: 1.5px solid var(--method); background: color-mix(in srgb, var(--method) 5%, var(--surface)); }
+.checkout-form .input-group { margin: 0; }
+.checkout-back { align-self: flex-start; padding-left: 0; }
+.checkout-chosen { display: flex; align-items: center; gap: 10px; font-size: 1.05rem; }
+.checkout-pay { background: var(--method); color: #fff; font-size: 1.08rem; }
+.checkout-pay:hover:not(:disabled) { filter: brightness(0.94); }
+.phone-input { display: flex; align-items: stretch; }
+.phone-input span { display: inline-flex; align-items: center; padding: 0 12px; border: 1px solid var(--border-strong); border-right: none; border-radius: 10px 0 0 10px; background: var(--surface-2); font-weight: 700; color: var(--text-muted); }
+.phone-input .input-field { border-radius: 0 10px 10px 0; font-size: 1.1rem; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
+.checkout-secure { display: flex; gap: 6px; align-items: center; justify-content: center; font-size: 0.8rem; color: var(--text-muted); text-align: center; }
+.checkout-wait, .checkout-done { align-items: center; text-align: center; padding: 22px 16px; border-radius: 16px; background: var(--surface-2); }
+.checkout-wait h2, .checkout-done h2 { margin: 4px 0 0; font-size: 1.25rem; }
+.checkout-wait p, .checkout-done p { margin: 0; }
+.checkout-pulse { width: 70px; height: 70px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; background: var(--method); animation: pulse 1.6s ease-out infinite; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--method) 45%, transparent); } 100% { box-shadow: 0 0 0 22px transparent; } }
+.checkout-status { display: inline-flex; gap: 8px; align-items: center; font-weight: 600; color: var(--text-muted); font-size: 0.9rem; }
+.checkout-done { background: var(--success-soft); color: var(--success); }
+.checkout-done p { color: var(--text); }
+.pay-more { margin-bottom: 14px; border: 1px solid var(--border); border-radius: 12px; padding: 4px 14px; }
+.pay-more[open] { padding-bottom: 12px; }
+.pay-more summary { cursor: pointer; padding: 10px 0; font-weight: 600; color: var(--text-muted); }
 .pay-direct { display: flex; flex-direction: column; gap: 10px; margin: 6px 0 12px; }
 .pay-accounts { display: flex; flex-direction: column; gap: 8px; }
 .pay-account { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--border); border-left: 4px solid var(--provider); border-radius: 12px; background: var(--surface); }

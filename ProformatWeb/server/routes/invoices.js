@@ -6,6 +6,8 @@ const Client = require('../models/Client');
 const Payment = require('../models/Payment');
 const { METHODS } = require('../models/Payment');
 const PaymentNotice = require('../models/PaymentNotice');
+const Company = require('../models/Company');
+const qrcode = require('qrcode');
 const {
   HttpError, toNumber, round2, parseDate, escapeRegex, paginate, dateRangeFilter, CURRENCIES,
 } = require('../lib/helpers');
@@ -97,6 +99,20 @@ const refreshPaymentStatus = async (invoice) => {
   return invoice;
 };
 
+// Lien et QR code imprimés sur la facture : ils ouvrent la page de paiement de cette facture
+// (adresse de l'application transmise par le navigateur, ou PUBLIC_APP_URL)
+const clientPayLink = async (req, invoice) => {
+  if (invoice.type !== 'Facture' || !invoice.publicToken) return null;
+  const company = await Company.findById(req.company._id).select('checkoutMode paymentAccounts paymentLink').lean();
+  if (!company || !(company.checkoutMode !== 'off' || company.paymentAccounts?.length)) return null;
+  const raw = process.env.PUBLIC_APP_URL || String(req.query.origin || '');
+  let origin;
+  try { origin = new URL(raw); } catch { return null; }
+  if (!['http:', 'https:'].includes(origin.protocol)) return null;
+  const url = `${origin.origin}/p/${invoice.publicToken}`;
+  return { url, qr: await qrcode.toDataURL(url, { margin: 1, width: 240 }) };
+};
+
 // Type de document demandé (facture par défaut)
 const docType = (value) => (TYPES.includes(value) ? value : 'Facture');
 
@@ -140,7 +156,7 @@ router.get('/:id', async (req, res) => {
     await invoice.save();
   }
   const payments = await Payment.find({ invoice: invoice._id }).sort({ date: 1 });
-  res.json({ ...invoice.toJSON(), payments });
+  res.json({ ...invoice.toJSON(), payments, clientPay: await clientPayLink(req, invoice) });
 });
 
 router.post('/', requirePermission('invoices.create'), async (req, res) => {

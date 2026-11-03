@@ -107,6 +107,7 @@ export const docTypeFrom = (value: string | null | undefined, fallback: DocType 
 export interface Invoice {
   _id: string;
   publicToken?: string;
+  clientPay?: { url: string; qr: string } | null;
   number: string;
   type: DocType;
   clientId: string | null;
@@ -176,6 +177,10 @@ export interface Company {
   paymentQr: string;
   paymentMethods: string[];
   paymentAccounts: PaymentAccount[];
+  checkoutMode: CheckoutMode;
+  flexpayMerchant: string;
+  flexpayToken?: string;
+  flexpayTokenSet?: boolean;
   exchangeRate: number;
   reportingCurrency: Currency;
   paymentTermDays: number;
@@ -289,6 +294,7 @@ export const ZONE_LABELS: Record<ZoneKey, string> = {
 };
 
 // Moyens de paiement proposés pour le lien de paiement en ligne (ex. FlexPaie)
+export type CheckoutMode = 'off' | 'demo' | 'live';
 export type AccountProvider = 'M-Pesa' | 'Orange Money' | 'Airtel Money' | 'Africell Money' | 'Banque' | 'Autre';
 export const ACCOUNT_PROVIDERS: AccountProvider[] = ['M-Pesa', 'Orange Money', 'Airtel Money', 'Africell Money', 'Banque', 'Autre'];
 // Couleur de repère de chaque opérateur sur la page de paiement

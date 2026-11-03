@@ -38,6 +38,11 @@ const companySchema = new mongoose.Schema({
     }],
     default: [],
   },
+  // Paiement en ligne sur la page du client : off, essai (sans argent réel) ou réel (API FlexPaie de l'entreprise)
+  checkoutMode: { type: String, enum: ['off', 'demo', 'live'], default: 'off' },
+  flexpayMerchant: { type: String, default: '' },
+  // Clé secrète de l'API : jamais renvoyée au navigateur
+  flexpayToken: { type: String, default: '', select: false },
   // Règles de gestion
   exchangeRate: { type: Number, default: 2250, min: 0 },
   reportingCurrency: { type: String, enum: ['USD', 'FC'], default: 'USD' },
