@@ -1,164 +1,137 @@
-import { useState, useEffect } from 'react';
-import { auth } from '../firebase';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Users as UsersIcon, ShieldAlert, ShieldCheck } from 'lucide-react';
-import { API_URL } from '../config';
-import { fetchWithAuth } from '../api';
+import { useRef, useState } from 'react';
+import { Camera, KeyRound, Plus, ShieldAlert, ShieldCheck, ShieldOff } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { api, errorMessage } from '../lib/api';
+import { useFeedback } from '../components/feedback';
+import { useFetch } from '../lib/useFetch';
+import { useAuth } from '../auth/AuthContext';
+import { formatDateTime } from '../lib/format';
+import type { Role, User } from '../lib/types';
+import { Alert, Field, Modal, PageHeader } from '../components/ui';
+import Avatar from '../components/Avatar';
+import { squarePhoto } from '../lib/photo';
 
 export default function UsersList() {
-  const [users, setUsers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [currentUserData, setCurrentUserData] = useState<any>(null);
-  const navigate = useNavigate();
+  const { confirm, prompt, toast } = useFeedback();
+  const { user: me, can, refreshUser } = useAuth();
+  const { data, reload } = useFetch(() => api.get<User[]>('/users'), []);
+  const roles = useFetch(() => api.get<Role[]>('/roles'), []);
+  const [creating, setCreating] = useState(false);
+  const [form, setForm] = useState({ email: '', displayName: '', roleId: '', password: '' });
+  const [error, setError] = useState('');
+  const photoInput = useRef<HTMLInputElement>(null);
+  const [photoFor, setPhotoFor] = useState<User | null>(null);
 
-  const loadUsers = async () => {
-    try {
-      const res = await fetchWithAuth(`${API_URL}/api/users`);
-      if (res.ok) {
-        const data = await res.json();
-        setUsers(data);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+  const run = async (fn: () => Promise<unknown>) => {
+    setError('');
+    try { await fn(); reload(); } catch (err) { setError(errorMessage(err)); }
   };
 
-  useEffect(() => {
-    const fetchCurrentUser = async () => {
-      const user = auth.currentUser;
-      if (!user) {
-        navigate('/login');
-        return;
-      }
-      try {
-        const res = await fetchWithAuth(`${API_URL}/api/users/${user.uid}`);
-        if (res.ok) {
-          const data = await res.json();
-          setCurrentUserData(data);
-          if (data.role !== 'admin') {
-            navigate('/dashboard'); // Kick out non-admins
-          } else {
-            loadUsers();
-          }
-        }
-      } catch (err) {
-        console.error(err);
-        navigate('/dashboard');
-      }
-    };
-
-    fetchCurrentUser();
-  }, [navigate]);
-
-  const toggleBlock = async (userId: string, currentStatus: boolean, email: string) => {
-    if (email === 'nsimbanzebele@gmail.com') {
-      alert("Impossible de bloquer le Super Administrateur.");
-      return;
-    }
-    
-    if (window.confirm(`Voulez-vous vraiment ${currentStatus ? 'débloquer' : 'bloquer'} l'utilisateur ${email} ?`)) {
-      try {
-        const res = await fetchWithAuth(`${API_URL}/api/users/${userId}/block`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ isBlocked: !currentStatus })
-        });
-        if (res.ok) {
-          loadUsers();
-        }
-      } catch (err) {
-        console.error(err);
-        alert("Erreur lors de l'opération.");
-      }
-    }
+  const openCreate = () => {
+    const employee = roles.data?.find((r) => !r.isSystem) || roles.data?.[0];
+    setForm({ email: '', displayName: '', roleId: employee?._id || '', password: '' });
+    setCreating(true);
   };
 
-  if (loading || !currentUserData) return <div style={{ padding: '40px', textAlign: 'center' }}>Chargement...</div>;
+  const create = (e: React.FormEvent) => {
+    e.preventDefault();
+    run(async () => {
+      await api.post('/users', form);
+      setCreating(false);
+    });
+  };
+
+  const resetPassword = async (u: User) => {
+    const password = await prompt({ title: 'Nouveau mot de passe', message: u.email, label: 'Mot de passe', type: 'password', minLength: 8, confirmLabel: 'Réinitialiser' });
+    if (password) run(() => api.post(`/users/${u._id}/reset-password`, { password }));
+  };
+
+  const roleOptions = roles.data?.map((r) => <option key={r._id} value={r._id}>{r.name}</option>);
 
   return (
-    <div className="app-container">
-      <div className="sidebar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', color: 'var(--text-muted)', marginBottom: '40px' }} onClick={() => navigate('/profile')}>
-          <ArrowLeft size={20} /> Retour au profil
-        </div>
-        
-        <div style={{ padding: '20px', background: 'rgba(0,168,181,0.05)', borderRadius: '16px', border: '1px solid rgba(0,168,181,0.1)' }}>
-          <h3 style={{ marginTop: 0, color: 'var(--primary)' }}><UsersIcon size={20} style={{ verticalAlign: 'middle', marginRight: '10px' }} />Espace Administrateur</h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: 0 }}>Gérez les accès de votre équipe. Bloquez les utilisateurs qui ne font plus partie de l'entreprise.</p>
-        </div>
-      </div>
-
-      <div className="main-content animate-fade-in">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-          <h1>Gestion de l'Équipe</h1>
-        </div>
-        
-        <div className="card glass">
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Utilisateur</th>
-                  <th>E-mail</th>
-                  <th>Rôle</th>
-                  <th>Statut</th>
-                  <th style={{ textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map(u => (
+    <div className="animate-fade-in">
+      <PageHeader title="Utilisateurs" subtitle="Comptes de votre entreprise et leurs rôles"
+        actions={<>
+          {can('roles.manage') && <Link className="btn btn-outline" to="/roles"><ShieldCheck size={18} /> Gérer les rôles</Link>}
+          <button className="btn btn-primary" onClick={openCreate}><Plus size={18} /> Nouvel utilisateur</button>
+        </>} />
+      <input ref={photoInput} type="file" accept="image/*" hidden onChange={async (e) => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file || !photoFor) return;
+        try {
+          const photoURL = await squarePhoto(file);
+          await run(async () => {
+            await api.patch(`/users/${photoFor._id}`, { photoURL });
+            if (photoFor._id === me?._id) await refreshUser();
+            toast(`Photo de ${photoFor.displayName || photoFor.email} mise à jour.`);
+          });
+        } catch (err) { setError(errorMessage(err)); }
+      }} />
+      <Alert>{error}</Alert>
+      <div className="card">
+        <div className="table-container">
+          <table>
+            <thead><tr><th>Utilisateur</th><th>Rôle</th><th>2FA</th><th>Dernière connexion</th><th>Statut</th><th className="actions">Actions</th></tr></thead>
+            <tbody>
+              {data?.map((u) => {
+                const self = u._id === me?._id;
+                return (
                   <tr key={u._id} style={{ opacity: u.isBlocked ? 0.6 : 1 }}>
-                    <td style={{ display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 500 }}>
-                      {u.photoURL ? (
-                        <img src={u.photoURL} alt={u.displayName} style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
-                      ) : (
-                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>
-                          {(u.displayName || u.email).charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                      {u.displayName || 'Sans nom'}
-                    </td>
-                    <td style={{ color: 'var(--text-muted)' }}>{u.email}</td>
+                    <td><div className="person"><Avatar name={u.displayName || u.email} photo={u.photoURL} /><div><div className="strong">{u.displayName || 'Sans nom'}{self && <span className="muted small"> (vous)</span>}</div><div className="muted small">{u.email}</div></div></div></td>
                     <td>
-                      {u.role === 'admin' ? (
-                        <span style={{ padding: '4px 10px', background: 'rgba(0,168,181,0.1)', color: 'var(--primary)', borderRadius: '12px', fontSize: '0.85rem' }}>Admin</span>
-                      ) : (
-                        <span style={{ padding: '4px 10px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', borderRadius: '12px', fontSize: '0.85rem' }}>Employé</span>
-                      )}
+                      <select className="input-field input-sm" value={u.roleId || ''} disabled={self} onChange={(e) => run(() => api.patch(`/users/${u._id}`, { roleId: e.target.value }))}>
+                        {roleOptions}
+                      </select>
                     </td>
-                    <td>
-                      {u.isBlocked ? (
-                        <span style={{ color: 'var(--danger)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '5px' }}><ShieldAlert size={16} /> Bloqué</span>
-                      ) : (
-                        <span style={{ color: '#10B981', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '5px' }}><ShieldCheck size={16} /> Actif</span>
+                    <td>{u.twoFactorEnabled ? <span className="text-success">Activée</span> : <span className="muted">—</span>}</td>
+                    <td className="muted small">{formatDateTime(u.lastLoginAt)}</td>
+                    <td>{u.isBlocked
+                      ? <span className="text-danger row-gap"><ShieldAlert size={16} /> Bloqué</span>
+                      : <span className="text-success row-gap"><ShieldCheck size={16} /> Actif</span>}</td>
+                    <td className="actions">
+                      <button className="icon-btn" title="Changer la photo" onClick={() => { setPhotoFor(u); photoInput.current?.click(); }}><Camera size={16} /></button>
+                      <button className="icon-btn" title="Réinitialiser le mot de passe" onClick={() => resetPassword(u)}><KeyRound size={16} /></button>
+                      {u.twoFactorEnabled && !self && (
+                        <button className="icon-btn" title="Réinitialiser la 2FA" onClick={async () => (await confirm({ title: 'Désactiver la double authentification ?', message: u.email, confirmLabel: 'Désactiver', danger: true })) && run(() => api.post(`/users/${u._id}/reset-2fa`))}><ShieldOff size={16} /></button>
                       )}
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      {u.email !== 'nsimbanzebele@gmail.com' && (
-                        <button 
-                          className="btn" 
-                          style={{ 
-                            padding: '6px 12px', 
-                            fontSize: '0.85rem', 
-                            background: u.isBlocked ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', 
-                            color: u.isBlocked ? '#10B981' : 'var(--danger)', 
-                            border: `1px solid ${u.isBlocked ? '#10B981' : 'var(--danger)'}` 
-                          }}
-                          onClick={() => toggleBlock(u._id, u.isBlocked, u.email)}
-                        >
+                      {!self && (
+                        <button className={`btn btn-sm ${u.isBlocked ? 'btn-outline' : 'btn-danger-soft'}`}
+                          onClick={async () => (await confirm(u.isBlocked
+                            ? { title: `Débloquer ${u.email} ?`, confirmLabel: 'Débloquer' }
+                            : { title: `Bloquer ${u.email} ?`, message: 'Cette personne ne pourra plus se connecter.', confirmLabel: 'Bloquer', danger: true })) && run(() => api.patch(`/users/${u._id}`, { isBlocked: !u.isBlocked }))}>
                           {u.isBlocked ? 'Débloquer' : 'Bloquer'}
                         </button>
                       )}
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
+
+      {creating && (
+        <Modal title="Nouvel utilisateur" onClose={() => setCreating(false)}>
+          <form onSubmit={create}>
+            <Field label="Nom complet"><input className="input-field" value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} /></Field>
+            <Field label="E-mail *"><input type="email" className="input-field" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required /></Field>
+            <div className="form-grid">
+              <Field label="Rôle">
+                <select className="input-field" value={form.roleId} onChange={(e) => setForm({ ...form, roleId: e.target.value })} required>{roleOptions}</select>
+              </Field>
+              <Field label="Mot de passe provisoire *" hint="8 caractères minimum">
+                <input type="text" className="input-field" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} minLength={8} required autoComplete="off" />
+              </Field>
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn btn-outline" onClick={() => setCreating(false)}>Annuler</button>
+              <button type="submit" className="btn btn-primary">Créer le compte</button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }

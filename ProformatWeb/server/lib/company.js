@@ -1,0 +1,77 @@
+const qrcode = require('qrcode');
+const { pick, toNumber, CURRENCIES, HttpError } = require('./helpers');
+const { validateImage, validateColor } = require('./images');
+const { encryptSecret } = require('./secret');
+
+const BRANDING_FIELDS = ['name', 'legalName', 'address', 'city', 'email', 'phone', 'taxNumber', 'nationalId', 'rccm', 'bankName', 'bankAccount',
+  'exchangeRate', 'reportingCurrency', 'paymentTermDays', 'logo', 'footerImage', 'primaryColor', 'secondaryColor', 'accentColor',
+  'signature', 'paymentLink', 'paymentMethods', 'paymentAccounts', 'checkoutMode', 'flexpayMerchant', 'flexpayToken', 'paymentProvider', 'pawapayEnv', 'pawapayToken'];
+
+const ACCOUNT_PROVIDERS = ['M-Pesa', 'Orange Money', 'Airtel Money', 'Africell Money', 'Banque', 'Autre'];
+const MAX_ACCOUNTS = 8;
+
+// Lien de paiement : https ajouté si absent, seuls http et https sont acceptés
+const normalizeLink = (value) => {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const withScheme = /^[a-z]+:\/\//i.test(raw) ? raw : `https://${raw}`;
+  let url;
+  try { url = new URL(withScheme); } catch { throw new HttpError(400, 'Lien de paiement invalide.'); }
+  if (!['http:', 'https:'].includes(url.protocol) || withScheme.length > 300) throw new HttpError(400, 'Lien de paiement invalide.');
+  return url.toString();
+};
+
+// Nettoie les champs modifiables d'une entreprise (par son admin ou par OmniCom) ; calcule le QR code du lien de paiement
+const sanitizeCompany = async (body) => {
+  const data = pick(body, BRANDING_FIELDS);
+  if (data.name !== undefined) data.name = String(data.name).trim();
+  if (data.exchangeRate !== undefined) data.exchangeRate = Math.max(0, toNumber(data.exchangeRate));
+  if (data.paymentTermDays !== undefined) data.paymentTermDays = Math.max(0, Math.round(toNumber(data.paymentTermDays)));
+  if (data.reportingCurrency !== undefined && !CURRENCIES.includes(data.reportingCurrency)) delete data.reportingCurrency;
+  data.logo = validateImage(data.logo, 'Logo');
+  data.footerImage = validateImage(data.footerImage, 'Bandeau de bas de page');
+  data.primaryColor = validateColor(data.primaryColor, 'Couleur principale');
+  data.secondaryColor = validateColor(data.secondaryColor, 'Couleur secondaire');
+  data.accentColor = validateColor(data.accentColor, 'Couleur d\'accent');
+  data.signature = validateImage(data.signature, 'Signature');
+  if (data.paymentMethods !== undefined) {
+    data.paymentMethods = (Array.isArray(data.paymentMethods) ? data.paymentMethods : [])
+      .map((m) => String(m).trim().slice(0, 40)).filter(Boolean).slice(0, 20);
+  }
+  if (data.paymentAccounts !== undefined) {
+    const list = Array.isArray(data.paymentAccounts) ? data.paymentAccounts : [];
+    data.paymentAccounts = list
+      .map((a) => ({
+        provider: ACCOUNT_PROVIDERS.includes(a?.provider) ? a.provider : 'Autre',
+        number: String(a?.number || '').trim().slice(0, 60),
+        holder: String(a?.holder || '').trim().slice(0, 80),
+        label: String(a?.label || '').trim().slice(0, 40),
+      }))
+      .filter((a) => a.number)
+      .slice(0, MAX_ACCOUNTS);
+  }
+  if (data.checkoutMode !== undefined && !['off', 'demo', 'live'].includes(data.checkoutMode)) delete data.checkoutMode;
+  if (data.flexpayMerchant !== undefined) data.flexpayMerchant = String(data.flexpayMerchant || '').trim().slice(0, 60);
+  // Clé : remplacée seulement si une nouvelle est saisie (le formulaire ne la connaît jamais)
+  if (data.flexpayToken !== undefined) {
+    const token = String(data.flexpayToken || '').trim();
+    // Chiffrée avant d'être enregistrée
+    if (token) data.flexpayToken = encryptSecret(token.slice(0, 2000));
+    else delete data.flexpayToken;
+  }
+  if (data.paymentProvider !== undefined && !['flexpay', 'pawapay'].includes(data.paymentProvider)) delete data.paymentProvider;
+  if (data.pawapayEnv !== undefined && !['sandbox', 'live'].includes(data.pawapayEnv)) delete data.pawapayEnv;
+  if (data.pawapayToken !== undefined) {
+    const token = String(data.pawapayToken || '').trim();
+    if (token) data.pawapayToken = encryptSecret(token.slice(0, 4000));
+    else delete data.pawapayToken;
+  }
+  if (data.paymentLink !== undefined) {
+    data.paymentLink = normalizeLink(data.paymentLink);
+    data.paymentQr = data.paymentLink ? await qrcode.toDataURL(data.paymentLink, { margin: 1, width: 240 }) : '';
+  }
+  for (const key of Object.keys(data)) if (data[key] === undefined) delete data[key];
+  return data;
+};
+
+module.exports = { sanitizeCompany, ACCOUNT_PROVIDERS };

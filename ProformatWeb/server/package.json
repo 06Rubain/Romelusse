@@ -1,23 +1,34 @@
 {
-  "name": "server",
+  "name": "proformat-server",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "test": "NODE_ENV=test node --test --test-concurrency=1 test/*.test.js",
+    "migrate": "node scripts/migrate.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "API ERP Mélanine Print (facturation, clients, stock, dépenses, rapports)",
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-rate-limit": "^8.5.2",
-    "firebase-admin": "^13.10.0",
     "helmet": "^8.2.0",
+    "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.7.3",
     "otplib": "^13.4.1",
     "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "^11.3.0",
+    "supertest": "^7.3.1"
+  },
+  "engines": {
+    "node": "22.x"
   }
 }
