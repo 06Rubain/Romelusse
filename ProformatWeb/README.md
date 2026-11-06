@@ -53,6 +53,7 @@ qu'une entreprise ne peut ni lire ni modifier les données d'une autre.
 |---|---|
 | **Tableau de bord** | CA facturé et encaissé, créances et retards, résultat, graphique sur 12 mois, alertes de stock |
 | **Factures & proformas** | Modèle imprimable A4/A5/A6 au logo, aux couleurs et aux coordonnées de l'entreprise, remise, échéance, conversion proforma → facture, annulation, export CSV |
+| **Bons de livraison** | Créés depuis une facture ou un bon de commande (bouton « Bon de livraison ») ou en livraison libre : numéro `BL-AAAA-0001`, quantités commandées / livrées (livraisons partielles : le reste à livrer est proposé ensuite, jamais dépassé), lieu, livreur, réceptionnaire, signatures. Modèle imprimable aux couleurs de l'entreprise (en-tête dégradé, tableau Désignation / Quantités commandées / Quantités livrées, bandeau de bas de page). Liste dans *Ventes → Bons de livraison* ; annulation possible (les quantités redeviennent à livrer) |
 | **Bons de commande** | Commande d'un client numérotée `BC-AAAA-0001`, au même modèle (titre « BON DE COMMANDE N° » personnalisable dans le modèle importé), modifiable tant qu'elle est en attente, sans effet sur le stock ni encaissement ; « Commande confirmée » la transforme en facture |
 | **Encaissements** | Paiements partiels ou totaux, statut automatique, journal exportable |
 | **Clients** | Fiches, solde dû par devise, historique |

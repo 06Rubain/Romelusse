@@ -1,9 +1,6 @@
 import { Suspense, useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import {
-  BarChart3, FileText, Users, Package, Wallet, Receipt, PieChart, UserCog, Settings as SettingsIcon,
-  History, LogOut, Menu, X, FilePlus2, ShieldCheck, Building2, LayoutTemplate, Search, Home, Plus, PiggyBank, CalendarDays,
-} from 'lucide-react';
+import { BarChart3, Building2, CalendarDays, FilePlus2, FileText, History, Home, LayoutTemplate, LogOut, Menu, Package, PieChart, PiggyBank, Plus, Receipt, Search, Settings as SettingsIcon, ShieldCheck, Truck, UserCog, Users, Wallet, X } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import ThemeToggle from './ThemeToggle';
 import { PageLoader } from './ui';
@@ -25,6 +22,7 @@ const COMPANY_SECTIONS: { title: string; items: NavItem[] }[] = [
   { title: 'Ventes', items: [
     { to: '/invoice', label: 'Nouveau document', icon: FilePlus2, permissions: ['invoices.create'] },
     { to: '/invoices', label: 'Factures & proformas', icon: FileText },
+    { to: '/deliveries', label: 'Bons de livraison', icon: Truck },
     { to: '/clients', label: 'Clients', icon: Users },
   ] },
   { title: 'Opérations', items: [

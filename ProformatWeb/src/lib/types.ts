@@ -299,6 +299,13 @@ export const ZONE_LABELS: Record<ZoneKey, string> = {
 };
 
 // Moyens de paiement proposés pour le lien de paiement en ligne (ex. FlexPaie)
+export interface DeliveryLine { name: string; ordered: number; delivered: number; source?: number | null }
+export interface DeliveryNote {
+  _id: string; number: string; invoice: string | null; invoiceNumber: string; client: string; clientActivity: string;
+  deliveryAddress: string; date: string; lines: DeliveryLine[]; deliveredBy: string; receivedBy: string; notes: string;
+  status: 'Livré' | 'Annulé'; createdBy: string; createdAt: string;
+}
+
 export type CheckoutMode = 'off' | 'demo' | 'live';
 export type AccountProvider = 'M-Pesa' | 'Orange Money' | 'Airtel Money' | 'Africell Money' | 'Banque' | 'Autre';
 export const ACCOUNT_PROVIDERS: AccountProvider[] = ['M-Pesa', 'Orange Money', 'Airtel Money', 'Africell Money', 'Banque', 'Autre'];

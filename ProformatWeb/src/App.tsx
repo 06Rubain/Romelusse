@@ -30,6 +30,8 @@ import Dashboard from './pages/Dashboard';
 const Invoices = page(() => import('./pages/Invoices'));
 const InvoiceGenerator = page(() => import('./pages/InvoiceGenerator'));
 const Payments = page(() => import('./pages/Payments'));
+const Deliveries = page(() => import('./pages/Deliveries'));
+const DeliveryNotePage = page(() => import('./pages/DeliveryNote'));
 const Clients = page(() => import('./pages/Clients'));
 const ProductsList = page(() => import('./pages/ProductsList'));
 const Expenses = page(() => import('./pages/Expenses'));
@@ -79,10 +81,13 @@ function App() {
                   <Route path="/invoices" element={<Invoices />} />
                   <Route path="/invoice/:id" element={<InvoiceGenerator />} />
                   <Route path="/payments" element={<Payments />} />
+                  <Route path="/deliveries" element={<Deliveries />} />
+                  <Route path="/delivery/:id" element={<DeliveryNotePage />} />
                   <Route path="/clients" element={<Clients />} />
                   <Route path="/products" element={<ProductsList />} />
                   <Route element={<ProtectedRoute permissions={['invoices.create']} />}>
                     <Route path="/invoice" element={<InvoiceGenerator />} />
+                    <Route path="/delivery/new" element={<DeliveryNotePage />} />
                   </Route>
                   <Route element={<ProtectedRoute permissions={['payments.create', 'expenses.manage', 'reports.view']} />}>
                     <Route path="/treasury" element={<Treasury />} />

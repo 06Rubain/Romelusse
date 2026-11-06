@@ -2,6 +2,7 @@ const Invoice = require('../models/Invoice');
 const Payment = require('../models/Payment');
 const PaymentNotice = require('../models/PaymentNotice');
 const OnlinePayment = require('../models/OnlinePayment');
+const DeliveryNote = require('../models/DeliveryNote');
 const Counter = require('../models/Counter');
 const Expense = require('../models/Expense');
 const CashMovement = require('../models/CashMovement');
@@ -13,7 +14,7 @@ const { HttpError, escapeRegex } = require('./helpers');
 
 // Ce que l'on peut effacer ; l'entreprise, ses utilisateurs, ses rôles, son logo et son modèle sont toujours conservés
 const SCOPES = {
-  sales: 'Factures, proformas et encaissements (la numérotation repart à 0001)',
+  sales: 'Factures, proformas, bons de commande et de livraison, encaissements (la numérotation repart à 0001)',
   money: 'Dépenses et mouvements de trésorerie',
   clients: 'Clients',
   products: 'Produits et mouvements de stock',
@@ -38,6 +39,7 @@ const resetCompanyData = async (company, { scopes, confirm }) => {
     await remove('payments', Payment);
     await remove('paymentNotices', PaymentNotice);
     await remove('onlinePayments', OnlinePayment);
+    await remove('deliveryNotes', DeliveryNote);
     await remove('counters', Counter, { _id: { $regex: `^${escapeRegex(String(company._id))}:` } });
   }
   if (chosen.includes('money')) {

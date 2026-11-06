@@ -29,4 +29,22 @@ const peekInvoiceNumber = async (companyId, type, date = new Date()) => {
   return `${label}-${String((counter?.seq || 0) + 1).padStart(4, '0')}`;
 };
 
-module.exports = { nextInvoiceNumber, peekInvoiceNumber };
+// Bons de livraison : BL-2026-0001, séquence propre par entreprise et par année
+const nextDeliveryNumber = async (companyId, date = new Date()) => {
+  const DeliveryNote = require('../models/DeliveryNote');
+  const label = `BL-${date.getFullYear()}`;
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const counter = await Counter.findOneAndUpdate({ _id: `${companyId}:${label}` }, { $inc: { seq: 1 } }, { returnDocument: 'after', upsert: true });
+    const number = `${label}-${String(counter.seq).padStart(4, '0')}`;
+    if (!(await DeliveryNote.exists({ company: companyId, number }))) return number;
+  }
+  throw new Error('Impossible de générer un numéro de bon de livraison unique.');
+};
+
+const peekDeliveryNumber = async (companyId, date = new Date()) => {
+  const label = `BL-${date.getFullYear()}`;
+  const counter = await Counter.findById(`${companyId}:${label}`);
+  return `${label}-${String((counter?.seq || 0) + 1).padStart(4, '0')}`;
+};
+
+module.exports = { nextInvoiceNumber, peekInvoiceNumber, nextDeliveryNumber, peekDeliveryNumber };

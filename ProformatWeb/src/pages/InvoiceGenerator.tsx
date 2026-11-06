@@ -11,6 +11,7 @@ import { Alert, Field, StatusBadge } from '../components/ui';
 import InvoiceDocument from '../components/InvoiceDocument';
 import TemplateDocument from '../components/TemplateDocument';
 import PaymentNotices from '../components/PaymentNotices';
+import InvoiceDeliveries from '../components/InvoiceDeliveries';
 import { useFetch } from '../lib/useFetch';
 import PaymentModal from '../components/PaymentModal';
 
@@ -179,6 +180,9 @@ export default function InvoiceGenerator() {
           }}><Link2 size={15} /> Copier le lien client</button>
           <a className="btn btn-ghost btn-sm" href={clientPageUrl(invoice)} target="_blank" rel="noreferrer"><ExternalLink size={15} /> Voir la page client</a>
         </div>
+      )}
+      {invoice.type !== 'Proforma' && !['Annulée', 'Convertie'].includes(invoice.status) && (
+        <InvoiceDeliveries invoiceId={invoice._id} canCreate={can('invoices.create')} />
       )}
       {can('invoices.create') && <button className="btn btn-ghost btn-block" onClick={duplicate}><Copy size={18} /> Refaire un document identique</button>}
     </>
