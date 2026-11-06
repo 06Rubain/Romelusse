@@ -249,7 +249,8 @@ aussi disponible via `npm --prefix server run migrate`.
 
 | Variable | Obligatoire | Description |
 |---|:-:|---|
-| `MONGODB_URI` | ✅ | Chaîne de connexion MongoDB (Atlas : autoriser `0.0.0.0/0` dans Network Access pour Vercel) |
+| `MONGODB_URI` | ✅ | Chaîne de connexion MongoDB (Atlas : autoriser `0.0.0.0/0` dans Network Access pour Vercel). Sans nom de base dans l'adresse (adresse copiée telle quelle depuis Atlas), la base `proformat` est utilisée |
+| `MONGODB_DB` | | Nom de la base à utiliser à la place de celui de l'adresse (par défaut : celui de l'adresse, sinon `proformat`) |
 | `OMNICOM_ADMIN_PASSWORD` | ✅ au premier démarrage | Crée automatiquement le compte administrateur OmniCom (8 caractères minimum). Jamais écrasé ensuite : changez le mot de passe dans l'application |
 | `OMNICOM_ADMIN_EMAIL` | | E-mail de ce compte (défaut `mpunantitarubain@gmail.com`) ; un ancien compte portant cet e-mail devient le compte OmniCom |
 | `JWT_SECRET` | | Secret des sessions ; s'il est absent, il est dérivé de `MONGODB_URI` |
